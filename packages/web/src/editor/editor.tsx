@@ -10,7 +10,6 @@ import { Palette } from "./palette/palette.tsx";
 import { ConnectFlow } from "./connect-flow/connect-flow.tsx";
 import { useKeyboardShortcuts, setPrintFn } from "../lib/keyboard.ts";
 import { useEditorV2Store } from "../store/editor-store.ts";
-import { usePrinterStore } from "../store/printer-store.ts";
 import { getPrinter } from "../hooks/use-web-bluetooth.ts";
 import type { RawImageData } from "@thermoprint/core";
 
@@ -82,8 +81,7 @@ export function Editor() {
     // Need both a connected printer and a stage to print for real
     if (!printer || !stage) return false;
 
-    const { label } = useEditorV2Store.getState();
-    const settings = usePrinterStore.getState().settings;
+    const { label, printSettings, paperType } = useEditorV2Store.getState();
 
     // Deselect to avoid selection handles in the capture
     useEditorV2Store.getState().clearSelection();
@@ -112,11 +110,11 @@ export function Editor() {
     try {
       // Send to the real printer
       await printer.print(imageData, {
-        density: settings.density,
-        paperType: settings.paperType,
+        density: printSettings.density,
+        paperType,
         copies,
-        dither: settings.ditherMode as "floyd-steinberg" | "threshold" | "none",
-        threshold: settings.threshold,
+        dither: printSettings.ditherMode as "floyd-steinberg" | "threshold" | "none",
+        threshold: printSettings.threshold,
       });
     } finally {
       printer.off("progress", offProgress);
