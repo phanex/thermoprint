@@ -200,10 +200,30 @@ export function IconsFlyout({
         searchResults.collections[prefix]?.name ||
         prefix;
 
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise((resolve) => {
+        img.onload = resolve;
+        img.onerror = resolve;
+      });
+
+      const maxW = Math.min(200, label.widthPx * 0.8);
+      const maxH = Math.min(200, label.heightPx * 0.8);
+      let w = img.naturalWidth || 64;
+      let h = img.naturalHeight || 64;
+
+      if (w > maxW || h > maxH) {
+        const ratio = Math.min(maxW / w, maxH / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+
       if (targetElementId) {
         const targetEl = elements.find((e) => e.id === targetElementId);
         if (targetEl) {
           updateElement(targetElementId, {
+            width: w,
+            height: h,
             props: {
               ...targetEl.props,
               src: dataUrl,
@@ -214,24 +234,6 @@ export function IconsFlyout({
           });
         }
       } else {
-        const img = new Image();
-        img.src = dataUrl;
-        await new Promise((resolve) => {
-          img.onload = resolve;
-          img.onerror = resolve;
-        });
-
-        const maxW = Math.min(100, label.widthPx * 0.5);
-        const maxH = Math.min(100, label.heightPx * 0.5);
-        let w = img.naturalWidth || 64;
-        let h = img.naturalHeight || 64;
-
-        if (w > maxW || h > maxH) {
-          const ratio = Math.min(maxW / w, maxH / h);
-          w = Math.round(w * ratio);
-          h = Math.round(h * ratio);
-        }
-
         addElement({
           id: uid(),
           type: "image",

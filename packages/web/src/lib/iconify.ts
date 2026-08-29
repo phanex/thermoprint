@@ -229,12 +229,16 @@ export async function fetchCollectionDetails(
   }
 }
 
-export async function fetchIconAsBlackDataUrl(iconName: string): Promise<string> {
+export async function fetchIconWithColorDataUrl(
+  iconName: string,
+  colorHex = "#000000"
+): Promise<string> {
   const cleanName = iconName.includes(":")
     ? iconName.replace(":", "/")
     : iconName;
 
-  const url = `https://api.iconify.design/${cleanName}.svg?color=%23000000`;
+  const targetColor = colorHex || "#000000";
+  const url = `https://api.iconify.design/${cleanName}.svg?color=${encodeURIComponent(targetColor)}`;
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to fetch SVG for ${iconName}`);
@@ -242,14 +246,27 @@ export async function fetchIconAsBlackDataUrl(iconName: string): Promise<string>
 
   let svgText = await res.text();
 
+  // Ensure explicit 512x512 dimensions for browser naturalWidth calculation
+  if (!svgText.includes('width=')) {
+    svgText = svgText.replace('<svg', '<svg width="512" height="512"');
+  } else {
+    svgText = svgText
+      .replace(/width="[^"]*"/i, 'width="512"')
+      .replace(/height="[^"]*"/i, 'height="512"');
+  }
+
   svgText = svgText
-    .replace(/currentColor/gi, "#000000")
+    .replace(/currentColor/gi, targetColor)
     .replace(/fill="none"/gi, 'fill="none"')
-    .replace(/fill="(?!none)[^"]*"/gi, 'fill="#000000"');
+    .replace(/fill="(?!none)[^"]*"/gi, `fill="${targetColor}"`);
 
   if (!svgText.includes('fill=') && !svgText.includes('stroke=')) {
-    svgText = svgText.replace('<svg', '<svg fill="#000000"');
+    svgText = svgText.replace('<svg', `<svg fill="${targetColor}"`);
   }
 
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgText)}`;
+}
+
+export async function fetchIconAsBlackDataUrl(iconName: string): Promise<string> {
+  return fetchIconWithColorDataUrl(iconName, "#000000");
 }
