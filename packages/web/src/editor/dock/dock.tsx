@@ -10,6 +10,7 @@ import {
   Folder,
   Settings,
   MoreHorizontal,
+  CalendarClock,
 } from "lucide-react";
 import { DockBtn } from "./dock-btn.tsx";
 import { DockGroup } from "./dock-group.tsx";
@@ -22,6 +23,7 @@ import {
   addImageEl,
   addRectEl,
   addLineEl,
+  addDateEl,
 } from "../../lib/keyboard.ts";
 import { LayersFlyout } from "./flyouts/layers-flyout.tsx";
 import { LibraryFlyout } from "./flyouts/library-flyout.tsx";
@@ -78,6 +80,7 @@ export function Dock() {
               { icon: ImageIcon, label: "Image", fn: addImageEl },
               { icon: Square, label: "Rectangle", fn: addRectEl },
               { icon: Minus, label: "Line", fn: addLineEl },
+              { icon: CalendarClock, label: "Date", fn: addDateEl },
             ].map((t) => (
               <button
                 key={t.label}
@@ -113,6 +116,7 @@ export function Dock() {
                 <DockBtn icon={ImageIcon} label="Image" shortcut="I" onClick={addImageEl} />
                 <DockBtn icon={Square} label="Rect" shortcut="R" onClick={addRectEl} />
                 <DockBtn icon={Minus} label="Line" shortcut="L" onClick={addLineEl} />
+                <DockBtn icon={CalendarClock} label="Date" shortcut="D" onClick={addDateEl} />
               </DockGroup>
               <DockDivider />
             </div>
