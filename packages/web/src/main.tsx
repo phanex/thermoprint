@@ -4,7 +4,6 @@ import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
-// @ts-expect-error — fontsource variable font CSS import
 import "@fontsource-variable/jetbrains-mono";
 import "./index.css";
 import { App } from "./App.tsx";
