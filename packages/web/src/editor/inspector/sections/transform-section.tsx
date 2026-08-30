@@ -1,6 +1,7 @@
 import {
   AlignHorizontalJustifyCenter,
   AlignVerticalJustifyCenter,
+  Focus,
   Maximize,
 } from "lucide-react";
 import type { BaseElement } from "../../../store/editor-store.ts";
@@ -102,10 +103,10 @@ export function TransformSection({ element }: Props) {
           </button>
           <button
             onClick={alignBoth}
-            className="flex-1 h-7 rounded-md bg-ink-800 border border-white/5 hover:bg-ink-750 text-ui-xs font-mono text-ink-300 hover:text-ink-100"
+            className="flex-1 h-7 rounded-md bg-ink-800 border border-white/5 hover:bg-ink-750 text-ink-300 hover:text-ink-100 flex items-center justify-center"
             title="Center both"
           >
-            CTR
+            <Focus size={14} />
           </button>
           <button
             onClick={fitToLabel}
