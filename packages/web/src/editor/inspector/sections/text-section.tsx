@@ -75,7 +75,7 @@ export function TextSection({ element }: Props) {
   return (
     <Section title={isDate ? "Date" : "Text"}>
       <Field label="Content">
-        <div title={isDate ? `Format codes:\nDD = day, MM = month, YYYY = year, HH:mm = time\nMMMM = month name, dddd = weekday name\nFuture dates: add +days (e.g. DD+7, MM+1, YYYY+1)` : undefined}>
+        <div title={isDate ? `Format codes:\nDD = day, MM = month, YYYY, YY = year, HH:mm = time\nMMMM, MMM = month name, dddd, ddd = weekday name\nFuture dates: add +days (e.g. DD+7, MM+1, YYYY+1)` : undefined}>
           <TextInput
             value={p.text || ""}
             onChange={(v) => update({ text: v })}
