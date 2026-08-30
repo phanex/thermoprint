@@ -51,7 +51,7 @@ export function TextSection({ element }: Props) {
 
   const isDate = !!p.datePreset;
 
-  // Compute which preset matches current text (auto-switch to Custom if edited)
+  // Compute which preset matches the current text (auto-switch to Custom if edited)
   const activePreset: DatePreset = (() => {
     if (!p.datePreset) return "date";
     const text = p.text || "";
@@ -63,11 +63,12 @@ export function TextSection({ element }: Props) {
 
   const handlePresetChange = (v: string) => {
     const preset = v as DatePreset;
-    if (preset === "custom") return; // Computed
+    if (preset === "custom") return; // Can't select custom — it's computed
     update({ datePreset: preset, text: PRESET_FORMATS[preset] });
   };
 
   const handleRefresh = () => {
+    // Force canvas re-render with current timestamp
     update({ _ts: Date.now() });
   };
 
@@ -128,109 +129,88 @@ export function TextSection({ element }: Props) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2 mt-2">
+      <div className="grid grid-cols-2 gap-1.5 mt-1.5">
         <Field label="Size" mono>
           <NumInput
             value={p.fontSize || 18}
             onChange={(v) => update({ fontSize: v })}
             suffix="px"
-            min={6}
-            max={200}
           />
         </Field>
         <Field label="Track" mono>
           <NumInput
-            value={p.letterSpacing ?? 0}
+            value={p.letterSpacing || 0}
             onChange={(v) => update({ letterSpacing: v })}
             suffix="px"
             step={0.1}
-            min={-20}
-            max={50}
           />
         </Field>
       </div>
-
-      <div className="mt-2 space-y-1.5">
+      <div className="mt-1.5">
         <Field label="Font">
           <Select
             value={p.fontFamily || "Inter"}
             onChange={(v) => update({ fontFamily: v })}
             options={[
               { value: "Inter", label: "Inter" },
-              { value: "Roboto", label: "Roboto" },
-              { value: "Roboto Condensed", label: "Roboto Condensed" },
-              { value: "Roboto Slab", label: "Roboto Slab" },
-              { value: "Montserrat", label: "Montserrat" },
-              { value: "Oswald", label: "Oswald" },
-              { value: "Georgia", label: "Georgia" },
-              { value: "Merriweather", label: "Merriweather" },
-              { value: "Fira Code", label: "Fira Code" },
               { value: "JetBrains Mono", label: "JetBrains Mono" },
-              { value: "Rubik", label: "Rubik" },
-              { value: "Unbounded", label: "Unbounded" },
-              { value: "Yanone Kaffeesatz", label: "Yanone Kaffeesatz" },
-              { value: "Cuprum", label: "Cuprum" },
-              { value: "Neucha", label: "Neucha" },
-              { value: "Days One", label: "Days One" },
-              { value: "Caveat", label: "Caveat" },
-              { value: "Pacifico", label: "Pacifico" },
-              { value: "Lobster", label: "Lobster" },
+              { value: "Arial", label: "Arial" },
+              { value: "Georgia", label: "Georgia" },
+              { value: "Courier New", label: "Courier New" },
             ]}
           />
         </Field>
-
-        <div className="flex gap-1.5">
-          <SegGroup>
-            <SegBtn
-              active={(p.fontWeight || 400) >= 600}
-              onClick={() =>
-                update({ fontWeight: (p.fontWeight || 400) >= 600 ? 400 : 700 })
-              }
-              title="Bold"
-            >
-              <Bold size={14} />
-            </SegBtn>
-            <SegBtn
-              active={!!p.italic}
-              onClick={() => update({ italic: !p.italic })}
-              title="Italic"
-            >
-              <Italic size={14} />
-            </SegBtn>
-          </SegGroup>
-          <SegGroup>
-            <SegBtn
-              active={!!p.uppercase}
-              onClick={() => update({ uppercase: !p.uppercase })}
-              title="All Caps (TT)"
-            >
-              <span className="font-bold text-[11px] font-mono leading-none px-1">TT</span>
-            </SegBtn>
-          </SegGroup>
-          <SegGroup>
-            <SegBtn
-              active={p.align === "left" || !p.align}
-              onClick={() => update({ align: "left" })}
-            >
-              <AlignLeft size={14} />
-            </SegBtn>
-            <SegBtn
-              active={p.align === "center"}
-              onClick={() => update({ align: "center" })}
-            >
-              <AlignCenter size={14} />
-            </SegBtn>
-            <SegBtn
-              active={p.align === "right"}
-              onClick={() => update({ align: "right" })}
-            >
-              <AlignRight size={14} />
-            </SegBtn>
-          </SegGroup>
-        </div>
       </div>
-
-      <div className="mt-2">
+      <div className="mt-1.5 flex gap-1.5">
+        <SegGroup>
+          <SegBtn
+            active={(p.fontWeight || 400) >= 600}
+            onClick={() =>
+              update({ fontWeight: (p.fontWeight || 400) >= 600 ? 400 : 700 })
+            }
+            title="Bold"
+          >
+            <Bold size={14} />
+          </SegBtn>
+          <SegBtn
+            active={!!p.italic}
+            onClick={() => update({ italic: !p.italic })}
+            title="Italic"
+          >
+            <Italic size={14} />
+          </SegBtn>
+        </SegGroup>
+        <SegGroup>
+          <SegBtn
+            active={!!p.uppercase}
+            onClick={() => update({ uppercase: !p.uppercase })}
+            title="All Caps (TT)"
+          >
+            <span className="font-bold text-[11px] font-mono leading-none px-1">TT</span>
+          </SegBtn>
+        </SegGroup>
+        <SegGroup>
+          <SegBtn
+            active={p.align === "left"}
+            onClick={() => update({ align: "left" })}
+          >
+            <AlignLeft size={14} />
+          </SegBtn>
+          <SegBtn
+            active={p.align === "center"}
+            onClick={() => update({ align: "center" })}
+          >
+            <AlignCenter size={14} />
+          </SegBtn>
+          <SegBtn
+            active={p.align === "right"}
+            onClick={() => update({ align: "right" })}
+          >
+            <AlignRight size={14} />
+          </SegBtn>
+        </SegGroup>
+      </div>
+      <div className="mt-1.5">
         <Field label="Color">
           <ColorInput
             value={p.fill || "#000000"}

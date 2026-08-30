@@ -25,13 +25,29 @@ export const PRESET_FORMATS: Record<string, string> = {
   month_year: "MMMM YYYY",
 };
 
-function resolveLocale(locale?: string): string {
-  if (locale && locale !== "auto" && locale !== "") return locale;
-  return navigator?.language ?? "en";
-}
-
 function pad(n: number): string {
   return n < 10 ? `0${n}` : `${n}`;
+}
+
+/**
+ * Safely format locale-dependent tokens without crashing on incomplete/invalid locale strings (e.g. while user is typing "u" or "a").
+ */
+function formatLocaleToken(
+  locale: string | undefined,
+  options: Intl.DateTimeFormatOptions,
+  date: Date,
+): string {
+  const primary = locale && locale !== "auto" && locale.trim() ? locale.trim() : (navigator?.language ?? "en");
+  try {
+    return new Intl.DateTimeFormat(primary, options).format(date);
+  } catch {
+    const fallback = navigator?.language ?? "en";
+    try {
+      return new Intl.DateTimeFormat(fallback, options).format(date);
+    } catch {
+      return new Intl.DateTimeFormat("en", options).format(date);
+    }
+  }
 }
 
 type OffsetUnit = "day" | "month" | "year" | "hour" | "minute" | "second";
@@ -42,12 +58,13 @@ type OffsetUnit = "day" | "month" | "year" | "hour" | "minute" | "second";
  */
 function computeShiftedDate(template: string, base: Date): Date {
   const d = new Date(base);
-  // Scan for all offset expressions
   const offsetRegex = /(?:MMMM|MMM|dddd|ddd|YYYY|YY|DD|MM|HH|mm|ss)([+-]\d+)/g;
   let match: RegExpExecArray | null;
   while ((match = offsetRegex.exec(template)) !== null) {
     const token = match[0].replace(match[1], "");
     const offset = parseInt(match[1], 10);
+    if (isNaN(offset)) continue;
+
     let unit: OffsetUnit = "day";
     if (token === "YYYY" || token === "YY") unit = "year";
     else if (token === "MMMM" || token === "MMM" || token === "MM") unit = "month";
@@ -100,8 +117,6 @@ export function evaluateFormatTemplate(
   date: Date = new Date(),
   locale?: string,
 ): string {
-  const loc = resolveLocale(locale);
-
   // 1. Compute shifted date from any offsets in the template
   const d = computeShiftedDate(template, date);
 
@@ -109,10 +124,10 @@ export function evaluateFormatTemplate(
   let result = stripOffsets(template);
 
   // 3. Replace tokens (longest first to avoid partial matches)
-  result = result.replace(/MMMM/g, new Intl.DateTimeFormat(loc, { month: "long" }).format(d));
-  result = result.replace(/MMM/g, new Intl.DateTimeFormat(loc, { month: "short" }).format(d));
-  result = result.replace(/dddd/g, new Intl.DateTimeFormat(loc, { weekday: "long" }).format(d));
-  result = result.replace(/ddd/g, new Intl.DateTimeFormat(loc, { weekday: "short" }).format(d));
+  result = result.replace(/MMMM/g, formatLocaleToken(locale, { month: "long" }, d));
+  result = result.replace(/MMM/g, formatLocaleToken(locale, { month: "short" }, d));
+  result = result.replace(/dddd/g, formatLocaleToken(locale, { weekday: "long" }, d));
+  result = result.replace(/ddd/g, formatLocaleToken(locale, { weekday: "short" }, d));
   result = result.replace(/YYYY/g, `${d.getFullYear()}`);
   result = result.replace(/YY/g, `${d.getFullYear()}`.slice(-2));
   result = result.replace(/DD/g, pad(d.getDate()));
@@ -135,5 +150,9 @@ export function getDisplayText(
 ): string {
   if (!datePreset) return text;
   if (!text) return text;
-  return evaluateFormatTemplate(text, new Date(), dateLocale);
+  try {
+    return evaluateFormatTemplate(text, new Date(), dateLocale);
+  } catch {
+    return text;
+  }
 }
