@@ -4,6 +4,8 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  RefreshCw,
+  X,
 } from "lucide-react";
 import type { BaseElement } from "../../../store/editor-store.ts";
 import { useEditorV2Store } from "../../../store/editor-store.ts";
@@ -17,6 +19,11 @@ import {
   SegGroup,
   ColorInput,
 } from "../fields.tsx";
+import {
+  type DatePreset,
+  DATE_PRESET_OPTIONS,
+  PRESET_FORMATS,
+} from "../../../lib/date-format.ts";
 
 interface Props {
   element: BaseElement;
@@ -35,16 +42,91 @@ export function TextSection({ element }: Props) {
     align?: string;
     italic?: boolean;
     uppercase?: boolean;
+    datePreset?: DatePreset;
+    dateLocale?: string;
   };
 
   const update = (patch: Record<string, unknown>) =>
     updateElement(element.id, { props: patch });
 
+  const isDate = !!p.datePreset;
+
+  // Compute which preset matches current text (auto-switch to Custom if edited)
+  const activePreset: DatePreset = (() => {
+    if (!p.datePreset) return "date";
+    const text = p.text || "";
+    for (const [key, fmt] of Object.entries(PRESET_FORMATS)) {
+      if (text === fmt) return key as DatePreset;
+    }
+    return "custom";
+  })();
+
+  const handlePresetChange = (v: string) => {
+    const preset = v as DatePreset;
+    if (preset === "custom") return; // Computed
+    update({ datePreset: preset, text: PRESET_FORMATS[preset] });
+  };
+
+  const handleRefresh = () => {
+    update({ _ts: Date.now() });
+  };
+
   return (
-    <Section title="Text">
+    <Section title={isDate ? "Date" : "Text"}>
       <Field label="Content">
-        <TextInput value={p.text || ""} onChange={(v) => update({ text: v })} />
+        <div title={isDate ? `Format codes:\nDD = day, MM = month, YYYY = year, HH:mm = time\nMMMM = month name, dddd = weekday name\nFuture dates: add +days (e.g. DD+7, MM+1, YYYY+1)` : undefined}>
+          <TextInput
+            value={p.text || ""}
+            onChange={(v) => update({ text: v })}
+            placeholder={isDate ? "e.g. DD+7.MM.YYYY" : undefined}
+          />
+        </div>
       </Field>
+
+      {/* Date controls — only shown for date elements */}
+      {isDate && (
+        <div className="mt-1.5 space-y-1.5">
+          <Field label="Preset">
+            <Select
+              value={activePreset}
+              onChange={handlePresetChange}
+              options={DATE_PRESET_OPTIONS}
+            />
+          </Field>
+          <div className="flex gap-1.5 items-center">
+            <div className="flex-1 min-w-0">
+              <Field label="Locale">
+                <div className="relative" title={`Language code: en, uk, de, etc.\nAffects month/day names and date order.`}>
+                  <TextInput
+                    value={p.dateLocale || ""}
+                    onChange={(v) => update({ dateLocale: v || undefined })}
+                    placeholder="auto"
+                  />
+                  {p.dateLocale && (
+                    <button
+                      type="button"
+                      onClick={() => update({ dateLocale: undefined })}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-ink-400 hover:text-ink-100 cursor-pointer"
+                      title="Reset to auto (browser language)"
+                    >
+                      <X size={10} />
+                    </button>
+                  )}
+                </div>
+              </Field>
+            </div>
+            <button
+              type="button"
+              onClick={handleRefresh}
+              className="h-7 px-2.5 rounded-md bg-ink-800 border border-white/5 text-ink-300 hover:text-ink-50 hover:border-white/10 flex items-center gap-1.5 text-ui-xs font-medium cursor-pointer transition-colors shrink-0"
+              title="Re-evaluate all tokens to current date/time"
+            >
+              <RefreshCw size={12} />
+              <span>Refresh Dates</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2 mt-2">
         <Field label="Size" mono>

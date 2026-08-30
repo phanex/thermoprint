@@ -4,6 +4,7 @@ import type Konva from "konva";
 import type { BaseElement } from "../../../store/editor-store.ts";
 import { useEditorV2Store } from "../../../store/editor-store.ts";
 import { ElementWrapper } from "./element-wrapper.tsx";
+import { getDisplayText } from "../../../lib/date-format.ts";
 
 interface Props {
   element: BaseElement;
@@ -28,7 +29,12 @@ export function TextElement({ element, isSelected }: Props) {
     align?: string;
     italic?: boolean;
     uppercase?: boolean;
+    datePreset?: string;
+    dateLocale?: string;
   };
+
+  const evaluated = getDisplayText(p.text || "Text", p.datePreset as any, p.dateLocale);
+  const displayText = p.uppercase ? evaluated.toUpperCase() : evaluated;
 
   const fontStyle =
     [p.italic ? "italic" : "", p.fontWeight && p.fontWeight >= 700 ? "bold" : ""]
@@ -155,7 +161,7 @@ export function TextElement({ element, isSelected }: Props) {
         y={element.y}
         width={element.width}
         rotation={element.rotation}
-        text={p.uppercase ? (p.text || "Text").toUpperCase() : (p.text || "Text")}
+        text={displayText}
         fontSize={p.fontSize || 18}
         fontFamily={p.fontFamily || "Inter"}
         fontStyle={fontStyle}
@@ -190,22 +196,7 @@ export function TextElement({ element, isSelected }: Props) {
           });
         }}
       />
-      {!isEditing && (
-        <ElementWrapper
-          nodeRef={ref}
-          isSelected={isSelected}
-          deps={[
-            p.fontFamily,
-            p.fontSize,
-            p.letterSpacing,
-            p.text,
-            fontStyle,
-            p.uppercase,
-            element.width,
-            element.height,
-          ]}
-        />
-      )}
+      {!isEditing && <ElementWrapper nodeRef={ref} isSelected={isSelected} />}
     </>
   );
 }
