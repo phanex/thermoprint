@@ -116,13 +116,13 @@ export function Dock() {
           <div className="grid grid-cols-4 gap-1 p-2">
             {[
               { icon: Type, label: "Text", fn: addTextEl },
+              { icon: CalendarClock, label: "Date", fn: addDateEl },
               { icon: QrCode, label: "QR Code", fn: addQrEl },
               { icon: Barcode, label: "Barcode", fn: addBarcodeEl },
               { icon: ImageIcon, label: "Image", fn: addImageEl },
               { icon: Sticker, label: "Icons", fn: () => setOpenFlyout("icons") },
               { icon: Square, label: "Rectangle", fn: addRectEl },
               { icon: Minus, label: "Line", fn: addLineEl },
-              { icon: CalendarClock, label: "Date", fn: addDateEl },
             ].map((t) => (
               <button
                 key={t.label}
@@ -156,6 +156,7 @@ export function Dock() {
             <div className="hidden md:contents">
               <DockGroup label="Add">
                 <DockBtn icon={Type} label="Text" shortcut="T" onClick={addTextEl} />
+                <DockBtn icon={CalendarClock} label="Date" shortcut="D" onClick={addDateEl} />
                 <DockBtn icon={QrCode} label="QR" shortcut="Q" onClick={addQrEl} />
                 <DockBtn icon={Barcode} label="Barcode" shortcut="B" onClick={addBarcodeEl} />
                 <DockBtn icon={ImageIcon} label="Image" shortcut="I" onClick={addImageEl} />
@@ -168,7 +169,6 @@ export function Dock() {
                 />
                 <DockBtn icon={Square} label="Rect" shortcut="R" onClick={addRectEl} />
                 <DockBtn icon={Minus} label="Line" shortcut="L" onClick={addLineEl} />
-                <DockBtn icon={CalendarClock} label="Date" shortcut="D" onClick={addDateEl} />
               </DockGroup>
               <DockDivider />
             </div>
