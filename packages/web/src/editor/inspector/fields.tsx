@@ -29,9 +29,9 @@ export function Field({
   children: ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-start gap-2">
       <span
-        className={`text-ui-xs uppercase tracking-wider text-ink-400 shrink-0 ${
+        className={`text-ui-xs uppercase tracking-wider text-ink-400 shrink-0 h-7 flex items-center ${
           mono ? "font-mono" : ""
         }`}
       >

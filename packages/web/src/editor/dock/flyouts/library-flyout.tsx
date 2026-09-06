@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import QRCode from "qrcode";
 import JsBarcode from "jsbarcode";
+import { normalizeBarcodeContent } from "../../../lib/barcode-utils.ts";
 import { useEditorV2Store, type BaseElement } from "../../../store/editor-store.ts";
 import {
   downloadLabelAsJson,
@@ -44,8 +45,9 @@ function useQrDataUrl(content: string, ecl: string): string | null {
 function useBarcodeDataUrl(content: string, format: string): string | null {
   return useMemo(() => {
     try {
+      const safeContent = normalizeBarcodeContent(content || "1234567890", format || "CODE128");
       const canvas = document.createElement("canvas");
-      JsBarcode(canvas, content || "0000", {
+      JsBarcode(canvas, safeContent, {
         format: format || "CODE128",
         displayValue: false,
         margin: 0,
