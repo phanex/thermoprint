@@ -20,8 +20,6 @@ import "@fontsource/montserrat/700.css";
 import "@fontsource/montserrat/700-italic.css";
 import "@fontsource/oswald/400.css";
 import "@fontsource/oswald/700.css";
-import "@fontsource/fira-code/400.css";
-import "@fontsource/fira-code/700.css";
 import "@fontsource/rubik/400.css";
 import "@fontsource/rubik/400-italic.css";
 import "@fontsource/rubik/700.css";

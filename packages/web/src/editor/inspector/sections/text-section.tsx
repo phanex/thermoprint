@@ -160,7 +160,6 @@ export function TextSection({ element }: Props) {
               { value: "Oswald", label: "Oswald" },
               { value: "Georgia", label: "Georgia" },
               { value: "Merriweather", label: "Merriweather" },
-              { value: "Fira Code", label: "Fira Code" },
               { value: "JetBrains Mono", label: "JetBrains Mono" },
               { value: "Rubik", label: "Rubik" },
               { value: "Unbounded", label: "Unbounded" },
