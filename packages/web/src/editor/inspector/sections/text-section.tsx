@@ -153,10 +153,24 @@ export function TextSection({ element }: Props) {
             onChange={(v) => update({ fontFamily: v })}
             options={[
               { value: "Inter", label: "Inter" },
-              { value: "JetBrains Mono", label: "JetBrains Mono" },
-              { value: "Arial", label: "Arial" },
+              { value: "Roboto", label: "Roboto" },
+              { value: "Roboto Condensed", label: "Roboto Condensed" },
+              { value: "Roboto Slab", label: "Roboto Slab" },
+              { value: "Montserrat", label: "Montserrat" },
+              { value: "Oswald", label: "Oswald" },
               { value: "Georgia", label: "Georgia" },
-              { value: "Courier New", label: "Courier New" },
+              { value: "Merriweather", label: "Merriweather" },
+              { value: "Fira Code", label: "Fira Code" },
+              { value: "JetBrains Mono", label: "JetBrains Mono" },
+              { value: "Rubik", label: "Rubik" },
+              { value: "Unbounded", label: "Unbounded" },
+              { value: "Yanone Kaffeesatz", label: "Yanone Kaffeesatz" },
+              { value: "Cuprum", label: "Cuprum" },
+              { value: "Neucha", label: "Neucha" },
+              { value: "Days One", label: "Days One" },
+              { value: "Caveat", label: "Caveat" },
+              { value: "Pacifico", label: "Pacifico" },
+              { value: "Lobster", label: "Lobster" },
             ]}
           />
         </Field>
@@ -191,7 +205,7 @@ export function TextSection({ element }: Props) {
         </SegGroup>
         <SegGroup>
           <SegBtn
-            active={p.align === "left"}
+            active={p.align === "left" || !p.align}
             onClick={() => update({ align: "left" })}
           >
             <AlignLeft size={14} />

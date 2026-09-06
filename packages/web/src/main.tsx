@@ -1,36 +1,59 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "@fontsource/inter/400.css";
+import "@fontsource/inter/400-italic.css";
 import "@fontsource/inter/700.css";
+import "@fontsource/inter/700-italic.css";
 import "@fontsource/roboto/400.css";
+import "@fontsource/roboto/400-italic.css";
 import "@fontsource/roboto/700.css";
+import "@fontsource/roboto/700-italic.css";
 import "@fontsource/roboto-condensed/400.css";
+import "@fontsource/roboto-condensed/400-italic.css";
 import "@fontsource/roboto-condensed/700.css";
+import "@fontsource/roboto-condensed/700-italic.css";
 import "@fontsource/roboto-slab/400.css";
 import "@fontsource/roboto-slab/700.css";
 import "@fontsource/montserrat/400.css";
+import "@fontsource/montserrat/400-italic.css";
 import "@fontsource/montserrat/700.css";
+import "@fontsource/montserrat/700-italic.css";
 import "@fontsource/oswald/400.css";
 import "@fontsource/oswald/700.css";
 import "@fontsource/fira-code/400.css";
 import "@fontsource/fira-code/700.css";
 import "@fontsource/rubik/400.css";
+import "@fontsource/rubik/400-italic.css";
 import "@fontsource/rubik/700.css";
+import "@fontsource/rubik/700-italic.css";
 import "@fontsource/merriweather/400.css";
+import "@fontsource/merriweather/400-italic.css";
 import "@fontsource/merriweather/700.css";
+import "@fontsource/merriweather/700-italic.css";
 import "@fontsource/caveat/400.css";
+import "@fontsource/caveat/700.css";
 import "@fontsource/pacifico/400.css";
 import "@fontsource/lobster/400.css";
 import "@fontsource/unbounded/400.css";
+import "@fontsource/unbounded/700.css";
 import "@fontsource/yanone-kaffeesatz/400.css";
+import "@fontsource/yanone-kaffeesatz/700.css";
 import "@fontsource/cuprum/400.css";
+import "@fontsource/cuprum/400-italic.css";
+import "@fontsource/cuprum/700.css";
+import "@fontsource/cuprum/700-italic.css";
 import "@fontsource/neucha/400.css";
 import "@fontsource/days-one/400.css";
 // @ts-expect-error — fontsource variable font CSS import
 import "@fontsource-variable/jetbrains-mono";
+import "@fontsource-variable/jetbrains-mono/wght-italic.css";
+import Konva from "konva";
 import "./index.css";
 import { App } from "./App.tsx";
 import { useEditorV2Store } from "./store/editor-store.ts";
+
+// Fix Konva 9 text rendering baseline shift with webfonts
+Konva.legacyTextRendering = true;
 
 // Apply saved UI scale before first paint
 {

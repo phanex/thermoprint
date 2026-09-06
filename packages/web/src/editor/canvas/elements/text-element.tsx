@@ -6,6 +6,8 @@ import { useEditorV2Store } from "../../../store/editor-store.ts";
 import { ElementWrapper } from "./element-wrapper.tsx";
 import { getDisplayText } from "../../../lib/date-format.ts";
 
+import { useElementDrag } from "../use-element-drag.ts";
+
 interface Props {
   element: BaseElement;
   isSelected: boolean;
@@ -14,7 +16,8 @@ interface Props {
 export function TextElement({ element, isSelected }: Props) {
   const ref = useRef<Konva.Text>(null);
   const updateElement = useEditorV2Store((s) => s.updateElement);
-  const selectOnly = useEditorV2Store((s) => s.selectOnly);
+  const { handleDragStart, handleDragMove, handleDragEnd, handleClick, handleTap } =
+    useElementDrag(element.id);
   const editingTextId = useEditorV2Store((s) => s.editingTextId);
 
   const isEditing = editingTextId === element.id;
@@ -37,27 +40,63 @@ export function TextElement({ element, isSelected }: Props) {
   const displayText = p.uppercase ? evaluated.toUpperCase() : evaluated;
 
   const fontStyle =
-    [p.italic ? "italic" : "", p.fontWeight && p.fontWeight >= 700 ? "bold" : ""]
+    [p.italic ? "italic" : "", (p.fontWeight || 400) >= 600 ? "bold" : ""]
       .filter(Boolean)
       .join(" ") || "normal";
 
-  // Auto-measure height after font loads
+  // Auto-measure height and re-calculate Konva text metrics on font load
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
-    const measure = () => {
-      if (!ref.current) return;
-      const h = ref.current.height();
-      if (Math.abs(h - element.height) > 1) {
+
+    let cancelled = false;
+
+    const refreshLayout = () => {
+      if (cancelled || !ref.current) return;
+      const n = ref.current;
+      // Force Konva to clear cached lines and recalculate with the loaded font
+      (n as any)._setTextData();
+      const h = Math.ceil(n.height());
+      if (Math.abs(h - element.height) > 0.5) {
         updateElement(element.id, { height: h });
       }
+      n.getLayer()?.batchDraw();
     };
-    document.fonts.load(`16px "${p.fontFamily || "Inter"}"`).then(() => {
-      node.getLayer()?.batchDraw();
-      requestAnimationFrame(measure);
+
+    // 1. Immediate layout calculation
+    refreshLayout();
+
+    // 2. When the requested font is ready, re-run with exact webfont metrics
+    const weight = (p.fontWeight || 400) >= 600 ? "700" : "400";
+    const style = p.italic ? "italic" : "normal";
+    const primaryFamily =
+      p.fontFamily === "JetBrains Mono"
+        ? "JetBrains Mono Variable"
+        : p.fontFamily || "Inter";
+
+    document.fonts.load(`${style} ${weight} 16px "${primaryFamily}"`).then(() => {
+      refreshLayout();
     });
-    requestAnimationFrame(measure);
-  }, [p.text, p.fontSize, p.fontFamily, fontStyle, element.width, element.id, element.height, updateElement]);
+
+    document.fonts.ready.then(() => {
+      refreshLayout();
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    displayText,
+    p.fontSize,
+    p.fontFamily,
+    p.fontWeight,
+    p.italic,
+    p.letterSpacing,
+    element.width,
+    element.id,
+    element.height,
+    updateElement,
+  ]);
 
   const startEditing = useCallback(() => {
     const node = ref.current;
@@ -89,7 +128,10 @@ export function TextElement({ element, isSelected }: Props) {
     textarea.style.boxSizing = "content-box";
     const scaledFontSize = (p.fontSize || 18) * scale.y;
     textarea.style.fontSize = `${scaledFontSize}px`;
-    textarea.style.fontFamily = `'${p.fontFamily || "Inter"}', sans-serif`;
+    textarea.style.fontFamily =
+      p.fontFamily === "JetBrains Mono"
+        ? '"JetBrains Mono Variable", "JetBrains Mono", monospace'
+        : `'${p.fontFamily || "Inter"}', sans-serif`;
     // Match Konva's fontStyle exactly: "normal", "bold", "italic", or "italic bold"
     const isBold = fontStyle.includes("bold");
     const isItalic = fontStyle.includes("italic");
@@ -163,20 +205,24 @@ export function TextElement({ element, isSelected }: Props) {
         rotation={element.rotation}
         text={displayText}
         fontSize={p.fontSize || 18}
-        fontFamily={p.fontFamily || "Inter"}
+        fontFamily={
+          p.fontFamily === "JetBrains Mono"
+            ? '"JetBrains Mono Variable", "JetBrains Mono", monospace'
+            : p.fontFamily || "Inter"
+        }
         fontStyle={fontStyle}
         letterSpacing={p.letterSpacing || 0}
         fill={p.fill || "#000000"}
         align={(p.align as "left" | "center" | "right") || "left"}
         wrap="word"
         draggable={!isEditing}
-        onClick={() => selectOnly([element.id])}
-        onTap={() => selectOnly([element.id])}
+        onClick={handleClick}
+        onTap={handleTap}
+        onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
         onDblClick={startEditing}
         onDblTap={startEditing}
-        onDragEnd={(e) => {
-          updateElement(element.id, { x: e.target.x(), y: e.target.y() });
-        }}
         onTransformEnd={() => {
           const node = ref.current;
           if (!node) return;
@@ -196,7 +242,21 @@ export function TextElement({ element, isSelected }: Props) {
           });
         }}
       />
-      {!isEditing && <ElementWrapper nodeRef={ref} isSelected={isSelected} />}
+      {!isEditing && (
+        <ElementWrapper
+          nodeRef={ref}
+          isSelected={isSelected}
+          deps={[
+            element.width,
+            element.height,
+            displayText,
+            p.fontSize,
+            p.fontFamily,
+            p.fontWeight,
+            p.italic,
+          ]}
+        />
+      )}
     </>
   );
 }
