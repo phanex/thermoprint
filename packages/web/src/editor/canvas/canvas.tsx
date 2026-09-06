@@ -172,7 +172,7 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
     w: number;
     h: number;
   } | null>(null);
-  const marqueeStart = useRef<{ x: number; y: number } | null>(null);
+  const marqueeStart = useRef<{ x: number; y: number; shift?: boolean } | null>(null);
 
   const elements = useEditorV2Store((s) => s.elements);
   const selectedIds = useEditorV2Store((s) => s.selectedIds);
@@ -277,10 +277,12 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
         target === stage || target.attrs.id === "canvas-bg" || target.attrs.id === "label-bg";
 
       if (clickedOnStage) {
-        selectOnly([]);
+        if (!e.evt.shiftKey) {
+          selectOnly([]);
+        }
         const pointer = stage.getPointerPosition();
         if (pointer) {
-          marqueeStart.current = { x: pointer.x, y: pointer.y };
+          marqueeStart.current = { x: pointer.x, y: pointer.y, shift: e.evt.shiftKey };
         }
       }
     },
@@ -338,7 +340,11 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
             );
           })
           .map((el) => el.id);
-        selectOnly(ids);
+        if (marqueeStart.current.shift) {
+          selectOnly([...new Set([...store.selectedIds, ...ids])]);
+        } else {
+          selectOnly(ids);
+        }
       }
       marqueeStart.current = null;
       setMarquee(null);

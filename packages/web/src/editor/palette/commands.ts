@@ -11,8 +11,15 @@ import {
   Redo2,
   Copy,
   Trash2,
+  AlignHorizontalJustifyStart,
   AlignHorizontalJustifyCenter,
+  AlignHorizontalJustifyEnd,
+  AlignVerticalJustifyStart,
   AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+  AlignHorizontalDistributeCenter,
+  AlignVerticalDistributeCenter,
+  Focus,
   Grid3x3,
   Ruler,
   Maximize2,
@@ -63,6 +70,211 @@ function setLabelSize(widthMm: number, heightMm: number) {
   });
 }
 
+function getSelectedElements() {
+  const { selectedIds, elements } = useEditorV2Store.getState();
+  return elements.filter((e) => selectedIds.includes(e.id));
+}
+
+function alignLeft() {
+  const selected = getSelectedElements();
+  if (selected.length === 0) return;
+  const { updateElements } = useEditorV2Store.getState();
+
+  if (selected.length === 1) {
+    updateElements({ [selected[0].id]: { x: 0 } });
+    return;
+  }
+
+  const minX = Math.min(...selected.map((e) => e.x));
+  const patches: Record<string, { x: number }> = {};
+  selected.forEach((el) => {
+    patches[el.id] = { x: minX };
+  });
+  updateElements(patches);
+}
+
+function alignCenterHorizontal() {
+  const selected = getSelectedElements();
+  if (selected.length === 0) return;
+  const { label, updateElements } = useEditorV2Store.getState();
+
+  if (selected.length === 1) {
+    updateElements({
+      [selected[0].id]: { x: Math.round((label.widthPx - selected[0].width) / 2) },
+    });
+    return;
+  }
+
+  const minX = Math.min(...selected.map((e) => e.x));
+  const maxX = Math.max(...selected.map((e) => e.x + e.width));
+  const centerX = (minX + maxX) / 2;
+  const patches: Record<string, { x: number }> = {};
+  selected.forEach((el) => {
+    patches[el.id] = { x: Math.round(centerX - el.width / 2) };
+  });
+  updateElements(patches);
+}
+
+function alignRight() {
+  const selected = getSelectedElements();
+  if (selected.length === 0) return;
+  const { label, updateElements } = useEditorV2Store.getState();
+
+  if (selected.length === 1) {
+    updateElements({
+      [selected[0].id]: { x: label.widthPx - selected[0].width },
+    });
+    return;
+  }
+
+  const maxX = Math.max(...selected.map((e) => e.x + e.width));
+  const patches: Record<string, { x: number }> = {};
+  selected.forEach((el) => {
+    patches[el.id] = { x: maxX - el.width };
+  });
+  updateElements(patches);
+}
+
+function alignTop() {
+  const selected = getSelectedElements();
+  if (selected.length === 0) return;
+  const { updateElements } = useEditorV2Store.getState();
+
+  if (selected.length === 1) {
+    updateElements({ [selected[0].id]: { y: 0 } });
+    return;
+  }
+
+  const minY = Math.min(...selected.map((e) => e.y));
+  const patches: Record<string, { y: number }> = {};
+  selected.forEach((el) => {
+    patches[el.id] = { y: minY };
+  });
+  updateElements(patches);
+}
+
+function alignCenterVertical() {
+  const selected = getSelectedElements();
+  if (selected.length === 0) return;
+  const { label, updateElements } = useEditorV2Store.getState();
+
+  if (selected.length === 1) {
+    updateElements({
+      [selected[0].id]: { y: Math.round((label.heightPx - selected[0].height) / 2) },
+    });
+    return;
+  }
+
+  const minY = Math.min(...selected.map((e) => e.y));
+  const maxY = Math.max(...selected.map((e) => e.y + e.height));
+  const centerY = (minY + maxY) / 2;
+  const patches: Record<string, { y: number }> = {};
+  selected.forEach((el) => {
+    patches[el.id] = { y: Math.round(centerY - el.height / 2) };
+  });
+  updateElements(patches);
+}
+
+function alignBottom() {
+  const selected = getSelectedElements();
+  if (selected.length === 0) return;
+  const { label, updateElements } = useEditorV2Store.getState();
+
+  if (selected.length === 1) {
+    updateElements({
+      [selected[0].id]: { y: label.heightPx - selected[0].height },
+    });
+    return;
+  }
+
+  const maxY = Math.max(...selected.map((e) => e.y + e.height));
+  const patches: Record<string, { y: number }> = {};
+  selected.forEach((el) => {
+    patches[el.id] = { y: maxY - el.height };
+  });
+  updateElements(patches);
+}
+
+function centerOnLabel() {
+  const selected = getSelectedElements();
+  if (selected.length === 0) return;
+  const { label, updateElements } = useEditorV2Store.getState();
+
+  if (selected.length === 1) {
+    updateElements({
+      [selected[0].id]: {
+        x: Math.round((label.widthPx - selected[0].width) / 2),
+        y: Math.round((label.heightPx - selected[0].height) / 2),
+      },
+    });
+    return;
+  }
+
+  const minX = Math.min(...selected.map((e) => e.x));
+  const maxX = Math.max(...selected.map((e) => e.x + e.width));
+  const minY = Math.min(...selected.map((e) => e.y));
+  const maxY = Math.max(...selected.map((e) => e.y + e.height));
+
+  const groupW = maxX - minX;
+  const groupH = maxY - minY;
+  const targetX = Math.round((label.widthPx - groupW) / 2);
+  const targetY = Math.round((label.heightPx - groupH) / 2);
+  const dx = targetX - minX;
+  const dy = targetY - minY;
+
+  const patches: Record<string, { x: number; y: number }> = {};
+  selected.forEach((el) => {
+    patches[el.id] = { x: el.x + dx, y: el.y + dy };
+  });
+  updateElements(patches);
+}
+
+function distributeHorizontal() {
+  const selected = getSelectedElements();
+  if (selected.length < 3) return;
+  const { updateElements } = useEditorV2Store.getState();
+
+  const sorted = [...selected].sort((a, b) => a.x - b.x);
+  const leftmost = sorted[0];
+  const rightmost = sorted[sorted.length - 1];
+
+  const totalElementWidth = sorted.reduce((sum, el) => sum + el.width, 0);
+  const span = rightmost.x + rightmost.width - leftmost.x;
+  const totalGaps = span - totalElementWidth;
+  const gap = totalGaps / (sorted.length - 1);
+
+  const patches: Record<string, { x: number }> = {};
+  let currentX = leftmost.x + leftmost.width + gap;
+  for (let i = 1; i < sorted.length - 1; i++) {
+    patches[sorted[i].id] = { x: Math.round(currentX) };
+    currentX += sorted[i].width + gap;
+  }
+  updateElements(patches);
+}
+
+function distributeVertical() {
+  const selected = getSelectedElements();
+  if (selected.length < 3) return;
+  const { updateElements } = useEditorV2Store.getState();
+
+  const sorted = [...selected].sort((a, b) => a.y - b.y);
+  const topmost = sorted[0];
+  const bottommost = sorted[sorted.length - 1];
+
+  const totalElementHeight = sorted.reduce((sum, el) => sum + el.height, 0);
+  const span = bottommost.y + bottommost.height - topmost.y;
+  const totalGaps = span - totalElementHeight;
+  const gap = totalGaps / (sorted.length - 1);
+
+  const patches: Record<string, { y: number }> = {};
+  let currentY = topmost.y + topmost.height + gap;
+  for (let i = 1; i < sorted.length - 1; i++) {
+    patches[sorted[i].id] = { y: Math.round(currentY) };
+    currentY += sorted[i].height + gap;
+  }
+  updateElements(patches);
+}
+
 export const commands: Command[] = [
   // Insert
   { id: "add-text", label: "Add text element", group: "Insert", icon: Type, shortcut: "T", run: addTextEl },
@@ -81,48 +293,67 @@ export const commands: Command[] = [
 
   // Align
   {
-    id: "center",
-    label: "Center selection on label",
+    id: "align-left",
+    label: "Align left",
     group: "Align",
-    icon: AlignHorizontalJustifyCenter,
-    run: () => {
-      const { selectedIds, elements, label, updateElement } = useEditorV2Store.getState();
-      selectedIds.forEach((id) => {
-        const el = elements.find((e) => e.id === id);
-        if (el) {
-          updateElement(id, {
-            x: Math.round((label.widthPx - el.width) / 2),
-            y: Math.round((label.heightPx - el.height) / 2),
-          });
-        }
-      });
-    },
+    icon: AlignHorizontalJustifyStart,
+    run: alignLeft,
   },
   {
-    id: "center-h",
-    label: "Center horizontally",
+    id: "align-center-h",
+    label: "Align center horizontally",
     group: "Align",
     icon: AlignHorizontalJustifyCenter,
-    run: () => {
-      const { selectedIds, elements, label, updateElement } = useEditorV2Store.getState();
-      selectedIds.forEach((id) => {
-        const el = elements.find((e) => e.id === id);
-        if (el) updateElement(id, { x: Math.round((label.widthPx - el.width) / 2) });
-      });
-    },
+    run: alignCenterHorizontal,
   },
   {
-    id: "center-v",
-    label: "Center vertically",
+    id: "align-right",
+    label: "Align right",
+    group: "Align",
+    icon: AlignHorizontalJustifyEnd,
+    run: alignRight,
+  },
+  {
+    id: "align-top",
+    label: "Align top",
+    group: "Align",
+    icon: AlignVerticalJustifyStart,
+    run: alignTop,
+  },
+  {
+    id: "align-center-v",
+    label: "Align center vertically",
     group: "Align",
     icon: AlignVerticalJustifyCenter,
-    run: () => {
-      const { selectedIds, elements, label, updateElement } = useEditorV2Store.getState();
-      selectedIds.forEach((id) => {
-        const el = elements.find((e) => e.id === id);
-        if (el) updateElement(id, { y: Math.round((label.heightPx - el.height) / 2) });
-      });
-    },
+    run: alignCenterVertical,
+  },
+  {
+    id: "align-bottom",
+    label: "Align bottom",
+    group: "Align",
+    icon: AlignVerticalJustifyEnd,
+    run: alignBottom,
+  },
+  {
+    id: "center-label",
+    label: "Center selection on label",
+    group: "Align",
+    icon: Focus,
+    run: centerOnLabel,
+  },
+  {
+    id: "distribute-h",
+    label: "Distribute horizontally",
+    group: "Align",
+    icon: AlignHorizontalDistributeCenter,
+    run: distributeHorizontal,
+  },
+  {
+    id: "distribute-v",
+    label: "Distribute vertically",
+    group: "Align",
+    icon: AlignVerticalDistributeCenter,
+    run: distributeVertical,
   },
 
   // View

@@ -26,6 +26,7 @@ export function ElementWrapper({ nodeRef, isSelected, deps = [] }: Props) {
   useEffect(() => {
     if (isSelected && trRef.current && nodeRef.current) {
       trRef.current.nodes([nodeRef.current]);
+      trRef.current.forceUpdate();
       trRef.current.getLayer()?.batchDraw();
     }
   }, [isSelected, nodeRef, accent, nodeRef.current, ...deps]);

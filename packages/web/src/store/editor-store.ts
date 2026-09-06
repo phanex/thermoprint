@@ -108,6 +108,7 @@ export interface EditorState {
   // Actions — document
   addElement: (el: BaseElement) => void;
   updateElement: (id: string, patch: Partial<BaseElement>) => void;
+  updateElements: (patches: Record<string, Partial<BaseElement>>) => void;
   updateElementLive: (id: string, patch: Partial<BaseElement>) => void;
   removeSelected: () => void;
   duplicateSelected: () => void;
@@ -411,6 +412,20 @@ export const useEditorV2Store = create<EditorState>()(
                 }
               : e,
           ),
+          currentLabelDirty: true,
+        })),
+
+      updateElements: (patches) =>
+        set((s) => ({
+          elements: s.elements.map((e) => {
+            const patch = patches[e.id];
+            if (!patch) return e;
+            return {
+              ...e,
+              ...patch,
+              props: patch.props ? { ...e.props, ...patch.props } : e.props,
+            };
+          }),
           currentLabelDirty: true,
         })),
 

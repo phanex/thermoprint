@@ -6,6 +6,8 @@ import type { BaseElement } from "../../../store/editor-store.ts";
 import { useEditorV2Store } from "../../../store/editor-store.ts";
 import { ElementWrapper } from "./element-wrapper.tsx";
 
+import { useElementDrag } from "../use-element-drag.ts";
+
 interface Props {
   element: BaseElement;
   isSelected: boolean;
@@ -14,7 +16,8 @@ interface Props {
 export function QrElement({ element, isSelected }: Props) {
   const ref = useRef<Konva.Image>(null);
   const updateElement = useEditorV2Store((s) => s.updateElement);
-  const selectOnly = useEditorV2Store((s) => s.selectOnly);
+  const { handleDragStart, handleDragMove, handleDragEnd, handleClick, handleTap } =
+    useElementDrag(element.id);
 
   const p = element.props as {
     content?: string;
@@ -75,11 +78,11 @@ export function QrElement({ element, isSelected }: Props) {
         rotation={element.rotation}
         image={image}
         draggable
-        onClick={() => selectOnly([element.id])}
-        onTap={() => selectOnly([element.id])}
-        onDragEnd={(e) => {
-          updateElement(element.id, { x: e.target.x(), y: e.target.y() });
-        }}
+        onClick={handleClick}
+        onTap={handleTap}
+        onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
         onTransformEnd={() => {
           const node = ref.current;
           if (!node) return;

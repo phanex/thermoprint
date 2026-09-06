@@ -10,10 +10,12 @@ import {
   ArrowUp,
   ArrowDown,
   Trash2,
+  Layers,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEditorV2Store, type BaseElement } from "../../store/editor-store.ts";
 import { TransformSection } from "./sections/transform-section.tsx";
+import { MultiTransformSection } from "./sections/multi-transform-section.tsx";
 import { TextSection } from "./sections/text-section.tsx";
 import { QrSection } from "./sections/qr-section.tsx";
 import { BarcodeSection } from "./sections/barcode-section.tsx";
@@ -118,9 +120,41 @@ export function Inspector() {
           </div>
         </>
       ) : (
-        <div className="p-4 text-center text-ui-sm text-ink-400">
-          {selected.length} elements selected
-        </div>
+        <>
+          {/* Header for multi-selection */}
+          <div className="flex items-center justify-between px-3 h-9 border-b border-white/5 bg-ink-800/50">
+            <div className="flex items-center gap-2">
+              <Layers size={15} className="text-accent" />
+              <span className="text-ui-base font-semibold text-ink-100">
+                {selected.length} elements selected
+              </span>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={duplicateSelected}
+                className="w-6 h-6 rounded hover:bg-ink-700 text-ink-400 hover:text-ink-100 flex items-center justify-center"
+                title="Duplicate selection (⌘D)"
+              >
+                <Copy size={14} />
+              </button>
+              <button
+                onClick={removeSelected}
+                className="w-6 h-6 rounded hover:bg-red-500/20 text-ink-400 hover:text-red-400 flex items-center justify-center"
+                title="Delete selection (⌫)"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* Sections */}
+          <div
+            className="overflow-y-auto"
+            style={{ maxHeight: "calc(100vh - 230px)" }}
+          >
+            <MultiTransformSection elements={selected} />
+          </div>
+        </>
       )}
     </div>
   );
