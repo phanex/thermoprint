@@ -5,8 +5,24 @@ import type { BaseElement } from "../../../store/editor-store.ts";
 import { useEditorV2Store } from "../../../store/editor-store.ts";
 import { ElementWrapper } from "./element-wrapper.tsx";
 import { getDisplayText } from "../../../lib/date-format.ts";
+import {
+  getPrimaryFontFamily,
+  getFontFamilyStack,
+  preloadFontVariants,
+} from "../../../lib/fonts.ts";
 
 import { useElementDrag } from "../use-element-drag.ts";
+
+const TEXT_ANCHORS = [
+  "top-left",
+  "top-right",
+  "bottom-left",
+  "bottom-right",
+  "middle-left",
+  "middle-right",
+  "top-center",
+  "bottom-center",
+];
 
 interface Props {
   element: BaseElement;
@@ -15,6 +31,10 @@ interface Props {
 
 export function TextElement({ element, isSelected }: Props) {
   const ref = useRef<Konva.Text>(null);
+  const trRef = useRef<Konva.Transformer>(null);
+  const heightRef = useRef(element.height);
+  heightRef.current = element.height;
+
   const updateElement = useEditorV2Store((s) => s.updateElement);
   const { handleDragStart, handleDragMove, handleDragEnd, handleClick, handleTap } =
     useElementDrag(element.id);
@@ -28,6 +48,7 @@ export function TextElement({ element, isSelected }: Props) {
     fontFamily?: string;
     fontWeight?: number;
     letterSpacing?: number;
+    lineHeight?: number;
     fill?: string;
     align?: string;
     italic?: boolean;
@@ -57,30 +78,45 @@ export function TextElement({ element, isSelected }: Props) {
       // Force Konva to clear cached lines and recalculate with the loaded font
       (n as any)._setTextData();
       const h = Math.ceil(n.height());
-      if (Math.abs(h - element.height) > 0.5) {
+      if (Math.abs(h - heightRef.current) > 0.5) {
+        heightRef.current = h;
         updateElement(element.id, { height: h });
       }
       n.getLayer()?.batchDraw();
     };
 
-    // 1. Immediate layout calculation
-    refreshLayout();
-
-    // 2. When the requested font is ready, re-run with exact webfont metrics
     const weight = (p.fontWeight || 400) >= 600 ? "700" : "400";
     const style = p.italic ? "italic" : "normal";
-    const primaryFamily =
-      p.fontFamily === "JetBrains Mono"
-        ? "JetBrains Mono Variable"
-        : p.fontFamily || "Inter";
+    const primaryFamily = getPrimaryFontFamily(p.fontFamily);
+    const fontSpec = `${style} ${weight} 16px "${primaryFamily}"`;
 
-    document.fonts.load(`${style} ${weight} 16px "${primaryFamily}"`).then(() => {
+    let isReady = false;
+    try {
+      isReady = !document.fonts || document.fonts.check(fontSpec);
+    } catch {
+      isReady = true;
+    }
+
+    if (isReady) {
+      // Font is already loaded: measure and update immediately
       refreshLayout();
+    } else {
+      // Font is still loading in browser: do NOT recalculate height prematurely
+      // using fallback font metrics, which causes temporary word wrap and layout twitching.
+      document.fonts
+        .load(fontSpec)
+        .catch(() => {})
+        .finally(() => {
+          if (!cancelled) refreshLayout();
+        });
+    }
+
+    document.fonts?.ready.then(() => {
+      if (!cancelled) refreshLayout();
     });
 
-    document.fonts.ready.then(() => {
-      refreshLayout();
-    });
+    // Preload sibling variants in background so subsequent bold/italic toggles are instant
+    preloadFontVariants(primaryFamily);
 
     return () => {
       cancelled = true;
@@ -92,9 +128,9 @@ export function TextElement({ element, isSelected }: Props) {
     p.fontWeight,
     p.italic,
     p.letterSpacing,
+    p.lineHeight,
     element.width,
     element.id,
-    element.height,
     updateElement,
   ]);
 
@@ -127,11 +163,7 @@ export function TextElement({ element, isSelected }: Props) {
     textarea.style.height = `${element.height * scale.y}px`;
     textarea.style.boxSizing = "content-box";
     const scaledFontSize = (p.fontSize || 18) * scale.y;
-    textarea.style.fontSize = `${scaledFontSize}px`;
-    textarea.style.fontFamily =
-      p.fontFamily === "JetBrains Mono"
-        ? '"JetBrains Mono Variable", "JetBrains Mono", monospace'
-        : `'${p.fontFamily || "Inter"}', sans-serif`;
+    textarea.style.fontFamily = getFontFamilyStack(p.fontFamily);
     // Match Konva's fontStyle exactly: "normal", "bold", "italic", or "italic bold"
     const isBold = fontStyle.includes("bold");
     const isItalic = fontStyle.includes("italic");
@@ -194,6 +226,92 @@ export function TextElement({ element, isSelected }: Props) {
     });
   }, [element, p, updateElement]);
 
+  // Handle transforms:
+  // 1. Side handles (middle-left, middle-right): change text wrap width live (Figma style), scale stays 1.0.
+  // 2. Vertical handles (top-center, bottom-center): scale font size & dimensions proportionally from opposite edge (Phomemo style), scaleX = scaleY.
+  const handleTransform = useCallback(() => {
+    const node = ref.current;
+    const tr = trRef.current;
+    if (!node || !tr) return;
+
+    const anchor = tr.getActiveAnchor();
+    const isSideH = anchor === "middle-left" || anchor === "middle-right";
+    const isSideV = anchor === "top-center" || anchor === "bottom-center";
+
+    if (isSideH) {
+      const scaleX = node.scaleX();
+      const newWidth = Math.max(20, Math.round(node.width() * scaleX));
+      node.setAttrs({
+        width: newWidth,
+        scaleX: 1,
+        scaleY: 1,
+      });
+    } else if (isSideV) {
+      const scale = node.scaleY();
+      node.scaleX(scale);
+
+      const deltaW = element.width * (scale - 1);
+      const align = (p.align as "left" | "center" | "right") || "left";
+      const dxLocal =
+        align === "center"
+          ? -deltaW / 2
+          : align === "right"
+          ? -deltaW
+          : 0;
+
+      const rot = element.rotation || 0;
+      const rad = (rot * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+
+      if (anchor === "bottom-center") {
+        node.x(element.x + dxLocal * cos);
+        node.y(element.y + dxLocal * sin);
+      } else if (anchor === "top-center") {
+        const dyLocal = -element.height * (scale - 1);
+        node.x(element.x + dxLocal * cos - dyLocal * sin);
+        node.y(element.y + dxLocal * sin + dyLocal * cos);
+      }
+    }
+  }, [element.height, element.rotation, element.width, element.x, element.y, p.align]);
+
+  const handleTransformEnd = useCallback(() => {
+    const node = ref.current;
+    if (!node) return;
+
+    const tr = trRef.current;
+    const anchor = tr?.getActiveAnchor();
+    const isSideH = anchor === "middle-left" || anchor === "middle-right";
+
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+    node.scaleX(1);
+    node.scaleY(1);
+
+    if (isSideH) {
+      // Side handle: commit width, height auto-updates
+      updateElement(element.id, {
+        x: Math.round(node.x()),
+        y: Math.round(node.y()),
+        width: Math.max(20, Math.round(node.width())),
+        height: node.height(),
+        rotation: Math.round(node.rotation()),
+      });
+    } else {
+      // Corner handle or vertical handle: proportional font scaling
+      const newFontSize = Math.max(4, Math.round((p.fontSize || 18) * scaleY));
+      const newWidth = Math.max(20, Math.round(node.width() * scaleX));
+      updateElement(element.id, {
+        x: Math.round(node.x()),
+        y: Math.round(node.y()),
+        width: newWidth,
+        height: node.height(),
+        rotation: Math.round(node.rotation()),
+        props: { fontSize: newFontSize },
+      });
+    }
+  }, [element.id, p.fontSize, updateElement]);
+
   return (
     <>
       <Text
@@ -205,13 +323,10 @@ export function TextElement({ element, isSelected }: Props) {
         rotation={element.rotation}
         text={displayText}
         fontSize={p.fontSize || 18}
-        fontFamily={
-          p.fontFamily === "JetBrains Mono"
-            ? '"JetBrains Mono Variable", "JetBrains Mono", monospace'
-            : p.fontFamily || "Inter"
-        }
+        fontFamily={getFontFamilyStack(p.fontFamily)}
         fontStyle={fontStyle}
         letterSpacing={p.letterSpacing || 0}
+        lineHeight={p.lineHeight || 1}
         fill={p.fill || "#000000"}
         align={(p.align as "left" | "center" | "right") || "left"}
         wrap="word"
@@ -223,29 +338,22 @@ export function TextElement({ element, isSelected }: Props) {
         onDragEnd={handleDragEnd}
         onDblClick={startEditing}
         onDblTap={startEditing}
-        onTransformEnd={() => {
-          const node = ref.current;
-          if (!node) return;
-          const scaleX = node.scaleX();
-          const scaleY = node.scaleY();
-          node.scaleX(1);
-          node.scaleY(1);
-          const newFontSize = Math.max(4, Math.round((p.fontSize || 18) * scaleY));
-          const newWidth = Math.max(5, node.width() * scaleX);
-          updateElement(element.id, {
-            x: node.x(),
-            y: node.y(),
-            width: newWidth,
-            height: node.height(),
-            rotation: node.rotation(),
-            props: { fontSize: newFontSize },
-          });
-        }}
+        onTransform={handleTransform}
+        onTransformEnd={handleTransformEnd}
       />
       {!isEditing && (
         <ElementWrapper
           nodeRef={ref}
+          transformerRef={trRef}
           isSelected={isSelected}
+          enabledAnchors={TEXT_ANCHORS}
+          keepRatio={true}
+          boundBoxFunc={(oldBox, newBox) => {
+            if (Math.abs(newBox.width) < 20 || Math.abs(newBox.height) < 10) {
+              return oldBox;
+            }
+            return newBox;
+          }}
           deps={[
             element.width,
             element.height,
@@ -254,6 +362,7 @@ export function TextElement({ element, isSelected }: Props) {
             p.fontFamily,
             p.fontWeight,
             p.italic,
+            p.lineHeight,
           ]}
         />
       )}

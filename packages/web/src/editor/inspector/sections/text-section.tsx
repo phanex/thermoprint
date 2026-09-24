@@ -1,3 +1,4 @@
+import { useState, useEffect, useMemo } from "react";
 import {
   Bold,
   Italic,
@@ -5,6 +6,7 @@ import {
   AlignCenter,
   AlignRight,
   RefreshCw,
+  Laptop,
   X,
 } from "lucide-react";
 import type { BaseElement } from "../../../store/editor-store.ts";
@@ -24,6 +26,14 @@ import {
   DATE_PRESET_OPTIONS,
   PRESET_FORMATS,
 } from "../../../lib/date-format.ts";
+import {
+  groupFonts,
+  fetchSystemFonts,
+  isLocalFontAccessSupported,
+  getCachedSystemFonts,
+  preloadFontVariants,
+  ensureFontLoaded,
+} from "../../../lib/fonts.ts";
 
 interface Props {
   element: BaseElement;
@@ -31,6 +41,22 @@ interface Props {
 
 export function TextSection({ element }: Props) {
   const updateElement = useEditorV2Store((s) => s.updateElement);
+  const [systemFonts, setSystemFonts] = useState<string[]>(() =>
+    getCachedSystemFonts(),
+  );
+  const [loadingFonts, setLoadingFonts] = useState(false);
+
+  const handleLoadSystemFonts = async () => {
+    setLoadingFonts(true);
+    try {
+      const fonts = await fetchSystemFonts(true);
+      setSystemFonts(fonts);
+    } finally {
+      setLoadingFonts(false);
+    }
+  };
+
+  const fontGroups = useMemo(() => groupFonts(systemFonts), [systemFonts]);
 
   const p = element.props as {
     text?: string;
@@ -45,6 +71,10 @@ export function TextSection({ element }: Props) {
     datePreset?: DatePreset;
     dateLocale?: string;
   };
+
+  useEffect(() => {
+    preloadFontVariants(p.fontFamily || "Inter");
+  }, [p.fontFamily]);
 
   const update = (patch: Record<string, unknown>) =>
     updateElement(element.id, { props: patch });
@@ -70,6 +100,24 @@ export function TextSection({ element }: Props) {
   const handleRefresh = () => {
     // Force canvas re-render with current timestamp
     update({ _ts: Date.now() });
+  };
+
+  const handleFontChange = async (v: string) => {
+    preloadFontVariants(v);
+    await ensureFontLoaded(v, p.fontWeight || 400, !!p.italic);
+    update({ fontFamily: v });
+  };
+
+  const handleBoldToggle = async () => {
+    const nextWeight = (p.fontWeight || 400) >= 600 ? 400 : 700;
+    await ensureFontLoaded(p.fontFamily || "Inter", nextWeight, !!p.italic);
+    update({ fontWeight: nextWeight });
+  };
+
+  const handleItalicToggle = async () => {
+    const nextItalic = !p.italic;
+    await ensureFontLoaded(p.fontFamily || "Inter", p.fontWeight || 400, nextItalic);
+    update({ italic: nextItalic });
   };
 
   return (
@@ -129,101 +177,123 @@ export function TextSection({ element }: Props) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-1.5 mt-1.5">
-        <Field label="Size" mono>
-          <NumInput
-            value={p.fontSize || 18}
-            onChange={(v) => update({ fontSize: v })}
-            suffix="px"
-          />
-        </Field>
-        <Field label="Track" mono>
-          <NumInput
-            value={p.letterSpacing || 0}
-            onChange={(v) => update({ letterSpacing: v })}
-            suffix="px"
-            step={0.1}
-          />
-        </Field>
-      </div>
       <div className="mt-1.5">
         <Field label="Font">
-          <Select
-            value={p.fontFamily || "Inter"}
-            onChange={(v) => update({ fontFamily: v })}
-            options={[
-              { value: "Inter", label: "Inter" },
-              { value: "Roboto", label: "Roboto" },
-              { value: "Roboto Condensed", label: "Roboto Condensed" },
-              { value: "Roboto Slab", label: "Roboto Slab" },
-              { value: "Montserrat", label: "Montserrat" },
-              { value: "Oswald", label: "Oswald" },
-              { value: "Georgia", label: "Georgia" },
-              { value: "Merriweather", label: "Merriweather" },
-              { value: "JetBrains Mono", label: "JetBrains Mono" },
-              { value: "Rubik", label: "Rubik" },
-              { value: "Unbounded", label: "Unbounded" },
-              { value: "Yanone Kaffeesatz", label: "Yanone Kaffeesatz" },
-              { value: "Cuprum", label: "Cuprum" },
-              { value: "Neucha", label: "Neucha" },
-              { value: "Days One", label: "Days One" },
-              { value: "Caveat", label: "Caveat" },
-              { value: "Pacifico", label: "Pacifico" },
-              { value: "Lobster", label: "Lobster" },
-            ]}
-          />
+          <div className="space-y-1.5">
+            <Select
+              value={p.fontFamily || "Inter"}
+              onChange={handleFontChange}
+              options={fontGroups}
+              searchable={true}
+              previewFont={true}
+              footer={
+                isLocalFontAccessSupported() ? (
+                  <button
+                    type="button"
+                    onClick={handleLoadSystemFonts}
+                    disabled={loadingFonts}
+                    className="w-full py-1 px-2 rounded-md text-[11px] font-mono text-accent hover:bg-accent/10 flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {loadingFonts ? (
+                      <RefreshCw size={12} className="animate-spin text-accent" />
+                    ) : (
+                      <Laptop size={12} className="text-accent" />
+                    )}
+                    <span>
+                      {loadingFonts
+                        ? "Loading fonts..."
+                        : systemFonts.length > 0
+                        ? `Reload System Fonts (${systemFonts.length})`
+                        : "+ Add System Fonts"}
+                    </span>
+                  </button>
+                ) : null
+              }
+            />
+
+            <div className="flex items-center gap-1.5">
+              <NumInput
+                value={p.fontSize || 18}
+                onChange={(v) => update({ fontSize: v })}
+                suffix="px"
+                min={4}
+                max={999}
+                className="flex-1 min-w-0"
+              />
+              <SegGroup className="shrink-0">
+                <SegBtn
+                  active={(p.fontWeight || 400) >= 600}
+                  onClick={handleBoldToggle}
+                  title="Bold"
+                >
+                  <Bold size={14} />
+                </SegBtn>
+                <SegBtn
+                  active={!!p.italic}
+                  onClick={handleItalicToggle}
+                  title="Italic"
+                >
+                  <Italic size={14} />
+                </SegBtn>
+                <SegBtn
+                  active={!!p.uppercase}
+                  onClick={() => update({ uppercase: !p.uppercase })}
+                  title="All Caps (TT)"
+                >
+                  <span className="font-bold text-[11px] font-mono leading-none px-1">TT</span>
+                </SegBtn>
+              </SegGroup>
+              <SegGroup className="shrink-0">
+                <SegBtn
+                  active={p.align === "left" || !p.align}
+                  onClick={() => update({ align: "left" })}
+                  title="Align Left"
+                >
+                  <AlignLeft size={14} />
+                </SegBtn>
+                <SegBtn
+                  active={p.align === "center"}
+                  onClick={() => update({ align: "center" })}
+                  title="Align Center"
+                >
+                  <AlignCenter size={14} />
+                </SegBtn>
+                <SegBtn
+                  active={p.align === "right"}
+                  onClick={() => update({ align: "right" })}
+                  title="Align Right"
+                >
+                  <AlignRight size={14} />
+                </SegBtn>
+              </SegGroup>
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5">
+              <Field label="Lead" mono>
+                <NumInput
+                  value={p.lineHeight || 1}
+                  onChange={(v) => update({ lineHeight: v })}
+                  step={0.02}
+                  min={0.5}
+                  max={3}
+                />
+              </Field>
+              <Field label="Track" mono>
+                <NumInput
+                  value={p.letterSpacing || 0}
+                  onChange={(v) => update({ letterSpacing: v })}
+                  suffix="px"
+                  step={0.1}
+                />
+              </Field>
+            </div>
+          </div>
         </Field>
       </div>
-      <div className="mt-1.5 flex gap-1.5">
-        <SegGroup>
-          <SegBtn
-            active={(p.fontWeight || 400) >= 600}
-            onClick={() =>
-              update({ fontWeight: (p.fontWeight || 400) >= 600 ? 400 : 700 })
-            }
-            title="Bold"
-          >
-            <Bold size={14} />
-          </SegBtn>
-          <SegBtn
-            active={!!p.italic}
-            onClick={() => update({ italic: !p.italic })}
-            title="Italic"
-          >
-            <Italic size={14} />
-          </SegBtn>
-        </SegGroup>
-        <SegGroup>
-          <SegBtn
-            active={!!p.uppercase}
-            onClick={() => update({ uppercase: !p.uppercase })}
-            title="All Caps (TT)"
-          >
-            <span className="font-bold text-[11px] font-mono leading-none px-1">TT</span>
-          </SegBtn>
-        </SegGroup>
-        <SegGroup>
-          <SegBtn
-            active={p.align === "left" || !p.align}
-            onClick={() => update({ align: "left" })}
-          >
-            <AlignLeft size={14} />
-          </SegBtn>
-          <SegBtn
-            active={p.align === "center"}
-            onClick={() => update({ align: "center" })}
-          >
-            <AlignCenter size={14} />
-          </SegBtn>
-          <SegBtn
-            active={p.align === "right"}
-            onClick={() => update({ align: "right" })}
-          >
-            <AlignRight size={14} />
-          </SegBtn>
-        </SegGroup>
-      </div>
-      <div className="mt-1.5">
+
+      <div className="border-t border-white/5 my-2" />
+
+      <div>
         <Field label="Color">
           <ColorInput
             value={p.fill || "#000000"}

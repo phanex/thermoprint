@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@stoprocent/noble": "^1.15.0",
-    "@thermoprint/core": "workspace:*",
+    "@thermoprint/core": "*",
     "@xmldom/xmldom": "^0.8.11",
     "chalk": "^5.3.0",
     "commander": "^12.1.0",

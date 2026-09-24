@@ -42,16 +42,37 @@ import "@fontsource/cuprum/700.css";
 import "@fontsource/cuprum/700-italic.css";
 import "@fontsource/neucha/400.css";
 import "@fontsource/days-one/400.css";
+import "@fontsource/anonymous-pro/400.css";
+import "@fontsource/anonymous-pro/400-italic.css";
+import "@fontsource/anonymous-pro/700.css";
+import "@fontsource/anonymous-pro/700-italic.css";
+import "@fontsource/lxgw-wenkai-mono-tc/latin.css";
+import "@fontsource/lxgw-wenkai-mono-tc/latin-ext.css";
+import "@fontsource/lxgw-wenkai-mono-tc/latin-700.css";
+import "@fontsource/lxgw-wenkai-mono-tc/latin-ext-700.css";
+import "@fontsource/lxgw-wenkai-mono-tc/cyrillic.css";
+import "@fontsource/lxgw-wenkai-mono-tc/cyrillic-ext.css";
+import "@fontsource/lxgw-wenkai-mono-tc/cyrillic-700.css";
+import "@fontsource/lxgw-wenkai-mono-tc/cyrillic-ext-700.css";
 // @ts-expect-error — fontsource variable font CSS import
 import "@fontsource-variable/jetbrains-mono";
 import "@fontsource-variable/jetbrains-mono/wght-italic.css";
+// @ts-expect-error — fontsource variable font CSS import
+import "@fontsource-variable/nunito";
+import "@fontsource-variable/nunito/wght-italic.css";
 import Konva from "konva";
 import "./index.css";
 import { App } from "./App.tsx";
 import { useEditorV2Store } from "./store/editor-store.ts";
+import { preloadFontVariants } from "./lib/fonts.ts";
 
 // Fix Konva 9 text rendering baseline shift with webfonts
 Konva.legacyTextRendering = true;
+
+// Preload core editor fonts
+preloadFontVariants("Inter");
+preloadFontVariants("JetBrains Mono");
+preloadFontVariants("Anonymous Pro");
 
 // Apply saved UI scale before first paint
 {
