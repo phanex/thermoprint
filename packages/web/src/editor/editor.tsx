@@ -10,7 +10,8 @@ import { Palette } from "./palette/palette.tsx";
 import { ConnectFlow } from "./connect-flow/connect-flow.tsx";
 import { useKeyboardShortcuts, setPrintFn } from "../lib/keyboard.ts";
 import { useEditorV2Store } from "../store/editor-store.ts";
-import { getPrinter } from "../hooks/use-web-bluetooth.ts";
+import { usePrinterStore } from "../store/printer-store.ts";
+import { getPrinter, useWebBluetooth } from "../hooks/use-web-bluetooth.ts";
 import type { RawImageData } from "@thermoprint/core";
 
 function captureLabel(
@@ -74,14 +75,42 @@ export function Editor() {
     return () => window.removeEventListener("beforeunload", h);
   }, []);
 
+  const { connect } = useWebBluetooth();
+
   const print = useCallback(async (copies: number): Promise<boolean> => {
-    const printer = getPrinter();
+    let printer = getPrinter();
+
+    // Silent background reconnect if GATT dropped but we still have a peripheral
+    if (!printer) {
+      const peripheral = usePrinterStore.getState().peripheral;
+      if (peripheral) {
+        try {
+          await connect(peripheral);
+          printer = getPrinter();
+        } catch (err) {
+          console.error("Silent reconnect failed:", err);
+          return false;
+        }
+      }
+    }
+
     const stage = stageRef.current;
 
     // Need both a connected printer and a stage to print for real
     if (!printer || !stage) return false;
 
-    const { label, printSettings, paperType } = useEditorV2Store.getState();
+    const { label, printSettings, paperType, elements } = useEditorV2Store.getState();
+
+    // Re-evaluate live date tokens right before capture to guarantee exact timestamp at print
+    if (elements.some(e => e.type === "text" && ((e.props.text as string)?.includes("[[") || e.props.datePreset))) {
+      useEditorV2Store.setState({
+        elements: elements.map(e => (e.type === "text" && ((e.props.text as string)?.includes("[[") || e.props.datePreset))
+          ? { ...e, props: { ...e.props, _ts: Date.now() } }
+          : e
+        ),
+      });
+      await new Promise(r => setTimeout(r, 20));
+    }
 
     // Deselect to avoid selection handles in the capture
     useEditorV2Store.getState().clearSelection();

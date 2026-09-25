@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { useEditorV2Store, type BaseElement } from "../store/editor-store.ts";
-import { PRESET_FORMATS } from "./date-format.ts";
 
 // Module-level print callback, set by Editor when it mounts
 let _printFn: ((copies: number) => Promise<boolean>) | null = null;
@@ -186,12 +185,12 @@ function addDateEl() {
     id: uid(),
     type: "text",
     x: Math.round(label.widthPx / 2 - 60),
-    y: Math.round(label.heightPx / 2 - 12),
+    y: Math.round(label.heightPx / 2 - 22),
     width: 120,
-    height: 24,
+    height: 44,
     rotation: 0,
     props: {
-      text: PRESET_FORMATS["date"],
+      text: "[[DD.MM.YYYY]]\n[[HH:mm]]",
       fontSize: 18,
       fontFamily: "Inter",
       fontWeight: 400,
@@ -199,7 +198,6 @@ function addDateEl() {
       fill: "#000000",
       align: "center",
       italic: false,
-      datePreset: "date",
     },
   });
 }

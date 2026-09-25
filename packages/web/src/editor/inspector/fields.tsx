@@ -14,15 +14,20 @@ import { getFontFamilyStack } from "../../lib/fonts.ts";
 
 export function Section({
   title,
+  action,
   children,
 }: {
   title: string;
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div className="px-3 py-2.5 border-b border-white/5">
-      <div className="text-ui-2xs font-mono uppercase tracking-[0.12em] text-ink-500 mb-2">
-        {title}
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-ui-2xs font-mono uppercase tracking-[0.12em] text-ink-500">
+          {title}
+        </div>
+        {action}
       </div>
       {children}
     </div>
@@ -32,16 +37,18 @@ export function Section({
 export function Field({
   label,
   mono,
+  title,
   children,
 }: {
   label: string;
   mono?: boolean;
+  title?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-2">
+    <div className="flex items-start gap-1.5" title={title}>
       <span
-        className={`text-ui-xs uppercase tracking-wider text-ink-400 shrink-0 h-7 flex items-center ${
+        className={`text-ui-xs uppercase tracking-wider text-ink-400 shrink-0 h-7 flex items-center cursor-default ${
           mono ? "font-mono" : ""
         }`}
       >
@@ -76,7 +83,8 @@ export function NumInput({
 
   const handleWheel = (e: React.WheelEvent<HTMLInputElement>) => {
     e.preventDefault();
-    const delta = e.deltaY < 0 ? step : -step;
+    const mult = e.shiftKey ? 4 : 1;
+    const delta = (e.deltaY < 0 ? step : -step) * mult;
     let newVal = formatVal((value || 0) + delta);
     if (min !== undefined) newVal = Math.max(min, newVal);
     if (max !== undefined) newVal = Math.min(max, newVal);
@@ -84,14 +92,15 @@ export function NumInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const mult = e.shiftKey ? 4 : 1;
     if (e.key === "ArrowUp") {
       e.preventDefault();
-      let newVal = formatVal((value || 0) + step);
+      let newVal = formatVal((value || 0) + step * mult);
       if (max !== undefined) newVal = Math.min(max, newVal);
       onChange(newVal);
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
-      let newVal = formatVal((value || 0) - step);
+      let newVal = formatVal((value || 0) - step * mult);
       if (min !== undefined) newVal = Math.max(min, newVal);
       onChange(newVal);
     }
@@ -106,7 +115,7 @@ export function NumInput({
       : Number(value.toFixed(decimals));
 
   return (
-    <div className={`flex items-center h-7 rounded-md bg-ink-800 border border-white/5 focus-within:border-accent/50 px-2 gap-2 ${className}`}>
+    <div className={`flex items-center h-7 rounded-md bg-ink-800 border border-white/5 focus-within:border-accent/50 px-2 gap-1 ${className}`}>
       <input
         type="number"
         value={displayVal}
@@ -116,7 +125,7 @@ export function NumInput({
         onWheel={handleWheel}
         onKeyDown={handleKeyDown}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full bg-transparent text-ui-sm text-ink-100 font-mono outline-none tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className="w-full bg-transparent text-ui-sm text-ink-100 font-mono outline-none tabular-nums text-right [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
       {suffix && (
         <span className="text-ui-2xs font-mono text-ink-400 select-none shrink-0">
@@ -170,6 +179,7 @@ export function Select({
   searchable,
   previewFont,
   footer,
+  anchorRef,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -178,6 +188,7 @@ export function Select({
   searchable?: boolean;
   previewFont?: boolean;
   footer?: ReactNode;
+  anchorRef?: React.RefObject<HTMLElement | null>;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -210,16 +221,19 @@ export function Select({
   const updateCoords = useCallback(() => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
+    const anchorRect = anchorRef?.current
+      ? anchorRef.current.getBoundingClientRect()
+      : rect;
     const spaceBelow = window.innerHeight - rect.bottom;
     const popupHeight = 320;
     const placeAbove = spaceBelow < popupHeight && rect.top > spaceBelow;
     setCoords({
-      left: Math.round(rect.left),
+      left: Math.round(anchorRect.left),
       top: Math.round(placeAbove ? rect.top - 4 : rect.bottom + 4),
-      width: Math.round(rect.width),
+      width: Math.round(anchorRect.width),
       placeAbove,
     });
-  }, []);
+  }, [anchorRef]);
 
   // Listeners when open
   useEffect(() => {
@@ -320,14 +334,14 @@ export function Select({
               ...(coords.placeAbove
                 ? { bottom: window.innerHeight - coords.top }
                 : { top: coords.top }),
-              width: Math.max(coords.width, 210),
+              width: coords.width || 210,
               maxHeight: 320,
             }}
             className="z-50 bg-ink-850/98 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100 py-1"
           >
             {/* Font preview — fixed height bare text above search, no background */}
             {previewFont && (
-              <div className="h-10 px-2.5 flex items-center overflow-hidden select-none shrink-0 border-b border-white/5">
+              <div className="h-12 px-3 flex items-center overflow-hidden select-none shrink-0 border-b border-white/5">
                 <span
                   className="text-[26px] text-ink-100 font-normal leading-none whitespace-nowrap truncate overflow-hidden"
                   style={{
@@ -381,7 +395,7 @@ export function Select({
                     className="mb-1.5 first:mt-0 mt-1 border-t first:border-t-0 border-white/5 pt-1 first:pt-0"
                   >
                     {group.label && (
-                      <div className="px-2.5 py-1 text-[9.5px] font-mono uppercase tracking-wider text-ink-400 font-semibold bg-ink-900/85 sticky top-0 backdrop-blur-sm z-10 select-none flex items-center justify-between">
+                      <div className="px-2.5 py-1 text-[9.5px] font-mono uppercase tracking-wider text-ink-400 font-semibold select-none flex items-center justify-between">
                         <span>{group.label}</span>
                         <span className="text-ink-500 text-[8.5px] font-mono font-normal">
                           {group.options.length}
@@ -438,25 +452,27 @@ export function SegBtn({
   onClick,
   children,
   title,
+  className = "",
 }: {
   active: boolean;
   disabled?: boolean;
   onClick: () => void;
   children: ReactNode;
   title?: string;
+  className?: string;
 }) {
   return (
     <button
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
       title={title}
-      className={`h-7 flex-1 flex items-center justify-center rounded-[4px] text-ui-sm transition-colors ${
+      className={`h-6 w-[18px] flex items-center justify-center rounded-[3px] text-ui-sm transition-colors shrink-0 ${
         disabled
           ? "opacity-30 cursor-not-allowed text-ink-500"
           : active
-          ? "bg-ink-700 text-accent cursor-pointer"
-          : "text-ink-300 hover:text-ink-100 cursor-pointer"
-      }`}
+          ? "bg-ink-700 text-accent cursor-pointer shadow-sm"
+          : "text-ink-400 hover:text-ink-100 cursor-pointer"
+      } ${className}`}
     >
       {children}
     </button>
@@ -471,7 +487,7 @@ export function SegGroup({
   className?: string;
 }) {
   return (
-    <div className={`flex items-center gap-0 p-0.5 rounded-md bg-ink-800 border border-white/5 ${className}`}>
+    <div className={`h-7 flex items-center gap-0.5 p-0.5 rounded-md bg-ink-800 border border-white/5 shrink-0 ${className}`}>
       {children}
     </div>
   );

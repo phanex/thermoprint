@@ -11,7 +11,6 @@ import {
   Folder,
   Settings,
   MoreHorizontal,
-  CalendarClock,
 } from "lucide-react";
 import { DockBtn } from "./dock-btn.tsx";
 import { DockGroup } from "./dock-group.tsx";
@@ -24,7 +23,6 @@ import {
   addBarcodeEl,
   addImageEl,
   addLineEl,
-  addDateEl,
 } from "../../lib/keyboard.ts";
 import { LayersFlyout } from "./flyouts/layers-flyout.tsx";
 import { LibraryFlyout } from "./flyouts/library-flyout.tsx";
@@ -134,7 +132,6 @@ export function Dock() {
           <div className="grid grid-cols-4 gap-1 p-2">
             {[
               { icon: Type, label: "Text", fn: addTextEl },
-              { icon: CalendarClock, label: "Date", fn: addDateEl },
               { icon: QrCode, label: "QR Code", fn: addQrEl },
               { icon: Barcode, label: "Barcode", fn: addBarcodeEl },
               { icon: ImageIcon, label: "Pic", fn: addImageEl },
@@ -174,7 +171,6 @@ export function Dock() {
             <div className="hidden md:contents">
               <DockGroup label="Add">
                 <DockBtn icon={Type} label="Text" shortcut="T" onClick={addTextEl} />
-                <DockBtn icon={CalendarClock} label="Date" shortcut="D" onClick={addDateEl} />
                 <DockBtn icon={QrCode} label="QR" shortcut="Q" onClick={addQrEl} />
                 <DockBtn icon={Barcode} label="Barcode" shortcut="B" onClick={addBarcodeEl} />
                 <DockBtn icon={ImageIcon} label="Pic" shortcut="P" onClick={addImageEl} />

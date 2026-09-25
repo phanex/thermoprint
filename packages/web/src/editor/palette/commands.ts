@@ -26,11 +26,13 @@ import {
   Printer,
   Settings,
   LayoutTemplate,
+  CalendarClock,
 } from "lucide-react";
 import { useEditorV2Store } from "../../store/editor-store.ts";
 import { mmToPx } from "../../utils/px-mm.ts";
 import {
   addTextEl,
+  addDateEl,
   addQrEl,
   addBarcodeEl,
   addImageEl,
@@ -278,6 +280,7 @@ function distributeVertical() {
 export const commands: Command[] = [
   // Insert
   { id: "add-text", label: "Add text element", group: "Insert", icon: Type, shortcut: "T", run: addTextEl },
+  { id: "add-date", label: "Add date & time", group: "Insert", icon: CalendarClock, shortcut: "D", run: addDateEl },
   { id: "add-qr", label: "Add QR code", group: "Insert", icon: QrCode, shortcut: "Q", run: addQrEl },
   { id: "add-barcode", label: "Add barcode", group: "Insert", icon: Barcode, shortcut: "B", run: addBarcodeEl },
   { id: "add-rect", label: "Add rectangle", group: "Insert", icon: Square, shortcut: "R", run: addRectEl },

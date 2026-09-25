@@ -1,9 +1,3 @@
-import {
-  AlignHorizontalJustifyCenter,
-  AlignVerticalJustifyCenter,
-  Focus,
-  Maximize,
-} from "lucide-react";
 import type { BaseElement } from "../../../store/editor-store.ts";
 import { useEditorV2Store } from "../../../store/editor-store.ts";
 import { Section, Field, NumInput } from "../fields.tsx";
@@ -66,6 +60,28 @@ export function TransformSection({ element }: Props) {
     });
   };
 
+  const rotateAroundCenter = (newDeg: number) => {
+    const oldRad = ((element.rotation || 0) * Math.PI) / 180;
+    const newRad = (newDeg * Math.PI) / 180;
+
+    const dx = element.width / 2;
+    const dy = element.height / 2;
+
+    // 1. Current center in canvas coordinates
+    const cx = element.x + dx * Math.cos(oldRad) - dy * Math.sin(oldRad);
+    const cy = element.y + dx * Math.sin(oldRad) + dy * Math.cos(oldRad);
+
+    // 2. New top-left corner that keeps the exact same center
+    const newX = cx - (dx * Math.cos(newRad) - dy * Math.sin(newRad));
+    const newY = cy - (dx * Math.sin(newRad) + dy * Math.cos(newRad));
+
+    update({
+      rotation: Math.round(newDeg),
+      x: Number(newX.toFixed(2)),
+      y: Number(newY.toFixed(2)),
+    });
+  };
+
   return (
     <Section title="Transform">
       <div className="grid grid-cols-2 gap-1.5">
@@ -84,7 +100,7 @@ export function TransformSection({ element }: Props) {
       </div>
       <div className="grid grid-cols-2 gap-1.5 mt-1.5">
         <Field label="Rot" mono>
-          <NumInput value={element.rotation} onChange={(v) => update({ rotation: v })} suffix="°" />
+          <NumInput value={element.rotation} onChange={rotateAroundCenter} suffix="°" />
         </Field>
         <div className="flex items-center gap-1">
           <button
@@ -92,28 +108,79 @@ export function TransformSection({ element }: Props) {
             className="flex-1 h-7 rounded-md bg-ink-800 border border-white/5 hover:bg-ink-750 text-ink-300 hover:text-ink-100 flex items-center justify-center"
             title="Center horizontally"
           >
-            <AlignHorizontalJustifyCenter size={14} />
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="1.5" y="2.5" width="3" height="8" rx="1" strokeWidth="1" />
+              <line x1="6.5" y1="1" x2="6.5" y2="12" strokeWidth="1" />
+              <rect x="8.5" y="3.5" width="3" height="6" rx="1" strokeWidth="1" />
+            </svg>
           </button>
           <button
             onClick={alignV}
             className="flex-1 h-7 rounded-md bg-ink-800 border border-white/5 hover:bg-ink-750 text-ink-300 hover:text-ink-100 flex items-center justify-center"
             title="Center vertically"
           >
-            <AlignVerticalJustifyCenter size={14} />
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="2.5" y="1.5" width="8" height="3" rx="1" strokeWidth="1" />
+              <line x1="1" y1="6.5" x2="12" y2="6.5" strokeWidth="1" />
+              <rect x="3.5" y="8.5" width="6" height="3" rx="1" strokeWidth="1" />
+            </svg>
           </button>
           <button
             onClick={alignBoth}
             className="flex-1 h-7 rounded-md bg-ink-800 border border-white/5 hover:bg-ink-750 text-ink-300 hover:text-ink-100 flex items-center justify-center"
             title="Center both"
           >
-            <Focus size={14} />
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M1.5 4.5V2C1.5 1.7 1.7 1.5 2 1.5H4.5" strokeWidth="1.2" />
+              <path d="M9.5 1.5H12C12.3 1.5 12.5 1.7 12.5 2V4.5" strokeWidth="1.2" />
+              <path d="M1.5 9.5V12C1.5 12.3 1.7 12.5 2 12.5H4.5" strokeWidth="1.2" />
+              <path d="M9.5 12.5H12C12.3 12.5 12.5 12.3 12.5 12V9.5" strokeWidth="1.2" />
+              <circle cx="7" cy="7" r="1.2" fill="currentColor" />
+            </svg>
           </button>
           <button
             onClick={fitToLabel}
             className="flex-1 h-7 rounded-md bg-ink-800 border border-white/5 hover:bg-ink-750 text-ink-300 hover:text-ink-100 flex items-center justify-center"
             title="Fit to label / Maximize"
           >
-            <Maximize size={14} />
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M1.5 4.5V2C1.5 1.7 1.7 1.5 2 1.5H4.5" strokeWidth="1.2" />
+              <path d="M9.5 1.5H12C12.3 1.5 12.5 1.7 12.5 2V4.5" strokeWidth="1.2" />
+              <path d="M1.5 9.5V12C1.5 12.3 1.7 12.5 2 12.5H4.5" strokeWidth="1.2" />
+              <path d="M9.5 12.5H12C12.3 12.5 12.5 12.3 12.5 12V9.5" strokeWidth="1.2" />
+            </svg>
           </button>
         </div>
       </div>

@@ -57,7 +57,7 @@ export function TextElement({ element, isSelected }: Props) {
     dateLocale?: string;
   };
 
-  const evaluated = getDisplayText(p.text || "Text", p.datePreset as any, p.dateLocale);
+  const evaluated = getDisplayText(p.text ?? "", p.datePreset as any, p.dateLocale);
   const displayText = p.uppercase ? evaluated.toUpperCase() : evaluated;
 
   const fontStyle =
@@ -77,7 +77,8 @@ export function TextElement({ element, isSelected }: Props) {
       const n = ref.current;
       // Force Konva to clear cached lines and recalculate with the loaded font
       (n as any)._setTextData();
-      const h = Math.ceil(n.height());
+      const minH = Math.ceil((p.fontSize || 18) * (p.lineHeight || 1));
+      const h = Math.max(minH, Math.ceil(n.height()));
       if (Math.abs(h - heightRef.current) > 0.5) {
         heightRef.current = h;
         updateElement(element.id, { height: h });
