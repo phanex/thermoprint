@@ -1,10 +1,59 @@
 import { useEffect, useRef } from "react";
-import { Bluetooth, BatteryFull, BatteryMedium, BatteryLow, X } from "lucide-react";
+import { Bluetooth, X } from "lucide-react";
 import { useEditorV2Store } from "../../store/editor-store.ts";
 import { usePrinterStore } from "../../store/printer-store.ts";
 import { useWebBluetooth } from "../../hooks/use-web-bluetooth.ts";
 import { getDevice } from "@thermoprint/core";
 import { DebugLogSection } from "./debug-log-section.tsx";
+
+function PixelBattery({ battery, className }: { battery: number; className?: string }) {
+  const pct = Math.max(0, Math.min(100, battery));
+  // 9px max fill width inside (x=2..11)
+  const fillW = Math.max(pct > 0 ? 1.5 : 0, Math.round((pct / 100) * 9 * 2) / 2);
+
+  return (
+    <svg
+      width="15"
+      height="9"
+      viewBox="0 0 15 9"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      style={{ display: "block" }}
+    >
+      {/* Shell: 1px stroke centered on 0.5 for crisp 1px borders */}
+      <rect
+        x="0.5"
+        y="0.5"
+        width="12"
+        height="8"
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1"
+      />
+      {/* Nub: 1px crisp filled block */}
+      <rect
+        x="13"
+        y="3"
+        width="1"
+        height="3"
+        rx="0.5"
+        fill="currentColor"
+      />
+      {/* Charge fill */}
+      {fillW > 0 && (
+        <rect
+          x="2"
+          y="2"
+          width={fillW}
+          height="5"
+          rx="0.5"
+          fill="currentColor"
+        />
+      )}
+    </svg>
+  );
+}
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   out_of_paper: { label: "Out of paper", color: "text-red-400 bg-red-400/10 border-red-400/20" },
@@ -14,36 +63,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   cover_closed: { label: "Cover closed", color: "text-ink-300 bg-ink-800 border-white/5" },
 };
 
-function StatusBadge({ status }: { status: string | null }) {
-  if (!status || status === "cover_closed") {
-    return (
-      <div className="flex items-center gap-1.5 mb-3 px-2 py-1.5 rounded-md bg-emerald-400/10 border border-emerald-400/20 text-ui-sm text-emerald-400 font-medium">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-        Ready
-      </div>
-    );
-  }
-  const info = STATUS_LABELS[status] || { label: status, color: "text-yellow-400 bg-yellow-400/10 border-yellow-400/20" };
-  return (
-    <div className={`flex items-center gap-1.5 mb-3 px-2 py-1.5 rounded-md border text-ui-sm font-medium ${info.color}`}>
-      <span className="w-1.5 h-1.5 rounded-full bg-current" />
-      {info.label}
-    </div>
-  );
-}
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md bg-ink-800 border border-white/5 p-2">
-      <div className="text-ui-2xs font-mono uppercase tracking-wider text-ink-400">
-        {label}
-      </div>
-      <div className="text-ui-base font-semibold text-ink-100 mt-0.5">
-        {value}
-      </div>
-    </div>
-  );
-}
 
 function MiniRow({ label, value }: { label: string; value: string }) {
   return (
@@ -59,13 +79,14 @@ export function PrinterChip() {
   const printFlyoutOpen = useEditorV2Store((s) => s.printFlyoutOpen);
   const battery = usePrinterStore((s) => s.battery);
   const peripheral = usePrinterStore((s) => s.peripheral);
-  const modelId = usePrinterStore((s) => s.modelId);
-  const deviceModel = usePrinterStore((s) => s.deviceModel);
+  const isConnected = usePrinterStore((s) => s.isConnected);
   const deviceInfo = usePrinterStore((s) => s.deviceInfo);
-  const printerStatus = usePrinterStore((s) => s.printerStatus);
+  const modelId = usePrinterStore((s) => s.modelId);
   const { disconnect } = useWebBluetooth();
 
   const profile = modelId ? getDevice(modelId) : null;
+  const fullName = profile ? profile.name : printer.name;
+
   const ref = useRef<HTMLDivElement>(null);
 
   // Close flyout on outside click
@@ -95,7 +116,7 @@ export function PrinterChip() {
     });
   };
 
-  if (!printer.connected) {
+  if (!peripheral) {
     return (
       <button
         onClick={openConnect}
@@ -107,65 +128,75 @@ export function PrinterChip() {
     );
   }
 
+  const isStandby = !isConnected;
+
   return (
     <div className="relative" ref={ref}>
-      <button
-        onClick={() =>
-          useEditorV2Store.setState((s) => ({
-            printFlyoutOpen: !s.printFlyoutOpen,
-          }))
-        }
-        className="group flex items-center gap-2 pl-2 pr-2 md:pr-3 h-8 rounded-md bg-ink-800 hover:bg-ink-750 border border-white/5 hover-fade"
-      >
-        <span className="relative flex items-center justify-center w-4 h-4 shrink-0">
-          <span className="absolute inset-0 rounded-full bg-emerald-400/20" />
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse" />
-        </span>
-        {/* Mobile: just the name */}
-        <span className="md:hidden text-ui-xs text-ink-100 font-medium truncate max-w-[80px]">
-          {printer.name}
-        </span>
-        {/* Desktop: full info */}
-        <div className="hidden md:flex flex-col items-start leading-tight">
-          <span className="text-ui-xs font-mono uppercase tracking-wider text-ink-400">
-            Connected
+      <div className="flex items-center rounded-md bg-ink-800 hover:bg-ink-750 border border-white/5 hover-fade">
+        <button
+          onClick={() =>
+            useEditorV2Store.setState((s) => ({
+              printFlyoutOpen: !s.printFlyoutOpen,
+            }))
+          }
+          className="group flex items-center gap-2 px-2.5 h-8"
+        >
+          <span className="relative flex items-center justify-center w-4 h-4 shrink-0">
+            {isStandby ? (
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            ) : (
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            )}
           </span>
-          <span className="text-ui-sm text-ink-100 font-medium">
-            {printer.name}
+          {/* Mobile: just the name */}
+          <span className="md:hidden text-ui-xs text-ink-100 font-medium truncate max-w-[80px]">
+            {fullName}
           </span>
-        </div>
-        {battery >= 0 && (() => {
-          const BatIcon = battery > 60 ? BatteryFull : battery > 20 ? BatteryMedium : BatteryLow;
-          const color = battery > 60 ? "text-emerald-400" : battery > 20 ? "text-yellow-400" : "text-red-400";
-          return (
-            <div className="hidden md:flex items-center gap-1 ml-1 pl-2 border-l border-white/5">
-              <BatIcon size={13} className={color} />
-              <span className={`text-ui-xs font-mono ${color}`}>
-                {battery}%
-              </span>
-            </div>
-          );
-        })()}
-      </button>
+          {/* Desktop: full info */}
+          <div className="hidden md:flex flex-col items-start leading-tight">
+            <span className={`text-[10px] font-mono uppercase tracking-wider ${isStandby ? "text-amber-400/70" : "text-ink-400"}`}>
+              {isStandby ? "Standby" : "Connected"}
+            </span>
+            <span className="text-ui-sm text-ink-100 font-medium leading-none mt-0.5">
+              {fullName}
+            </span>
+          </div>
+          {battery >= 0 && (() => {
+            const color = battery > 60 ? "text-emerald-400" : battery > 20 ? "text-yellow-400" : "text-red-400";
+            return (
+              <div className="hidden md:flex flex-col items-start justify-center pl-2 border-l border-white/10 leading-tight">
+                <PixelBattery battery={battery} className={color} />
+                <span className={`text-ui-xs font-mono leading-none mt-1 ${color}`}>
+                  {battery}%
+                </span>
+              </div>
+            );
+          })()}
+        </button>
+        {isStandby && (
+          <button
+            onClick={handleDisconnect}
+            className="flex items-center justify-center h-8 px-2 text-ink-400 hover:text-ink-100 border-l border-white/5"
+            title="Disconnect and forget"
+          >
+            <X size={14} />
+          </button>
+        )}
+      </div>
 
       {printFlyoutOpen && (
         <div
           onMouseDown={(e) => e.stopPropagation()}
-          className="fixed inset-x-2 top-14 max-h-[80vh] overflow-y-auto md:max-h-none md:overflow-visible md:inset-auto md:absolute md:left-0 md:top-10 md:w-72 bg-ink-850 border border-white/8 rounded-lg shadow-panel p-3 z-[60]"
+          className="fixed inset-x-2 top-14 max-h-[80vh] overflow-y-auto md:max-h-none md:overflow-visible md:inset-auto md:absolute md:right-0 md:top-10 md:w-72 bg-ink-850 border border-white/8 rounded-lg shadow-panel p-3 z-[60]"
         >
           <div className="flex items-start justify-between mb-3">
             <div>
-              <div className="text-ui-xs font-mono uppercase tracking-wider text-ink-400">
-                Printer
-              </div>
               <div className="text-sm font-semibold text-ink-50">
-                {printer.name}
+                {fullName}
               </div>
-              {peripheral && (
-                <div className="text-ui-sm text-ink-300 mt-0.5 font-mono">
-                  ID {peripheral.id.slice(0, 17)}
-                </div>
-              )}
+              <div className="text-ui-sm text-ink-400 mt-0.5 font-mono">
+                {profile?.protocolId || "unknown"} &middot; ID {peripheral.id.slice(0, 8)}
+              </div>
             </div>
             <button
               onClick={() =>
@@ -176,22 +207,21 @@ export function PrinterChip() {
               <X size={16} />
             </button>
           </div>
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            <Metric
-              label="Battery"
-              value={battery >= 0 ? `${battery}%` : "—"}
-            />
-            <Metric label="Model" value={deviceModel || printer.model || "—"} />
-            <Metric label="Protocol" value={profile?.protocolId?.toUpperCase() || "—"} />
+          
+          <div className={`flex items-center mb-3 px-2 py-1.5 rounded-md border text-ui-sm font-medium ${isStandby ? "bg-amber-400/10 border-amber-400/20 text-amber-400" : "bg-emerald-400/10 border-emerald-400/20 text-emerald-400"}`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5" />
+            {isStandby ? "Standby" : "Ready"}
+            {battery >= 0 && (
+              <div className="flex items-center ml-2 pl-2 border-l border-current/20">
+                <PixelBattery battery={battery} className="mr-1.5" />
+                {battery}%
+              </div>
+            )}
           </div>
-          <StatusBadge status={printerStatus} />
-          <div className="space-y-1.5 text-ui-sm">
+          
+          <div className="space-y-1.5 text-ui-sm mb-3">
             {deviceInfo.firmware && <MiniRow label="Firmware" value={deviceInfo.firmware} />}
             {deviceInfo.serial && <MiniRow label="Serial" value={deviceInfo.serial} />}
-            {deviceInfo.mac && <MiniRow label="MAC" value={deviceInfo.mac} />}
-            {deviceInfo.btVersion && <MiniRow label="BT module" value={deviceInfo.btVersion} />}
-            {deviceInfo.btName && <MiniRow label="BT name" value={deviceInfo.btName} />}
-            {deviceInfo.speed && <MiniRow label="Speed" value={deviceInfo.speed} />}
           </div>
           <DebugLogSection />
           <div className="mt-3 pt-3 border-t border-white/5">

@@ -104,6 +104,7 @@ export function useWebBluetooth() {
       printer = null;
     }
     store.getState().setConnected(false);
+    store.getState().setPeripheral(null);
   }, [store]);
 
   return { scan, connect, disconnect };

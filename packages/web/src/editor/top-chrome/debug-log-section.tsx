@@ -53,27 +53,15 @@ export function DebugLogSection() {
             {count} {count === 1 ? "entry" : "entries"}
           </span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="relative flex w-1.5 h-1.5">
-            <span className="absolute inset-0 rounded-full bg-emerald-400/40 animate-ping" />
-            <span className="relative w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          </span>
-          <span className="text-ui-2xs font-mono uppercase text-ink-400">
-            live
-          </span>
-        </div>
       </div>
 
       {/* Tail preview */}
-      <div ref={scrollRef} className="rounded-md bg-ink-900/60 border border-white/5 p-2 mb-2 font-mono text-ui-xs leading-tight text-ink-300 max-h-[60px] overflow-y-auto">
+      <div ref={scrollRef} className="rounded-md bg-ink-900/60 border border-white/5 p-2 mb-2 font-mono text-ui-xs leading-tight text-ink-300 max-h-[180px] overflow-y-auto">
         {tail.length === 0 ? (
           <div className="text-ink-500 italic">No entries yet</div>
         ) : (
           tail.map((e, i) => (
-            <div key={`${e.time}-${i}`} className="flex gap-1.5 truncate">
-              <span className="text-ink-500 shrink-0">
-                {new Date(e.time).toISOString().slice(11, 19)}
-              </span>
+            <div key={`${e.time}-${i}`} className="flex gap-1.5 truncate" title={`${new Date(e.time).toISOString().slice(11, 19)} [${e.tag}] ${e.message}`}>
               <span className="text-accent shrink-0">[{e.tag}]</span>
               <span className="truncate">{e.message}</span>
             </div>

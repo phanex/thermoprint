@@ -85,14 +85,14 @@ export function ConnectFlow() {
     }
   }, [error, step]);
 
-  // Sync disconnection
+  // Sync disconnection (only when peripheral is explicitly cleared)
   useEffect(() => {
-    if (!isConnected) {
+    if (!peripheral) {
       useEditorV2Store.setState((s) => ({
         printer: { ...s.printer, connected: false },
       }));
     }
-  }, [isConnected]);
+  }, [peripheral]);
 
   // Keep battery in sync (it arrives asynchronously after connect)
   useEffect(() => {
