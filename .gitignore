@@ -27,3 +27,8 @@ test-label.png
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# References & Research
+.reference/
+reference/
+
