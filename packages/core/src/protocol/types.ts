@@ -40,6 +40,7 @@ export interface ImageBitmap1bpp {
 
 export interface PrinterProtocol {
   readonly id: string;
+  readonly expectsAck?: boolean;
   buildPrintSequence(
     image: ImageBitmap1bpp,
     options?: PrintSequenceOptions,

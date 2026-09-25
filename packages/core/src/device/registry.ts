@@ -1,7 +1,8 @@
 import type { DeviceProfile } from "./types.js";
-import { p15Profile } from "./profiles/p15.js";
-import { p12Profile } from "./profiles/p12.js";
-import { m60Profile } from "./profiles/m60.js";
+import { markP15Profile } from "./profiles/mark-p15.js";
+import { markP12Profile } from "./profiles/mark-p12.js";
+import { markM60Profile } from "./profiles/mark-m60.js";
+import { phoP12Profile } from "./profiles/pho-p12.js";
 
 const devices: DeviceProfile[] = [];
 
@@ -10,14 +11,21 @@ export function registerDevice(profile: DeviceProfile): void {
 }
 
 export function findDeviceByName(name: string): DeviceProfile | null {
+  const upperName = name.toUpperCase();
+  let bestMatch: { profile: DeviceProfile; prefixLen: number } | null = null;
+
   for (const profile of devices) {
     for (const prefix of profile.namePrefixes) {
-      if (name.startsWith(prefix)) {
-        return profile;
+      const upperPrefix = prefix.toUpperCase();
+      if (upperName.startsWith(upperPrefix)) {
+        if (!bestMatch || upperPrefix.length > bestMatch.prefixLen) {
+          bestMatch = { profile, prefixLen: upperPrefix.length };
+        }
       }
     }
   }
-  return null;
+
+  return bestMatch ? bestMatch.profile : null;
 }
 
 export function getDevice(modelId: string): DeviceProfile | null {
@@ -29,6 +37,9 @@ export function getRegisteredDevices(): DeviceProfile[] {
 }
 
 // Register built-in devices
-registerDevice(p15Profile);
-registerDevice(p12Profile);
-registerDevice(m60Profile);
+registerDevice(markP15Profile);
+registerDevice(markP12Profile);
+registerDevice(markM60Profile);
+registerDevice(phoP12Profile);
+
+

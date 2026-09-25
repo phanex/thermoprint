@@ -3,6 +3,9 @@ import {
   QrCode,
   Barcode,
   Square,
+  Circle,
+  Triangle,
+  Star,
   Minus,
   ImageIcon,
   Layers,
@@ -22,12 +25,29 @@ const ICON_FOR_TYPE: Record<string, LucideIcon> = {
   line: Minus,
 };
 
+function iconFor(el: BaseElement): LucideIcon {
+  if (el.type === "rect") {
+    const st = (el.props?.shapeType as string) || "rect";
+    if (st === "ellipse") return Circle;
+    if (st === "polygon") return Triangle;
+    if (st === "star") return Star;
+    return Square;
+  }
+  return ICON_FOR_TYPE[el.type] || Square;
+}
+
 function labelFor(el: BaseElement): string {
   if (el.type === "text") return (el.props.text as string) || "Text";
+  if (el.type === "rect") {
+    const st = (el.props?.shapeType as string) || "rect";
+    if (st === "ellipse") return "Ellipse";
+    if (st === "polygon") return "Polygon";
+    if (st === "star") return "Star";
+    return "Rectangle";
+  }
   const labels: Record<string, string> = {
     qrcode: "QR Code",
     barcode: "Barcode",
-    rect: "Rectangle",
     line: "Line",
     image: "Image",
   };
@@ -67,7 +87,7 @@ export function LayersFlyout({ onClose }: Props) {
           </div>
         )}
         {reversed.map((el) => {
-          const Icon = ICON_FOR_TYPE[el.type] || Square;
+          const Icon = iconFor(el);
           const sel = selectedIds.includes(el.id);
           return (
             <div

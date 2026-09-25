@@ -1,6 +1,7 @@
 export interface FlowControlOptions {
   starvationTimeoutMs: number;
   packetDelayMs: number;
+  unmetered?: boolean;
 }
 
 export interface LabelSizePreset {
@@ -18,6 +19,7 @@ export interface DeviceLabelConfig {
 
 export interface DeviceProfile {
   modelId: string;
+  name: string;
   protocolId: string;
   serviceUuid: string;
   characteristics: { tx: string; rx: string; cx?: string };
@@ -27,6 +29,7 @@ export interface DeviceProfile {
   /** Which command to use for print darkness: "density" (1F 70 02) or "thickness" (10 FF 10 00) */
   densityCommand?: "density" | "thickness";
   namePrefixes: string[];
+  cutterMargins?: { leadMm: number; trailMm: number };
   labelConfig?: DeviceLabelConfig;
 }
 

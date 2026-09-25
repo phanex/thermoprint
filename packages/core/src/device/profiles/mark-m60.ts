@@ -18,8 +18,9 @@ const continuousSizes: LabelSizePreset[] = [
   { widthMm: 50, heightMm: 40 },
 ];
 
-export const m60Profile: DeviceProfile = {
-  modelId: "m60",
+export const markM60Profile: DeviceProfile = {
+  modelId: "mark-m60",
+  name: "Marklife M60",
   protocolId: "x2",
   serviceUuid: "0000ff00-0000-1000-8000-00805f9b34fb",
   characteristics: {
@@ -40,3 +41,6 @@ export const m60Profile: DeviceProfile = {
     defaultSize: { widthMm: 50, heightMm: 30 },
   },
 };
+
+export const m60Profile = markM60Profile;
+

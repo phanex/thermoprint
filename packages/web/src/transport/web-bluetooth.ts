@@ -7,7 +7,7 @@ import type {
   ScanOptions,
   ScanHandle,
 } from "@thermoprint/core";
-import { getRegisteredDevices } from "@thermoprint/core";
+import { getRegisteredDevices, debugLog } from "@thermoprint/core";
 
 /** Expand a short UUID to full 128-bit form for Web Bluetooth */
 function expandUuid(uuid: string): string {
@@ -66,12 +66,25 @@ class WebBluetoothService implements BleService {
   ) {}
 
   async getCharacteristic(uuid: string): Promise<BleCharacteristic | null> {
-    try {
-      const char = await this.service.getCharacteristic(expandUuid(uuid));
-      return new WebBluetoothCharacteristic(char);
-    } catch {
-      return null;
+    const candidates: BluetoothCharacteristicUUID[] = [];
+    const stripped = uuid.replace(/-/g, "").toLowerCase();
+    if (stripped.startsWith("0000") && stripped.length === 32) {
+      const shortHex = parseInt(stripped.slice(4, 8), 16);
+      if (!isNaN(shortHex)) {
+        candidates.push(shortHex);
+      }
     }
+    candidates.push(expandUuid(uuid), uuid);
+
+    for (const cand of candidates) {
+      try {
+        const char = await this.service.getCharacteristic(cand);
+        if (char) return new WebBluetoothCharacteristic(char);
+      } catch {
+        // try next candidate
+      }
+    }
+    return null;
   }
 }
 
@@ -91,14 +104,28 @@ class WebBluetoothConnection implements BleConnection {
   }
 
   async discoverService(uuid: string): Promise<BleService | null> {
-    try {
-      const server = this.device.gatt;
-      if (!server) return null;
-      const service = await server.getPrimaryService(expandUuid(uuid));
-      return new WebBluetoothService(service);
-    } catch {
-      return null;
+    const server = this.device.gatt;
+    if (!server) return null;
+
+    const candidates: BluetoothServiceUUID[] = [];
+    const stripped = uuid.replace(/-/g, "").toLowerCase();
+    if (stripped.startsWith("0000") && stripped.length === 32) {
+      const shortHex = parseInt(stripped.slice(4, 8), 16);
+      if (!isNaN(shortHex)) {
+        candidates.push(shortHex);
+      }
     }
+    candidates.push(expandUuid(uuid), uuid);
+
+    for (const cand of candidates) {
+      try {
+        const service = await server.getPrimaryService(cand);
+        if (service) return new WebBluetoothService(service);
+      } catch {
+        // try next candidate
+      }
+    }
+    return null;
   }
 
   async disconnect(): Promise<void> {
@@ -125,7 +152,11 @@ export class WebBluetoothTransport implements BleTransport {
       d.namePrefixes.map((prefix) => ({ namePrefix: prefix })),
     );
 
-    const serviceUuids = [
+    const serviceUuids: BluetoothServiceUUID[] = [
+      0xff00,
+      0xffe0,
+      0xae30,
+      "49535343-fe7d-4ae5-8fa9-9fafd205e455",
       ...new Set(devices.map((d) => expandUuid(d.serviceUuid))),
     ];
 
@@ -159,7 +190,87 @@ export class WebBluetoothTransport implements BleTransport {
       throw new Error("GATT server not available on this device");
     }
 
-    await server.connect();
-    return new WebBluetoothConnection(device);
+    // Wait for device to be ready by watching advertisements (or delay fallback)
+    await this.waitForDeviceReady(device);
+
+    // Windows BLE pairing handling:
+    // Some printers (e.g. Phomemo P12) trigger OS-level pairing. On Windows,
+    // this displays a toast "Add a device: Tap to set up your P12".
+    // While Windows initiates pairing or waits for user confirmation, the initial
+    // server.connect() call often rejects immediately with NetworkError.
+    // Retrying with progressive delays gives Windows time to complete the pairing handshake.
+    let lastError: unknown;
+    const maxAttempts = 6;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        if (!server.connected) {
+          debugLog("BLE", `connecting GATT (attempt ${attempt}/${maxAttempts})...`);
+          await server.connect();
+        }
+        // Small delay after GATT connect before service discovery to allow GATT caching
+        await new Promise((r) => setTimeout(r, 200));
+        debugLog("BLE", `connected GATT successfully on attempt ${attempt}`);
+        return new WebBluetoothConnection(device);
+      } catch (err) {
+        lastError = err;
+        debugLog("BLE", `connect attempt ${attempt}/${maxAttempts} failed:`, err);
+        if (attempt < maxAttempts) {
+          // 600ms, 1200ms, 1800ms, 2400ms, 3000ms (~9s total window)
+          await new Promise((r) => setTimeout(r, 600 * attempt));
+        }
+      }
+    }
+
+    throw lastError;
+  }
+
+  private async waitForDeviceReady(device: BluetoothDevice, timeout = 5000): Promise<void> {
+    const devAny = device as unknown as {
+      watchAdvertisements?: (options?: { signal?: AbortSignal }) => Promise<void>;
+    };
+
+    if (typeof devAny.watchAdvertisements !== "function") {
+      debugLog("BLE", "watchAdvertisements not supported, waiting 3000ms for OS pairing settling...");
+      await new Promise((r) => setTimeout(r, 3000));
+      return;
+    }
+
+    return new Promise<void>((resolve) => {
+      const abortController = new AbortController();
+      let resolved = false;
+
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          abortController.abort();
+          debugLog("BLE", "device ready timeout, proceeding anyway...");
+          resolve();
+        }
+      }, timeout);
+
+      const onAdv = () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          abortController.abort();
+          debugLog("BLE", "advertisement received, device is ready");
+          resolve();
+        }
+      };
+
+      device.addEventListener("advertisementreceived", onAdv, { once: true });
+
+      debugLog("BLE", "watching advertisements for device ready...");
+      devAny
+        .watchAdvertisements({ signal: abortController.signal })
+        .catch((e: Error) => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timer);
+            debugLog("BLE", "watchAdvertisements ended:", e.message);
+            resolve();
+          }
+        });
+    });
   }
 }

@@ -35,11 +35,15 @@ export class Printer {
     private readonly profile: DeviceProfile,
     private readonly protocol: ReturnType<typeof getProtocol>,
     tx: BleCharacteristic,
-    private readonly rx: BleCharacteristic,
+    private readonly rx: BleCharacteristic | null,
     private readonly cx: BleCharacteristic | null,
     packetSize: number,
   ) {
-    this.flowController = new FlowController(tx, packetSize, profile.flowControl);
+    const isUnmetered = !cx || Boolean(profile.flowControl?.unmetered);
+    this.flowController = new FlowController(tx, packetSize, {
+      ...profile.flowControl,
+      unmetered: isUnmetered,
+    });
   }
 
   static async connect(
@@ -76,7 +80,7 @@ export class Printer {
     }
 
     const rx = await service.getCharacteristic(profile.characteristics.rx);
-    if (!rx) {
+    if (!rx && protocol.expectsAck) {
       await connection.disconnect();
       throw new ThermoprintError(
         ErrorCode.CHARACTERISTIC_NOT_FOUND,
@@ -92,8 +96,18 @@ export class Printer {
 
     const printer = new Printer(connection, profile, protocol, tx, rx, cx, packetSize);
 
-    // Subscribe to RX for status/responses
-    await rx.subscribe((data) => printer.handleRxData(data));
+    // Subscribe to RX for status/responses if available
+    if (rx) {
+      try {
+        await rx.subscribe((data) => printer.handleRxData(data));
+      } catch (err) {
+        if (protocol.expectsAck) {
+          await connection.disconnect();
+          throw err;
+        }
+        debugLog("BLE", `RX notifications not available, continuing write-only: ${err}`);
+      }
+    }
 
     // Subscribe to CX for flow control / MTU
     if (cx) {
@@ -177,15 +191,13 @@ export class Printer {
       for (let copy = 0; copy < copies; copy++) {
         const baseOffset = copy * singleCopyBytes;
 
-        // Send preamble (wakeup, enable, density) — small setup commands
+        // Send preamble (wakeup, enable, density, init sequence) — small setup commands
         if (preambleBytes > 0) {
-          const preamblePayload = new Uint8Array(preambleBytes);
-          let off = 0;
           for (const d of preamble) {
-            preamblePayload.set(d, off);
-            off += d.length;
+            await this.flowController.send(d);
+            const delay = Math.max(this.profile.flowControl?.packetDelayMs ?? 20, 40);
+            await new Promise((r) => setTimeout(r, delay));
           }
-          await this.flowController.send(preamblePayload);
           debugLog("PRINT", `copy ${copy + 1}/${copies}: preamble sent, waiting for credits`);
 
           // Wait for credits to refill — the printer processes the setup commands
@@ -194,13 +206,18 @@ export class Printer {
           await this.waitForCredits();
         }
 
-        // Send bulk data (bitmap + trailing commands like positionToGap, stop)
+        // Send bulk data (bitmap + trailing commands like positionToGap, stop, feed)
         await this.flowController.send(bulkPayload, (sent) => {
           this.emit("progress", { bytesSent: baseOffset + preambleBytes + sent, totalBytes });
         });
 
         debugLog("PRINT", `copy ${copy + 1}/${copies}: data sent, waiting for result`);
-        await this.waitForPrintResult();
+        if (this.protocol.expectsAck !== false) {
+          await this.waitForPrintResult();
+        } else {
+          // Allow printer motor/head buffer a small drain window before completing
+          await new Promise((r) => setTimeout(r, 200));
+        }
         debugLog("PRINT", `copy ${copy + 1}/${copies} done`);
       }
       debugLog("PRINT", "all copies done");
@@ -257,7 +274,7 @@ export class Printer {
   async disconnect(): Promise<void> {
     debugLog("BLE", "disconnecting");
     this.disconnecting = true;
-    await this.rx.unsubscribe();
+    if (this.rx) await this.rx.unsubscribe();
     if (this.cx) await this.cx.unsubscribe();
     await this.connection.disconnect();
     this.emit("disconnected", {});
@@ -356,7 +373,7 @@ export class Printer {
   }
 
   private waitForCredits(minCredits = 3, timeoutMs = 1000): Promise<void> {
-    if (this.flowController.availableCredits >= minCredits) {
+    if (!this.cx || this.flowController.availableCredits >= minCredits) {
       return Promise.resolve();
     }
     return new Promise<void>((resolve) => {

@@ -232,6 +232,9 @@ export function IconsFlyout({
               iconName,
               collection: prefix,
               collectionName: collName,
+              fill: (targetEl.props.fill as string) || "#000000",
+              naturalWidth: undefined,
+              naturalHeight: undefined,
             },
           });
         }

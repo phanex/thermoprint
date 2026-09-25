@@ -5,8 +5,8 @@ import {
   Barcode,
   ImageIcon,
   Sticker,
-  Square,
   Minus,
+  Shapes,
   Layers,
   Folder,
   Settings,
@@ -23,7 +23,6 @@ import {
   addQrEl,
   addBarcodeEl,
   addImageEl,
-  addRectEl,
   addLineEl,
   addDateEl,
 } from "../../lib/keyboard.ts";
@@ -31,8 +30,16 @@ import { LayersFlyout } from "./flyouts/layers-flyout.tsx";
 import { LibraryFlyout } from "./flyouts/library-flyout.tsx";
 import { PrintSettingsFlyout } from "./flyouts/print-settings-flyout.tsx";
 import { IconsFlyout } from "./flyouts/icons-flyout.tsx";
+import { ShapesFlyout } from "./flyouts/shapes-flyout.tsx";
 
-type FlyoutKey = "layers" | "library" | "print" | "icons" | "more-tools" | null;
+type FlyoutKey =
+  | "layers"
+  | "library"
+  | "print"
+  | "icons"
+  | "shapes"
+  | "more-tools"
+  | null;
 
 interface ReplaceIconDetail {
   initialPrefix?: string | null;
@@ -81,6 +88,14 @@ export function Dock() {
       window.removeEventListener("thermoprint:open-icons", handleOpenIcons);
   }, []);
 
+  // Listen for "toggle shapes menu" event
+  useEffect(() => {
+    const h = () => toggle("shapes");
+    window.addEventListener("thermoprint:toggle-shapes-menu", h);
+    return () =>
+      window.removeEventListener("thermoprint:toggle-shapes-menu", h);
+  }, []);
+
   return (
     <>
       {openFlyout && (
@@ -111,6 +126,9 @@ export function Dock() {
           targetElementId={replaceDetail?.targetElementId}
         />
       )}
+      {openFlyout === "shapes" && (
+        <ShapesFlyout onClose={() => setOpenFlyout(null)} />
+      )}
       {openFlyout === "more-tools" && (
         <div className="fixed inset-x-2 bottom-20 md:hidden bg-ink-850/95 backdrop-blur-sm border border-white/8 rounded-lg shadow-panel z-40 overflow-hidden">
           <div className="grid grid-cols-4 gap-1 p-2">
@@ -119,16 +137,16 @@ export function Dock() {
               { icon: CalendarClock, label: "Date", fn: addDateEl },
               { icon: QrCode, label: "QR Code", fn: addQrEl },
               { icon: Barcode, label: "Barcode", fn: addBarcodeEl },
-              { icon: ImageIcon, label: "Image", fn: addImageEl },
+              { icon: ImageIcon, label: "Pic", fn: addImageEl },
               { icon: Sticker, label: "Icons", fn: () => setOpenFlyout("icons") },
-              { icon: Square, label: "Rectangle", fn: addRectEl },
+              { icon: Shapes, label: "Shapes", fn: () => setOpenFlyout("shapes") },
               { icon: Minus, label: "Line", fn: addLineEl },
             ].map((t) => (
               <button
                 key={t.label}
                 onClick={() => {
                   t.fn();
-                  if (t.label !== "Icons") setOpenFlyout(null);
+                  if (t.label !== "Icons" && t.label !== "Shapes") setOpenFlyout(null);
                 }}
                 className="flex flex-col items-center gap-1 py-3 rounded-lg text-ink-200 hover:bg-ink-800 hover:text-ink-50 hover-fade"
               >
@@ -159,16 +177,21 @@ export function Dock() {
                 <DockBtn icon={CalendarClock} label="Date" shortcut="D" onClick={addDateEl} />
                 <DockBtn icon={QrCode} label="QR" shortcut="Q" onClick={addQrEl} />
                 <DockBtn icon={Barcode} label="Barcode" shortcut="B" onClick={addBarcodeEl} />
-                <DockBtn icon={ImageIcon} label="Image" shortcut="I" onClick={addImageEl} />
+                <DockBtn icon={ImageIcon} label="Pic" shortcut="P" onClick={addImageEl} />
                 <DockBtn
                   icon={Sticker}
                   label="Icons"
-                  shortcut="C"
+                  shortcut="I"
                   onClick={() => toggle("icons")}
                   active={openFlyout === "icons"}
                 />
-                <DockBtn icon={Square} label="Rect" shortcut="R" onClick={addRectEl} />
-                <DockBtn icon={Minus} label="Line" shortcut="L" onClick={addLineEl} />
+                <DockBtn
+                  icon={Shapes}
+                  label="Shape"
+                  shortcut="S"
+                  onClick={() => toggle("shapes")}
+                  active={openFlyout === "shapes"}
+                />
               </DockGroup>
               <DockDivider />
             </div>
@@ -177,7 +200,7 @@ export function Dock() {
             <div className="md:hidden contents">
               <DockGroup label="Add">
                 <DockBtn icon={Type} label="Text" onClick={addTextEl} />
-                <DockBtn icon={ImageIcon} label="Image" onClick={addImageEl} />
+                <DockBtn icon={ImageIcon} label="Pic" onClick={addImageEl} />
                 <DockBtn
                   icon={Sticker}
                   label="Icons"

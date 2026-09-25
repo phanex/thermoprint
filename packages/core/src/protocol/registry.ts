@@ -1,6 +1,7 @@
 import type { PrinterProtocol } from "./types.js";
 import { L11Protocol } from "./l11/protocol.js";
 import { X2Protocol } from "./x2/protocol.js";
+import { PhoP12Protocol } from "./pho-p12/protocol.js";
 import { ThermoprintError, ErrorCode } from "../errors.js";
 
 type ProtocolFactory = () => PrinterProtocol;
@@ -29,3 +30,4 @@ export function getRegisteredProtocolIds(): string[] {
 // Register built-in protocols
 registerProtocol("l11", () => new L11Protocol());
 registerProtocol("x2", () => new X2Protocol());
+registerProtocol("pho-p12", () => new PhoP12Protocol());

@@ -23,6 +23,9 @@ export class FlowController {
   ) {
     this.packetSize = packetSize;
     this.options = { ...DEFAULT_OPTIONS, ...options };
+    if (this.options.unmetered) {
+      this.credits = Infinity;
+    }
   }
 
   setPacketSize(size: number): void {
@@ -69,8 +72,12 @@ export class FlowController {
             return;
           }
 
-          // Starvation recovery
-          if (this.credits <= 0 && Date.now() - this.lastCreditTime >= starvationTimeoutMs) {
+          // Starvation recovery (metered mode only)
+          if (
+            !this.options.unmetered &&
+            this.credits <= 0 &&
+            Date.now() - this.lastCreditTime >= starvationTimeoutMs
+          ) {
             debugLog("FC", `starvation recovery, forcing 1 credit`);
             this.credits = 1;
             this.lastCreditTime = Date.now();
@@ -83,7 +90,9 @@ export class FlowController {
             const chunk = data.subarray(offset, offset + chunkSize);
 
             await this.tx.write(chunk, true); // withoutResponse = true
-            this.credits--;
+            if (!this.options.unmetered) {
+              this.credits--;
+            }
             this.packetsSent++;
             offset += chunkSize;
 

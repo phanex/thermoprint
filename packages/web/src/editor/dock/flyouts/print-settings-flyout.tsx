@@ -349,7 +349,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
           <div className="flex items-center justify-between">
             <span className="text-ink-400">Printer</span>
             <span className="text-ink-100 font-mono">
-              {isConnected ? (modelId || "Connected") : "Not connected"}
+              {isConnected ? (profile?.name || modelId || "Connected") : "Not connected"}
             </span>
           </div>
           <div className="flex items-center justify-between mt-1">

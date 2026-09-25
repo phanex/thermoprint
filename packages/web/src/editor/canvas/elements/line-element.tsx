@@ -31,10 +31,11 @@ export function LineElement({ element, isSelected }: Props) {
         x={element.x}
         y={element.y}
         rotation={element.rotation}
-        points={[0, 0, element.width, element.height]}
+        points={[0, 0, element.width, 0]}
         stroke={p.stroke || "#000000"}
         strokeWidth={p.strokeWidth ?? 2}
-        hitStrokeWidth={Math.max(10, (p.strokeWidth ?? 2) + 8)}
+        strokeScaleEnabled={false}
+        hitStrokeWidth={Math.max(12, (p.strokeWidth ?? 2) + 8)}
         draggable
         onClick={handleClick}
         onTap={handleTap}
@@ -45,19 +46,27 @@ export function LineElement({ element, isSelected }: Props) {
           const node = ref.current;
           if (!node) return;
           const scaleX = node.scaleX();
-          const scaleY = node.scaleY();
           node.scaleX(1);
           node.scaleY(1);
           updateElement(element.id, {
-            x: node.x(),
-            y: node.y(),
-            width: Math.max(5, element.width * scaleX),
-            height: element.height * scaleY,
-            rotation: node.rotation(),
+            x: Math.round(node.x()),
+            y: Math.round(node.y()),
+            width: Math.max(5, Math.round(element.width * scaleX)),
+            height: 0,
+            rotation: Math.round(node.rotation()),
           });
         }}
       />
-      <ElementWrapper nodeRef={ref as React.RefObject<Konva.Node>} isSelected={isSelected} />
+      <ElementWrapper
+        nodeRef={ref as React.RefObject<Konva.Node>}
+        isSelected={isSelected}
+        enabledAnchors={["middle-left", "middle-right"]}
+        ignoreStroke={true}
+        boundBoxFunc={(oldBox, newBox) => {
+          if (Math.abs(newBox.width) < 5) return oldBox;
+          return newBox;
+        }}
+      />
     </>
   );
 }

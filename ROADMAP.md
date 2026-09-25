@@ -1,96 +1,176 @@
-# Thermoprint — Project Roadmap & Technical Standards
+# Thermoprint (Standalone) — Master Roadmap & Architecture Plan
 
-## 1. Core Architectural Standards
-
-### 1.1 Device Naming & File Conventions
-* **Rule:** All device profiles and profile files strictly follow `<vendor>-<model>.ts`.
-  * `packages/core/src/device/profiles/mark-p15.ts` (`mark-p15`, alias `p15`)
-  * `packages/core/src/device/profiles/mark-p12.ts` (`mark-p12`, alias `p12`)
-  * `packages/core/src/device/profiles/mark-m60.ts` (`mark-m60`, alias `m60`)
-  * `packages/core/src/device/profiles/pho-p12.ts` (`pho-p12`)
-  * Future vendors: `niim-*` (Niimbot), `dymo-*` (Dymo), etc.
-* **UI Representation:** Human-readable vendor and model as primary label ("Phomemo P12", "Marklife P15"), with raw technical BLE peripheral name shown as a secondary muted badge.
-
-### 1.2 Reference Repositories
-* Reference code and third-party tools are placed strictly in `.reference/` in the project root (ignored by git):
-  * `.reference/phomymo` — Web Bluetooth designer (transcriptionstream)
-  * `.reference/phomemo-tools` — CUPS driver for Linux (vivier)
-  * `.reference/thermal-print` — Clean Web Bluetooth ESC/POS engine (yaddran)
-  * `.reference/soburi-phomemo-p12` — Reverse-engineered Python P12 protocol (soburi)
+> **Єдине джерело правди (Single Source of Truth) для розробки проекту.**
+> Усі попередні розрізнені плани зведені сюди. Виконання завдань ведеться суворо атомарно: один крок за раз із перевіркою та погодженням.
 
 ---
 
-## 2. Completed Milestones
+## 0. Стратегія міграції в окремий проект (Fork → Standalone)
 
-- [x] **Milestone 1: Architectural Renaming & Device Standard**
-  - Renamed all legacy profiles to `<vendor>-<model>.ts`.
-  - Registered profile aliases for backwards compatibility.
-  - Added `unmetered: true` flow control for continuous tape printers.
+Проект значно переріс оригінальний репозиторій `tomLadder/thermoprint`. Додано підтримку нових виробників (Phomemo P12 з термотрансферним протоколом), каталог з 200 000+ іконок Iconify, розширену кириличну типографіку та системні шрифти, поліграфічні штрих-коди OCR-B / GS1, кастомну механіку безперервної стрічки та вух обрізки.
 
-- [x] **Milestone 2: Phomemo P12 Protocol & Windows BLE Stabilization**
-  - Reverse-engineered 6-packet initialization sequence (`1F 11 38...`).
-  - Implemented `pho-p12` protocol (`expectsAck: false`, rotated ESC/POS raster).
-  - Web Bluetooth Windows pairing fix: 3s settling delay (`waitForDeviceReady`) + 6-attempt retry backoff.
-  - Handled Windows WinRT `Connection already in progress` by making RX notifications optional for unmetered devices.
-  - Disabled telemetry queries that cause AAA battery P12 firmware crashes.
-  - **Verified real hardware physical printing on desk!**
-
----
-
-## 3. Active Milestone: Connection Lifecycle & Reconnect UX
-
-- [ ] **Silent Auto-Reconnect on Print:**
-  - If P12 drops GATT connection due to idle battery-saving timeout:
-  - Keep UI status as `Ready (Standby)` without alarming the user.
-  - When user hits Print (`Ctrl+P` / button), silently re-establish GATT session in background and send print job.
-  - Only show error/disconnected if physical reconnect fails (powered off / out of range).
-- [ ] **Battery Telemetry Policy:**
-  - `pho-p12` (AAA battery base model): hide battery indicator completely (no ADC telemetry on device).
-  - `pho-p12pro` (Li-ion rechargeable): allow battery telemetry.
-- [ ] **1-Click Reconnect:**
-  - Clicking the printer chip in Top Chrome directly reconnects to the cached peripheral without reopening the browser picker dialog.
+### План відокремлення:
+1. **Репозиторій та ідентичність:**
+   - Створення окремого автономного репозиторію (або відв'язка форку через GitHub Support / новий remote).
+   - Оновлення `package.json` у корені та пакетах (`name`, `repository`, `homepage`, `author`).
+2. **Новий README.md:**
+   - Повний опис проекту як незалежного веб-редактора для термо- та термотрансферних принтерів.
+   - Реальна галерея підтримуваних пристроїв: **Phomemo P12** (Continuous/Tape), **Marklife P15, P12, P7** (Gap/Continuous), майбутні моделі.
+   - Демонстрація ключових фіч (Iconify, системні шрифти, динамічна стрічка).
+   - Видалення чужих спонсорських посилань; збереження належної ліцензійної атрибуції (MIT License, Original base by tomLadder).
+3. **Очищення документації:**
+   - Видалення застарілих тимчасових планів.
+   - Актуалізація `CHANGELOG.md` та `docs/`.
 
 ---
 
-## 4. Milestone: Continuous Tape Canvas & Cutter Margins ("Вуха")
+## 1. Завершені та перевірені на залізі етапи
 
-- [ ] **Cutter Margins ("Вуха") Visual Representation:**
-  - Continuous tape with `cutterMargins` (e.g. 9 mm lead / 9 mm trail on P12).
-  - **WYSIWYG rule:** Do NOT draw hatching or tinting *inside* the white printable canvas.
-  - Render the "ears" **outside the canvas** (in workspace space above/below edges with diagonal accent hatching and cut tick marks, as sketched).
-  - Canvas elements must strictly clip at printable boundaries so user sees exact cutoffs.
-- [ ] **Roll Direction Control:**
-  - When continuous tape mode is active (`paperType: "continuous"`), hide the `Roll direction` toggle (meaningless for tape).
-- [ ] **Phantom Labels:**
-  - Hide phantom repeat preview labels in continuous tape mode (no gap repeats on continuous tape).
-- [ ] **Label Length Modes for Continuous Tape:**
-  - **1. Preset Sizes:** Quick choices (`12x12`, `22x12`, `30x12`, `40x12`, `50x12`, `60x12`, `80x12` mm).
-  - **2. Custom Length:** Popover with 1 mm step scroll/arrows (minimum length 12 mm).
-  - **3. Auto-fit to Content (Auto-grow Canvas):** Canvas width automatically expands as text/elements grow, maintaining 9 mm lead and trail cutter margins.
-
----
-
-## 5. Milestone: Print Settings & Tape Width Architecture Overhaul
-
-- [ ] **Tape Width Primary Filter:**
-  - In Settings / Size Picker, group presets by tape width (e.g., 12 mm, 14 mm, 15 mm).
-  - For single-width printers (P12 = 12 mm only), lock/hide width selector.
-  - For multi-width printers (P15, M02, A30), select tape width first, then length preset.
-- [ ] **Printer Constraint Overrides:**
-  - When disconnected: show all general sizes.
-  - When connected: default to printer's supported widths/lengths.
-  - Allow manual override with warning if user designs for another printer.
-- [ ] **Print Density & Thermal Transfer Optimization:**
-  - Investigate density control on P12 / thermal transfer ribbons.
-  - Note: AAA battery voltage affects thermal transfer darkness.
+- [x] **Архітектурний стандарт драйверів:**
+  - Конвенція назв `<vendor>-<model>.ts` (`pho-p12.ts`, `mark-p15.ts`, `mark-p12.ts`, `mark-m60.ts`).
+  - Реєстр пристроїв з аліасами та розділенням протоколів.
+  - Організація стороннього референсного коду в `.reference/` (git-ignored).
+- [x] **Драйвер Phomemo P12 та стабілізація Windows BLE:**
+  - Реверс-інжиніринг 6-пакетної ініціалізації (`1F 11 38...`).
+  - Робочий протокол `pho-p12` (ESC/POS растр з поворотом 90°, unmetered потік).
+  - Усунення блокувань WinRT: затримка стабілізації 3с (`waitForDeviceReady`), бекофф на 6 спроб, опціональні RX-сповіщення.
+  - Блокування телеметрії батареї на звичайному P12 (запобігання зависанню прошивки від команди `1F 11 08`).
+  - **Фізичний друк успішно працює на реальному пристрої!**
+- [x] **Кирилична типографіка та локальні шрифти:**
+  - 18+ кириличних веб-шрифтів з нормальними накресленнями (Regular, Bold, Italic).
+  - Підтримка читання системних шрифтів користувача через `window.queryLocalFonts()`.
+  - Запобігання мерехтінню та правильний трансформер тексту.
+- [x] **Екосистема іконок Iconify:**
+  - Інтеграція 150+ бібліотек іконок через батч-API (захист від лімітів Cloudflare 429).
+  - Інлайн SVG-рендеринг та генерація Data URL без мережевих затримок.
+- [x] **Штрих-коди GS1 / OCR-B:**
+  - Справжній шрифт OCR-B за стандартом ISO 1073-2.
+  - Динамічний розрахунок пропорцій баркодів без спотворень.
 
 ---
 
-## 6. Future Milestones
+## 2. Атомарний план виправлення UI та розвитку
 
-- [ ] **Template Fields & Batch Printing (Variable Data):**
-  - Keep dedicated visual Date element with relative math (`+ 14 days`).
-  - Add optional CSV import & batch printing for serialization (`{{SKU}}`, `{{Price}}`).
-- [ ] **Hardware Expansion:**
-  - Niimbot support (`niim-d11`, `niim-b21`).
-  - Additional Phomemo models (`pho-m02`, `pho-d30`, `pho-m110`).
+> ⚠️ **Правило реалізації:** Жодних масових правок. Кожен крок виконується окремо, тестується, надається користувачу на перевірку, і лише після схвалення починається наступний.
+
+```mermaid
+flowchart TD
+    Step0["Крок 0: Хірургічний відкат зламаного UI<br/>(збереження P12-ядра)"] --> Step1
+    Step1["Крок 1: Чіп і діалог принтера<br/>(Ready + Батарея, без дублів, [x] Disconnect)"] --> Step2
+    Step2["Крок 2: Текст і Дата в одному блоці<br/>(без 'Content', живе прев'ю, локалі, без фейкового {{Field}})"] --> Step3
+    Step3["Крок 3: Канвас і Вуха обрізки<br/>(Вуха зовні, акцент, ножиці, виправлений Transformer)"] --> Step4
+    Step4["Крок 4: Стрічка — Dynamic та компактний Custom<br/>(Dynamic режим, Custom [x] [00] mm [-] [+])"] --> Step5
+    Step5["Крок 5: Архітектурна уніфікація Printer Store<br/>(виправлення dual-store розщеплення)"] --> Future["Майбутні майлстоуни:<br/>Batch Print, Ширина стрічки, Нові принтери"]
+```
+
+---
+
+### Крок 0: Хірургічне очищення коду (Базовий санітарний відкат)
+- **Ціль:** Прибрати непрацездатні експерименти попереднього агента, **суворо зберігаючи** драйвер P12 та низькорівневий Bluetooth.
+- **Дії:**
+  - Відкотити до чистого комміту `c5d0c62` тільки UI-файли:
+    - `packages/web/src/editor/inspector/sections/text-section.tsx`
+    - `packages/web/src/lib/date-format.ts`
+    - `packages/web/src/editor/top-chrome/printer-chip.tsx`
+  - Очистити `packages/web/src/editor/canvas/canvas.tsx` від зламаного HTML-оверлею вух, дефектного діалогу Custom та обрізаючого `<Group clipX>`.
+  - Очистити `packages/web/src/editor/editor.tsx` від мертвого непрацюючого блоку auto-reconnect.
+- **Критерій прийому:** Проект збирається без помилок, повертається стабільний інспектор шрифтів та чистий канвас.
+
+---
+
+### Крок 1: Чіп принтера, Діалог та статус «Завжди онлайн»
+- **1.1 Компактний чіп у верхній панелі:**
+  - Симетричні правильні відступи зліва і справа.
+  - Статична кольорова крапка без блимання (розмір аналогічний індикатору біля імені документа).
+  - Стани чіпа:
+    - **Connected:** Зелена крапка + Назва принтера (наприклад, `Phomemo P12`). Жодних дублюючих слів «Online» або «Connected».
+    - **Standby:** Помаранчева крапка (колір `amber` теми) + `STANDBY` над назвою + **кнопка `[×]` для миттєвого розриву зв'язку**.
+- **1.2 Лаконічний діалог принтера (Flyout):**
+  - **Шапка:** `Phomemo P12` з приглушеним сірим підписом `pho-p12 · ID 42V...`.
+  - **Єдиний рядок статусу (замість трьох гігантських плиток):**
+    - Для принтерів з батареєю (P15): `● Ready · 🔋 83%`.
+    - Для принтерів без датчика батареї (P12): `● Ready`.
+    - Плитки `Status: Online`, `Model`, `Protocol` повністю видаляються.
+  - **Debug Log:**
+    - Збільшення висоти до 8–10 рядків (замість 3).
+    - Видалення таймстампів з екранного списку (показувати тільки чисті `[TX] 1F 11 38...` або `[RX] 01 01`).
+    - Тултіп (hover) з повним текстом при наведенні на довгий рядок пакета.
+    - Повний лог з точними таймстампами зберігається при кліку на «Download .log» / «Copy».
+- **1.3 Логіка сесії «Завжди онлайн»:**
+  - Якщо принтер дропнув GATT у проміжках простою — не блокувати інтерфейс і не показувати лякаючих помилок.
+  - При натисканні на друк — тихий фоновий реконект без відкриття системного пікера і без повторного повільного опитування батареї/прошивки (друк стартує негайно).
+  - Кнопка `[×]` у чіпі або «Disconnect» у діалозі скидає збережений пристрій і дозволяє підключити інший.
+
+---
+
+### Крок 2: Текст і Дата в одному інструменті
+- **2.1 Інспектор тексту:**
+  - Видалити зайвий підпис `CONTENT` під словом `TEXT`.
+  - Повністю прибрати кнопку `+ {{Field}}` та фіолетові заглушки (перенесено у майбутній Milestone 5).
+  - Відновити повноцінний вибір шрифтів (Google + локальні системні), розмір, Bold/Italic/TT, вирівнювання та колір.
+- **2.2 Уніфікація роботи з датою:**
+  - Відмова від розділення на окремі незручні сутності «Text» та «Date».
+  - Можливість прямо в текстовому блоці задавати змінні дати (наприклад, `DD.MM.YYYY`, `+7d`).
+  - **Живе прев'ю на канві:** Користувач одразу бачить розраховану дату в реальному часі, а не сирий плейсхолдер.
+  - Повне збереження вибору локалі та мови форматування дати.
+  - Оновлення дати/часу безпосередньо перед формуванням растра на друк (захист від застарілих таймстампів).
+
+---
+
+### Крок 3: Канвас і «Вуха» обрізки (Cutter Margins)
+- **3.1 Візуалізація вух суворо ЗА МЕЖАМИ робочого полотна:**
+  - Біла етикетка залишається 100% чистим білим полотном (строгий WYSIWYG).
+  - Для P12 (де є фізична відстань 9 мм lead + 9 мм trail між голівкою і ножем):
+    - «Вуха» малюються **зверху і знизу за межами білої канви** з відступом.
+    - Штриховка використовує системний колір акценту (ніякого червоного).
+    - Іконка ножиць ✂ розміщується всередині зони штриховки.
+    - Зайвий підпис «9mm» прибирається.
+  - Вуха відображаються **виключно** для принтерів, що мають `cutterMargins` у профілі (P12). На інших принтерах або gap-етикетках вони приховані.
+- **3.2 Виправлення Konva Transformer:**
+  - Елементи не повинні бути заблоковані або обрізані всередині `<Group clipX>`.
+  - Рамка виділення, кутові маркери та верхня ручка обертання (rotation anchor) повинні бути повністю видимі, доступні для кліку і не зрізатися краєм етикетки.
+
+---
+
+### Крок 4: Стрічка та розміри — Dynamic, фільтр ширини та мікро-Custom
+- **4.1 Фільтрація пресетів за шириною стрічки:**
+  - Для принтерів зі змінною шириною (Marklife P15: 12 мм, 14 мм, 15 мм): вибір ширини стрічки розбивається на два рівні — спочатку ширина картриджа, потім пресети, відфільтровані за цією шириною.
+  - Для принтерів з фіксованою стрічкою (Phomemo P12): ширина жорстко зафіксована на 12 мм, вибір ширини не показується.
+- **4.2 Режим Dynamic (Адаптивна довжина):**
+  - Режим стрічки, коли довжина етикетки автоматично розраховується за крайньою правою точкою контенту:
+    `довжина = max(x + width) + відступи (+ cutter margins для P12)`.
+  - При додаванні чи переміщенні елементів довжина етикетки коректно підлаштовується.
+- **4.3 Реалістичні пресети стрічки:**
+  - Замінити рандомні пресети (50, 60, 80) на розміри під реальні сценарії (наприклад, 25 мм, 30 мм, 40 мм, Dynamic).
+- **4.4 Мікро-діалог Custom:**
+  ```text
+  ┌───────────────────────┐
+  │ Custom            [×] │
+  │ [ 25 ] mm   [-]  [+]  │
+  └───────────────────────┘
+  ```
+  - Введення числа: підтримка Backspace, ручний набір будь-яких цифр, не скидає в 12 під час набору.
+  - Крок 1 мм: плавне коліщатко миші або стрілки вводу.
+  - Крок 10 мм: кнопки `[-]` та `[+]` для швидкої зміни розміру.
+  - Жодних дублюючих браузерних спіннерів, сміттєвого тексту та кнопки-плацебо Apply.
+  - Закриття діалогу: по кліку на `[×]` або кліку повз діалог.
+  - **Збереження навігації канви:** зміна довжини стрічки НЕ скидає зум і панорамування користувача в (0,0).
+
+---
+
+### Крок 5: Архітектурна уніфікація Printer Store
+- **Проблема:** Стан принтера розщеплений між `usePrinterStore` та `useEditorV2Store`, а їх синхронізація ведеться через побічні `useEffect` у модальному вікні `ConnectFlow`.
+- **Рішення:**
+  - `usePrinterStore` стає єдиним джерелом правди для перифірії, підключення, статусу та батареї.
+  - `applyModelDefaults` коректно синхронізує `paperType` (щоб при підключенні P12 автоматично вмикався режим continuous).
+  - Скидання розмірів етикетки відбувається лише при явній зміні принтера користувачем, а не при реконекті чи опитуванні батареї.
+
+---
+
+## 3. Майбутній беклог (Future Backlog)
+
+- [ ] **Milestone 5: Шаблонізація та пакетний друк (`{{Field}}` / CSV)**
+  - Розробка повноцінного рушія змінних шаблону.
+  - Імпорт CSV/Excel файлів з автоматичним мапінгом колонок на поля етикетки.
+  - Попередній перегляд записів (Record 1 of N).
+  - Черга пакетного друку на фізичний принтер.

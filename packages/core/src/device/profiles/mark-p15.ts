@@ -13,8 +13,9 @@ const gapSizes: LabelSizePreset[] = [
   { widthMm: 50, heightMm: 15 },
 ];
 
-export const p15Profile: DeviceProfile = {
-  modelId: "p15",
+export const markP15Profile: DeviceProfile = {
+  modelId: "mark-p15",
+  name: "Marklife P15",
   protocolId: "l11",
   serviceUuid: "0000ff00-0000-1000-8000-00805f9b34fb",
   characteristics: {
@@ -50,3 +51,6 @@ export const p15Profile: DeviceProfile = {
     defaultSize: { widthMm: 40, heightMm: 12 },
   },
 };
+
+export const p15Profile = markP15Profile;
+

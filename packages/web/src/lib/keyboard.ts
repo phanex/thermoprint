@@ -23,7 +23,7 @@ function addTextEl() {
     height: 24,
     rotation: 0,
     props: {
-      text: "Label Text",
+      text: "Text",
       fontSize: 18,
       fontFamily: "Inter",
       fontWeight: 400,
@@ -120,7 +120,49 @@ function addRectEl() {
     width: 100,
     height: 60,
     rotation: 0,
-    props: { shapeType: "rect", fill: "", stroke: "#000000", strokeWidth: 2 },
+    props: { shapeType: "rect", cornerRadius: 0, fill: "", stroke: "#000000", strokeWidth: 2 },
+  });
+}
+
+function addEllipseEl() {
+  const { addElement } = useEditorV2Store.getState();
+  addElement({
+    id: uid(),
+    type: "rect",
+    x: 24,
+    y: 24,
+    width: 70,
+    height: 70,
+    rotation: 0,
+    props: { shapeType: "ellipse", fill: "", stroke: "#000000", strokeWidth: 2 },
+  });
+}
+
+function addPolygonEl(sides = 3) {
+  const { addElement } = useEditorV2Store.getState();
+  addElement({
+    id: uid(),
+    type: "rect",
+    x: 24,
+    y: 24,
+    width: 70,
+    height: 70,
+    rotation: 0,
+    props: { shapeType: "polygon", sides, fill: "", stroke: "#000000", strokeWidth: 2 },
+  });
+}
+
+function addStarEl(points = 5, depth = 50) {
+  const { addElement } = useEditorV2Store.getState();
+  addElement({
+    id: uid(),
+    type: "rect",
+    x: 24,
+    y: 24,
+    width: 70,
+    height: 70,
+    rotation: 0,
+    props: { shapeType: "star", points, depth, fill: "", stroke: "#000000", strokeWidth: 2 },
   });
 }
 
@@ -169,6 +211,9 @@ export {
   addBarcodeEl,
   addImageEl,
   addRectEl,
+  addEllipseEl,
+  addPolygonEl,
+  addStarEl,
   addLineEl,
   addDateEl,
 };
@@ -194,9 +239,11 @@ export function useKeyboardShortcuts() {
 
       const cmd = e.metaKey || e.ctrlKey;
       const store = useEditorV2Store.getState();
+      const code = e.code;
+      const key = e.key.toLowerCase();
 
       // Save
-      if (cmd && e.key.toLowerCase() === "s") {
+      if (cmd && (key === "s" || code === "KeyS")) {
         e.preventDefault();
         if (e.shiftKey) {
           const name = prompt(
@@ -211,14 +258,14 @@ export function useKeyboardShortcuts() {
       }
 
       // Command palette
-      if (cmd && e.key.toLowerCase() === "k") {
+      if (cmd && (key === "k" || code === "KeyK")) {
         e.preventDefault();
         useEditorV2Store.setState({ paletteOpen: true });
         return;
       }
 
       // Undo
-      if (cmd && e.key.toLowerCase() === "z" && !e.shiftKey) {
+      if (cmd && (key === "z" || code === "KeyZ") && !e.shiftKey) {
         e.preventDefault();
         useEditorV2Store.temporal.getState().undo();
         return;
@@ -227,8 +274,8 @@ export function useKeyboardShortcuts() {
       // Redo
       if (
         cmd &&
-        (e.key.toLowerCase() === "y" ||
-          (e.shiftKey && e.key.toLowerCase() === "z"))
+        ((key === "y" || code === "KeyY") ||
+          (e.shiftKey && (key === "z" || code === "KeyZ")))
       ) {
         e.preventDefault();
         useEditorV2Store.temporal.getState().redo();
@@ -236,21 +283,21 @@ export function useKeyboardShortcuts() {
       }
 
       // Duplicate
-      if (cmd && e.key.toLowerCase() === "d") {
+      if (cmd && (key === "d" || code === "KeyD")) {
         e.preventDefault();
         store.duplicateSelected();
         return;
       }
 
       // Select all
-      if (cmd && e.key.toLowerCase() === "a") {
+      if (cmd && (key === "a" || code === "KeyA")) {
         e.preventDefault();
         store.selectAll();
         return;
       }
 
       // Print
-      if (cmd && e.key.toLowerCase() === "p") {
+      if (cmd && (key === "p" || code === "KeyP")) {
         e.preventDefault();
         // If no printer connected, open the connect flow
         if (!store.printer.connected) {
@@ -285,43 +332,54 @@ export function useKeyboardShortcuts() {
       }
 
       // Deselect (Escape handled above, before input check)
-      if (e.key.toLowerCase() === "v") {
+      if (key === "v" || code === "KeyV") {
         store.clearSelection();
         return;
       }
 
-      // Add element shortcuts
+      // Add element shortcuts (layout-independent via e.code)
       if (!cmd) {
-        switch (e.key.toLowerCase()) {
-          case "t":
-            addTextEl();
-            return;
-          case "q":
-            addQrEl();
-            return;
-          case "b":
-            addBarcodeEl();
-            return;
-          case "i":
-            addImageEl();
-            return;
-          case "c":
-            window.dispatchEvent(new CustomEvent("thermoprint:open-icons"));
-            return;
-          case "r":
-            addRectEl();
-            return;
-          case "l":
-            addLineEl();
-            return;
-          case "d":
-            addDateEl();
-            return;
-          case "g":
-            useEditorV2Store.setState((s) => ({
-              gridVisible: !s.gridVisible,
-            }));
-            return;
+        if (key === "t" || code === "KeyT") {
+          addTextEl();
+          return;
+        }
+        if (key === "q" || code === "KeyQ") {
+          addQrEl();
+          return;
+        }
+        if (key === "b" || code === "KeyB") {
+          addBarcodeEl();
+          return;
+        }
+        if (key === "p" || code === "KeyP") {
+          addImageEl();
+          return;
+        }
+        if (key === "i" || code === "KeyI" || key === "c" || code === "KeyC") {
+          window.dispatchEvent(new CustomEvent("thermoprint:open-icons"));
+          return;
+        }
+        if (key === "s" || code === "KeyS") {
+          window.dispatchEvent(new CustomEvent("thermoprint:toggle-shapes-menu"));
+          return;
+        }
+        if (key === "r" || code === "KeyR") {
+          addRectEl();
+          return;
+        }
+        if (key === "l" || code === "KeyL") {
+          addLineEl();
+          return;
+        }
+        if (key === "d" || code === "KeyD") {
+          addDateEl();
+          return;
+        }
+        if (key === "g" || code === "KeyG") {
+          useEditorV2Store.setState((s) => ({
+            gridVisible: !s.gridVisible,
+          }));
+          return;
         }
       }
 

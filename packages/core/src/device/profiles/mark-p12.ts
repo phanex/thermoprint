@@ -25,8 +25,9 @@ const continuousSizes: LabelSizePreset[] = [
   { widthMm: 50, heightMm: 15 },
 ];
 
-export const p12Profile: DeviceProfile = {
-  modelId: "p12",
+export const markP12Profile: DeviceProfile = {
+  modelId: "mark-p12",
+  name: "Marklife P12",
   protocolId: "l11",
   serviceUuid: "0000ff00-0000-1000-8000-00805f9b34fb",
   characteristics: {
@@ -39,7 +40,7 @@ export const p12Profile: DeviceProfile = {
     packetDelayMs: 30,
   },
   defaults: { density: 2, paperType: "gap" },
-  namePrefixes: ["P12", "LP90", "P11"],
+  namePrefixes: ["p12_", "P12_", "Marklife P12", "marklife p12", "LP90", "P11"],
   labelConfig: {
     supportedPaperTypes: ["gap", "continuous"],
     defaultPaperType: "gap",
@@ -48,3 +49,6 @@ export const p12Profile: DeviceProfile = {
     defaultSize: { widthMm: 40, heightMm: 15 },
   },
 };
+
+export const p12Profile = markP12Profile;
+
