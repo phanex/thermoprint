@@ -563,9 +563,9 @@ export function PrintSettingsFlyout({ onClose }: Props) {
           {!compat.compatible && Boolean(modelId) && (
             <span
               className="text-amber-400/90 font-medium"
-              title={profile?.name ? `Not supported by ${profile.name}` : "Not supported by current printer"}
+              title={profile?.name ? `Unsupported by ${profile.name}` : "Unsupported by current printer"}
             >
-              · Not supported by printer
+              · Unsupported by printer
             </span>
           )}
         </div>

@@ -26,6 +26,7 @@ All notable changes and improvements in this fork of **Thermoprint**.
 - **Node Test Runner Migration**: Migrated `packages/core/test/protocol/mark-l11.test.ts` from `bun:test` to standard `node:test` and `node:assert/strict`, ensuring unified test suite execution via Node.js (39/39 passing).
 
 ### 🎨 UI & Theme Alignment
+- **Concise Incompatibility Wording**: Refined hardware incompatibility label in flyout footer and tooltips from `· Not supported by printer` to `· Unsupported by printer` (and `Unsupported by %printer%`), saving horizontal room and keeping status typography crisp.
 - **Custom Length & Continuous Option Isolation**: Scoped `Dynamic` and `Custom...` length controls in the canvas dropdown strictly to `paperType === "continuous"`, matching the print settings flyout. Added the reserved 6px spacer to `Custom...` so it aligns precisely with label dimensions.
 - **Sizes Grid Column Alignment**: Replaced conditional rendering of green dots in `PrintSettingsFlyout` size grid with reserved invisible 6px spacers (`invisible`), keeping text horizontally centered and aligned across all buttons.
 - **Chromium Button Focus Ring Elimination**: Added global reset in `index.css` (`button:focus, button:focus-visible { outline: none }`) and explicit `outline-none` on custom controls. Fixes jarring white border ring that Chromium drew around the focused `Custom` button whenever `Shift` was pressed.

@@ -143,7 +143,7 @@ function LabelSizeSelector({
       {!compat.compatible && Boolean(modelId) && (
         <div
           className="flex items-center justify-center text-amber-400/80 hover:text-amber-400 transition-colors select-none pr-0.5 cursor-default"
-          title={profile?.name ? `Not supported by ${profile.name}` : "Not supported by current printer"}
+          title={profile?.name ? `Unsupported by ${profile.name}` : "Unsupported by current printer"}
         >
           <PrinterX size={18} strokeWidth={1.75} />
         </div>
