@@ -429,9 +429,12 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                         : "bg-ink-800 text-ink-300 border-white/5 hover:text-ink-100 hover:bg-ink-750"
                     }`}
                   >
-                    {isSupported && Boolean(modelId) && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Supported by connected printer" />
-                    )}
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        isSupported && Boolean(modelId) ? "bg-emerald-400" : "invisible"
+                      }`}
+                      title={isSupported && Boolean(modelId) ? "Supported by connected printer" : undefined}
+                    />
                     <span>{s.widthMm} × {s.heightMm} mm</span>
                   </button>
                 );

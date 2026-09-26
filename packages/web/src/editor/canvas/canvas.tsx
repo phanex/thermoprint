@@ -274,37 +274,44 @@ function LabelSizeSelector({
                 );
               })}
 
-              <div className="my-1 border-t border-white/5" />
+              {paperType === "continuous" && (
+                <>
+                  <div className="my-1 border-t border-white/5" />
 
-              {/* Dynamic option */}
-              <div
-                className="w-full flex items-center justify-between px-3 h-7 text-ui-sm font-mono text-ink-500 cursor-not-allowed select-none opacity-60"
-                title="Dynamic length adjusts automatically to content (Step 5)"
-              >
-                <span className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 shrink-0 invisible" />
-                  <TapeIcon size={12} />
-                  <span>Dynamic</span>
-                </span>
-                <span className="text-[10px] uppercase font-mono px-1 py-0.2 bg-white/5 rounded text-ink-400">
-                  Soon
-                </span>
-              </div>
+                  {/* Dynamic option */}
+                  <div
+                    className="w-full flex items-center justify-between px-3 h-7 text-ui-sm font-mono text-ink-500 cursor-not-allowed select-none opacity-60"
+                    title="Dynamic length adjusts automatically to content (Step 5)"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 shrink-0 invisible" />
+                      <TapeIcon size={12} />
+                      <span>Dynamic</span>
+                    </span>
+                    <span className="text-[10px] uppercase font-mono px-1 py-0.2 bg-white/5 rounded text-ink-400">
+                      Soon
+                    </span>
+                  </div>
 
-              {/* Custom... option */}
-              <button
-                type="button"
-                onClick={() => {
-                  setSizeOpen(false);
-                  const curLen = label.widthMm === currentTapeWidth ? label.heightMm : label.widthMm;
-                  setCustomLength(curLen);
-                  setCustomInputStr(String(curLen));
-                  setCustomOpen(true);
-                }}
-                className="w-full flex items-center px-3 h-7 text-ui-sm font-mono text-ink-300 hover:bg-white/5 hover:text-ink-100 hover-fade cursor-pointer"
-              >
-                Custom...
-              </button>
+                  {/* Custom... option */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSizeOpen(false);
+                      const curLen = label.widthMm === currentTapeWidth ? label.heightMm : label.widthMm;
+                      setCustomLength(curLen);
+                      setCustomInputStr(String(curLen));
+                      setCustomOpen(true);
+                    }}
+                    className="w-full flex items-center px-3 h-7 text-ui-sm font-mono text-ink-300 hover:bg-white/5 hover:text-ink-100 hover-fade cursor-pointer outline-none"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0 invisible" />
+                      <span>Custom...</span>
+                    </div>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
