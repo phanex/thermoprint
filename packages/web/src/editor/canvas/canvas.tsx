@@ -81,23 +81,15 @@ function LabelSizeSelector({
   const modelId = usePrinterStore((s) => s.modelId);
   const compat = checkPrinterCompatibility(modelId, label, paperType);
 
-  // Available tape widths based on connected model or all profiles
-  const widths = useMemo(() => getAvailableTapeWidths(modelId), [modelId]);
-
-  // Current selected tape width (from label.tapeWidthMm, or matching height/width, or first available)
-  const currentTapeWidth =
-    (label.tapeWidthMm && widths.includes(label.tapeWidthMm))
-      ? label.tapeWidthMm
-      : widths.includes(label.heightMm)
-        ? label.heightMm
-        : widths.includes(label.widthMm)
-          ? label.widthMm
-          : (widths[0] ?? 12);
+  const modelWidths = useMemo(() => getAvailableTapeWidths(modelId), [modelId]);
+  const allWidths = useMemo(() => getAvailableTapeWidths(null), []);
+  const currentTapeWidth = label.tapeWidthMm ?? Math.min(label.widthMm, label.heightMm);
+  const showTapeWidthPill = !modelId || modelWidths.length > 1 || !modelWidths.includes(currentTapeWidth);
 
   // Sizes available for the currently selected tape width
   const sizes = useMemo(
-    () => getSizesForTapeWidth(modelId, currentTapeWidth),
-    [modelId, currentTapeWidth]
+    () => getSizesForTapeWidth(null, currentTapeWidth, paperType),
+    [currentTapeWidth, paperType]
   );
 
   const showDynamicBtn = isContinuousSupported(modelId);
@@ -142,7 +134,7 @@ function LabelSizeSelector({
   };
 
   const handleSelectTapeWidth = (w: number) => {
-    const available = getSizesForTapeWidth(modelId, w);
+    const available = getSizesForTapeWidth(null, w, paperType);
     const existingMatch = available.find(
       (s) => s.labelLengthMm === label.labelLengthMm || s.widthMm === label.widthMm || s.heightMm === label.heightMm
     );
@@ -161,11 +153,21 @@ function LabelSizeSelector({
   return (
     <div
       ref={ref}
-      className="absolute select-none flex items-center justify-center gap-1 z-10 pointer-events-auto"
-      style={{ left: originX + displayW / 2, top: originY + displayH + 8, transform: "translateX(-50%)" }}
+      className="absolute select-none flex items-center justify-center gap-2 z-10 pointer-events-auto"
+      style={{ left: originX + displayW / 2, top: originY + displayH + 10, transform: "translateX(-50%)" }}
     >
-      {/* 1. Tape Width dropdown — shown only if multiple tape widths available */}
-      {widths.length > 1 && (
+      {/* 1. Incompatibility status indicator (left edge, pixel-perfect icon, not a button, no cursor-help) */}
+      {!compat.compatible && Boolean(modelId) && (
+        <div
+          className="flex items-center justify-center text-amber-400 select-none pr-0.5"
+          title={compat.reason}
+        >
+          <PrinterOffIcon size={16} />
+        </div>
+      )}
+
+      {/* 2. Tape Width dropdown */}
+      {showTapeWidthPill && (
         <div className="relative">
           <button
             type="button"
@@ -174,7 +176,7 @@ function LabelSizeSelector({
               setSizeOpen(false);
               setCustomOpen(false);
             }}
-            className={`flex items-center gap-1 px-2.5 h-7 rounded-md border hover-fade font-mono text-ui-base font-semibold whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 h-7 rounded-md border hover-fade font-mono text-ui-base font-semibold whitespace-nowrap cursor-pointer ${
               tapeWidthOpen
                 ? "bg-accent/15 border-accent/40 text-accent"
                 : "bg-ink-850/95 border-white/8 text-ink-200 hover:border-accent/30 hover:text-accent shadow-panel"
@@ -193,9 +195,10 @@ function LabelSizeSelector({
             <div
               className={`absolute left-0 ${openUpwards ? "bottom-full mb-1.5" : "top-full mt-1.5"} w-28 bg-ink-850/95 backdrop-blur-sm border border-white/8 rounded-lg shadow-panel overflow-hidden z-50`}
             >
-              <div className="max-h-72 overflow-y-auto py-1">
-                {widths.map((w) => {
+              <div className="max-h-72 overflow-y-auto py-1 custom-scrollbar">
+                {allWidths.map((w) => {
                   const active = w === currentTapeWidth;
+                  const isSupported = !modelId || modelWidths.includes(w);
                   return (
                     <button
                       key={w}
@@ -210,7 +213,12 @@ function LabelSizeSelector({
                           : "text-ink-300 hover:bg-white/5 hover:text-ink-100"
                       }`}
                     >
-                      <span>{w} mm</span>
+                      <div className="flex items-center gap-1.5">
+                        {!isSupported && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                        )}
+                        <span>{w} mm</span>
+                      </div>
                       {active && <span className="text-accent text-ui-xs">✓</span>}
                     </button>
                   );
@@ -410,16 +418,6 @@ function LabelSizeSelector({
         >
           <TapeIcon size={13} />
         </button>
-      )}
-
-      {/* 4. Incompatibility warning badge if current label is not printable on connected printer */}
-      {!compat.compatible && Boolean(modelId) && (
-        <div
-          className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-ink-850/95 border border-amber-400/30 text-amber-400 shadow-panel cursor-help"
-          title={`Warning: ${compat.reason}`}
-        >
-          <PrinterOffIcon size={13} />
-        </div>
       )}
     </div>
   );

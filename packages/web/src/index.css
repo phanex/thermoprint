@@ -99,6 +99,26 @@
   100% { transform: translateX(16px);  opacity: 0; }
 }
 
+/* --- Custom subtle scrollbar --- */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-ink-700);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink-500);
+}
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-700) transparent;
+}
+
 /* --- Pointer cursor on all interactive elements --- */
 
 button,

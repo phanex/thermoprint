@@ -112,9 +112,17 @@ export function getLabelSizes(
   paperType?: "gap" | "continuous",
 ): LabelSize[] {
   const tapeWidths = getAvailableTapeWidths(modelId);
+  const seen = new Set<string>();
   const result: LabelSize[] = [];
   for (const tw of tapeWidths) {
-    result.push(...getSizesForTapeWidth(modelId, tw, paperType));
+    const forTape = getSizesForTapeWidth(modelId, tw, paperType);
+    for (const s of forTape) {
+      const key = `${s.widthMm}x${s.heightMm}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(s);
+      }
+    }
   }
   return result;
 }
