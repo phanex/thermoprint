@@ -52,7 +52,7 @@ export function ShapesFlyout({ onClose }: Props) {
   ];
 
   return (
-    <div className="fixed inset-x-4 bottom-20 md:inset-auto md:absolute md:bottom-36 md:left-1/2 md:-translate-x-1/2 w-auto md:w-48 bg-ink-850/95 backdrop-blur-sm border border-white/8 rounded-xl shadow-panel z-40 overflow-hidden p-1.5">
+    <div className="fixed inset-x-4 bottom-20 md:inset-auto md:absolute md:bottom-28 md:left-1/2 md:-translate-x-1/2 w-auto md:w-48 bg-ink-850/95 backdrop-blur-sm border border-white/8 rounded-xl shadow-panel z-40 overflow-hidden p-1.5">
       <div className="px-2 py-1 text-ui-2xs font-mono uppercase tracking-wider text-ink-400">
         Shapes
       </div>

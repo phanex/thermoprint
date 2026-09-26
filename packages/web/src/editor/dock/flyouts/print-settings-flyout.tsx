@@ -133,7 +133,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-x-2 bottom-20 max-h-[85vh] overflow-y-auto md:max-h-none md:inset-auto md:absolute md:bottom-24 md:left-1/2 md:-translate-x-1/2 md:w-[560px] bg-ink-850/95 backdrop-blur-sm border border-white/8 rounded-lg shadow-panel z-40 custom-scrollbar">
+    <div className="fixed inset-x-2 bottom-20 max-h-[85vh] overflow-y-auto md:max-h-none md:inset-auto md:absolute md:bottom-28 md:left-1/2 md:-translate-x-1/2 md:w-[560px] bg-ink-850/95 backdrop-blur-sm border border-white/8 rounded-lg shadow-panel z-40 custom-scrollbar">
       <div className="flex items-center justify-between px-3.5 h-9 border-b border-white/5">
         <div className="flex items-center gap-2">
           <Settings size={14} className="text-accent" />
@@ -288,26 +288,25 @@ export function PrintSettingsFlyout({ onClose }: Props) {
             </div>
           </div>
 
-          {printSettings.ditherMode === "threshold" && (
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="text-ui-2xs font-mono uppercase tracking-wider text-ink-400">
-                  Threshold
-                </div>
-                <div className="text-ui-xs font-mono text-ink-100">
-                  {printSettings.threshold}
-                </div>
+          {/* Threshold */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="text-ui-2xs font-mono uppercase tracking-wider text-ink-400">
+                Threshold
               </div>
-              <input
-                type="range"
-                min={0}
-                max={255}
-                value={printSettings.threshold}
-                onChange={(e) => updateSettings({ threshold: Number(e.target.value) })}
-                className="w-full accent-accent"
-              />
+              <div className="text-ui-xs font-mono text-ink-100">
+                {printSettings.threshold}
+              </div>
             </div>
-          )}
+            <input
+              type="range"
+              min={0}
+              max={255}
+              value={printSettings.threshold}
+              onChange={(e) => updateSettings({ threshold: Number(e.target.value) })}
+              className="w-full accent-accent"
+            />
+          </div>
         </div>
 
         {/* Right Column: Media / Paper & Label Size */}
@@ -524,19 +523,21 @@ export function PrintSettingsFlyout({ onClose }: Props) {
 
       {/* Footer summary row */}
       <div className="px-3.5 py-2 border-t border-white/5 flex items-center justify-between text-ui-2xs font-mono text-ink-400">
-        <div>
+        <div className="flex items-center gap-2">
+          <span className="text-ink-200">
+            {label.widthMm} × {label.heightMm} mm · {paperType === "gap" ? "Gap" : "Continuous"}
+          </span>
+          {!compat.compatible && Boolean(modelId) && (
+            <div className="flex items-center gap-1 text-amber-400/80" title={compat.reason}>
+              <PrinterOffIcon size={13} className="opacity-80" />
+              <span>Unsupported</span>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5">
           <span>Printer: </span>
           <span className="text-ink-200">
             {isConnected ? (profile?.name || modelId || "Connected") : "Not connected"}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span>Active: </span>
-          {!compat.compatible && Boolean(modelId) && (
-            <PrinterOffIcon size={14} className="text-amber-400" />
-          )}
-          <span className="text-ink-200">
-            {label.widthMm} × {label.heightMm} mm
           </span>
         </div>
       </div>

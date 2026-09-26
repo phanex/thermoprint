@@ -67,7 +67,7 @@ export function LayersFlyout({ onClose }: Props) {
   const reversed = [...elements].reverse();
 
   return (
-    <div className="fixed inset-x-2 bottom-20 max-h-[80vh] overflow-y-auto md:max-h-none md:overflow-hidden md:inset-auto md:absolute md:bottom-44 md:left-1/2 md:-translate-x-1/2 md:w-80 bg-ink-850/95 backdrop-blur-sm border border-white/8 rounded-lg shadow-panel z-40">
+    <div className="fixed inset-x-2 bottom-20 max-h-[80vh] overflow-y-auto md:max-h-none md:overflow-hidden md:inset-auto md:absolute md:bottom-28 md:left-1/2 md:-translate-x-1/2 md:w-80 bg-ink-850/95 backdrop-blur-sm border border-white/8 rounded-lg shadow-panel z-40">
       <div className="flex items-center justify-between px-3 h-9 border-b border-white/5">
         <div className="flex items-center gap-2">
           <Layers size={14} className="text-accent" />

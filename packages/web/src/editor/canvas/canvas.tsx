@@ -160,10 +160,10 @@ function LabelSizeSelector({
       {/* 1. Incompatibility status indicator (left edge, pixel-perfect icon, not a button, no cursor-help) */}
       {!compat.compatible && Boolean(modelId) && (
         <div
-          className="flex items-center justify-center text-amber-400 select-none pr-0.5"
+          className="flex items-center justify-center text-amber-400 opacity-60 hover:opacity-100 transition-opacity select-none pr-0.5 cursor-default"
           title={compat.reason}
         >
-          <PrinterOffIcon size={24} />
+          <PrinterOffIcon size={18} />
         </div>
       )}
 
