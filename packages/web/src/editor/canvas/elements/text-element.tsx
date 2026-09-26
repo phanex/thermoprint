@@ -32,6 +32,8 @@ interface Props {
 export function TextElement({ element, isSelected }: Props) {
   const ref = useRef<Konva.Text>(null);
   const trRef = useRef<Konva.Transformer>(null);
+  const widthRef = useRef(element.width);
+  widthRef.current = element.width;
   const heightRef = useRef(element.height);
   heightRef.current = element.height;
 
@@ -55,6 +57,7 @@ export function TextElement({ element, isSelected }: Props) {
     uppercase?: boolean;
     datePreset?: string;
     dateLocale?: string;
+    autoWidth?: boolean;
   };
 
   const evaluated = getDisplayText(p.text ?? "", p.datePreset as any, p.dateLocale);
@@ -65,7 +68,7 @@ export function TextElement({ element, isSelected }: Props) {
       .filter(Boolean)
       .join(" ") || "normal";
 
-  // Auto-measure height and re-calculate Konva text metrics on font load
+  // Auto-measure width & height and re-calculate Konva text metrics on font load
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
@@ -78,10 +81,21 @@ export function TextElement({ element, isSelected }: Props) {
       // Force Konva to clear cached lines and recalculate with the loaded font
       (n as any)._setTextData();
       const minH = Math.ceil((p.fontSize || 18) * (p.lineHeight || 1));
-      const h = Math.max(minH, Math.ceil(n.height()));
-      if (Math.abs(h - heightRef.current) > 0.5) {
-        heightRef.current = h;
-        updateElement(element.id, { height: h });
+      let nextW = element.width;
+      let nextH = Math.max(minH, Math.ceil(n.height()));
+      if (p.autoWidth !== false) {
+        const measured = (n as any).measureSize(displayText);
+        if (measured && typeof measured.width === "number") {
+          nextW = Math.max(20, Math.ceil(measured.width));
+          nextH = Math.max(minH, Math.ceil(measured.height));
+        }
+      }
+      const wChanged = Math.abs(nextW - widthRef.current) > 0.5;
+      const hChanged = Math.abs(nextH - heightRef.current) > 0.5;
+      if (wChanged || hChanged) {
+        widthRef.current = nextW;
+        heightRef.current = nextH;
+        updateElement(element.id, { width: nextW, height: nextH });
       }
       n.getLayer()?.batchDraw();
     };
@@ -291,13 +305,14 @@ export function TextElement({ element, isSelected }: Props) {
     node.scaleY(1);
 
     if (isSideH) {
-      // Side handle: commit width, height auto-updates
+      // Side handle: commit width, height auto-updates, preserve manual width
       updateElement(element.id, {
         x: Math.round(node.x()),
         y: Math.round(node.y()),
         width: Math.max(20, Math.round(node.width())),
         height: node.height(),
         rotation: Math.round(node.rotation()),
+        props: { ...element.props, autoWidth: false },
       });
     } else {
       // Corner handle or vertical handle: proportional font scaling

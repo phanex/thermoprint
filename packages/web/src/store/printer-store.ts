@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { BlePeripheral, PrinterStatus } from "@thermoprint/core";
 import { getDevice } from "@thermoprint/core";
 import type { PrintSettings } from "./types.ts";
-import { useEditorStore } from "./editor-store.ts";
+import { useEditorStore, setModelIdGetter } from "./editor-store.ts";
 import { mmToPx } from "../utils/px-mm.ts";
 
 interface PrinterState {
@@ -118,3 +118,5 @@ export const usePrinterStore = create<PrinterState>((set) => ({
   updateSettings: (patch) =>
     set((s) => ({ settings: { ...s.settings, ...patch } })),
 }));
+
+setModelIdGetter(() => usePrinterStore.getState().modelId);

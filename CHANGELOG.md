@@ -6,6 +6,19 @@ All notable changes and improvements in this fork of **Thermoprint**.
 
 ## [Unreleased]
 
+### 🎨 UI & Theme Alignment
+- **Step 5: Dynamic Tape Mode (`isDynamic`) & Real-Time Content-Aware Canvas**:
+  - **Dynamic Ribbon Length Calculation (`computeDynamicLabel`)**: Added dedicated `packages/web/src/label/dynamic-label.ts` computing ribbon cut length dynamically based on the rightmost element coordinate (`max(x + width)`), standard 3 mm padding, and physical printer cutter margins (9 mm lead + 9 mm trail on Phomemo P12).
+  - **Symmetric Cutter Margin Balancing**: Computes `leftWhitespacePx = Math.max(paddingPx, minLeftPx - leadPx)` and mirrors it as `rightWhitespacePx`, guaranteeing content is aesthetically centered between the lead-in feed line and cutter scissors edge with matching 3 mm breathing room.
+  - **100% Real-Time Reactive Store Updates**: Integrated automatic dynamic recalculation in `useEditorV2Store` across all element mutations: `addElement`, `updateElement`, `updateElements`, `updateElementLive`, `removeSelected`, `duplicateSelected`, and `setDynamic`. Ribbon length adapts live as elements are added, edited, dragged, or deleted.
+  - **Zoom & Pan Viewport Stability (Zero Jitter)**: Guarded `fitToScreen` in `canvas.tsx` from firing on live `label.widthPx` changes while `label.isDynamic` is active. Editing text or dragging objects no longer causes canvas zoom-out jumps or resets pan coordinates.
+  - **Dynamic Ribbon Selector & Quick-Toggle Button `[ ▤ ]`**:
+    - Activated the canvas pill `[ ▤ ]` button with design token styling (`bg-accent/15 border-accent/40 text-accent` when active; `bg-ink-850/95 border-white/8 text-ink-300` when inactive).
+    - Activated the `Dynamic` option in the canvas label size dropdown, completely removing the disabled state and "Soon" tag.
+    - Updated the label size button to render `Dynamic · {len} mm` when active, providing instant visual feedback on current cut length.
+  - **Responsive Inline Text Auto-Width**: Bound `refreshLayout` in `TextElement` to unwrapped text metrics via Konva `measureSize(displayText)`. Typing words smoothly expands element width and tape length in real-time, while manual width adjustments via Transformer side handles set `autoWidth: false` to preserve deliberate multi-line wrapping.
+  - **Print Settings Flyout & Status Bar Synchronization**: Added a 2-column `[ Dynamic ] [ Custom... ]` control in `PrintSettingsFlyout` under continuous paper, updated media details in `PrintButton` (`continuous (dynamic)`), and added `CONT (DYN)` document tag in `StatusBar`.
+
 ### 🔌 Hardware & Protocol Discoveries
 - **Strict Paper Type & Hardware Compatibility Verification**: Added `isTapeWidthSupported(modelId, tapeWidthMm, paperType)` to `packages/web/src/label/label-sizes.ts`. Validates `profile.labelConfig.supportedPaperTypes.includes(paperType)` and tape definition before declaring hardware readiness. Prevents false positive green indicators (e.g. showing 12 mm tape as green on Phomemo P12 when in "Gap" mode, since P12 hardware only supports continuous paper).
 - **Live Hardware Verification of Keep-Alive Heartbeat (Phomemo P12 & Marklife P15)**: 

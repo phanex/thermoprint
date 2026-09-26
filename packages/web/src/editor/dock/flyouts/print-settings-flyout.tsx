@@ -28,6 +28,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
   const mode = useEditorV2Store((s) => s.mode);
   const setTheme = useEditorV2Store((s) => s.setTheme);
   const setMode = useEditorV2Store((s) => s.setMode);
+  const setDynamic = useEditorV2Store((s) => s.setDynamic);
 
   const [tapeFilterOpen, setTapeFilterOpen] = useState(false);
   const [selectedWidth, setSelectedWidth] = useState<number | "all">("all");
@@ -65,7 +66,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
   }, [selectedWidth, paperType]);
 
   const isCurrentPreset = availableSizes.some(
-    (s) => s.widthMm === label.widthMm && s.heightMm === label.heightMm,
+    (s) => !label.isDynamic && s.widthMm === label.widthMm && s.heightMm === label.heightMm,
   );
 
   const compat = checkPrinterCompatibility(modelId, label, paperType);
@@ -76,7 +77,10 @@ export function PrintSettingsFlyout({ onClose }: Props) {
     }));
 
   const setPaperType = (pt: "gap" | "continuous") => {
-    useEditorV2Store.setState({ paperType: pt });
+    useEditorV2Store.setState((s) => ({
+      paperType: pt,
+      label: pt === "gap" ? { ...s.label, isDynamic: false } : s.label,
+    }));
     const tw = selectedWidth !== "all" ? selectedWidth : currentTape;
     const sizes = getSizesForTapeWidth(null, tw, pt);
     const currentValid = sizes.some(
@@ -91,6 +95,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
           widthPx: mmToPx(def.widthMm),
           heightPx: mmToPx(def.heightMm),
           tapeWidthMm: tw,
+          isDynamic: false,
         },
       });
     }
@@ -113,6 +118,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
         heightPx: mmToPx(h),
         tapeWidthMm: tw,
         labelLengthMm: w,
+        isDynamic: false,
       },
     });
   };
@@ -421,7 +427,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
               onWheel={(e) => e.stopPropagation()}
             >
               {availableSizes.map((s) => {
-                const active = s.widthMm === label.widthMm && s.heightMm === label.heightMm;
+                const active = !label.isDynamic && s.widthMm === label.widthMm && s.heightMm === label.heightMm;
                 const isSupported = !modelId || checkPrinterCompatibility(modelId, s, paperType).compatible;
                 return (
                   <button
@@ -445,21 +451,40 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                 );
               })}
 
-              {/* Custom Length button for Continuous paper */}
+              {/* Dynamic and Custom Length buttons for Continuous paper */}
               {paperType === "continuous" && (
-                <div className="relative col-span-2">
+                <div className="col-span-2 grid grid-cols-2 gap-1.5">
+                  {/* Dynamic button */}
                   <button
                     type="button"
-                    onClick={() => setCustomOpen((o) => !o)}
-                    onWheel={handleCustomLengthWheel}
-                    className={`w-full h-7 rounded-md text-ui-xs font-mono border hover-fade cursor-pointer outline-none focus:outline-none focus-visible:outline-none ${
-                      !isCurrentPreset
-                        ? "bg-accent/10 text-accent border-accent/30"
+                    onClick={() => {
+                      setDynamic(!label.isDynamic);
+                      setCustomOpen(false);
+                    }}
+                    className={`h-7 rounded-md text-ui-xs font-mono border hover-fade cursor-pointer outline-none flex items-center justify-center gap-1.5 ${
+                      label.isDynamic
+                        ? "bg-accent/10 text-accent border-accent/30 font-semibold"
                         : "bg-ink-800 text-ink-300 border-white/5 hover:text-ink-100 hover:bg-ink-750"
                     }`}
+                    title="Dynamic length adjusts automatically to content"
                   >
-                    {!isCurrentPreset ? `Custom: ${curLength} mm` : "Custom..."}
+                    <span>Dynamic</span>
                   </button>
+
+                  {/* Custom Length button */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setCustomOpen((o) => !o)}
+                      onWheel={handleCustomLengthWheel}
+                      className={`w-full h-7 rounded-md text-ui-xs font-mono border hover-fade cursor-pointer outline-none focus:outline-none focus-visible:outline-none ${
+                        !isCurrentPreset && !label.isDynamic
+                          ? "bg-accent/10 text-accent border-accent/30"
+                          : "bg-ink-800 text-ink-300 border-white/5 hover:text-ink-100 hover:bg-ink-750"
+                      }`}
+                    >
+                      {!isCurrentPreset && !label.isDynamic ? `Custom: ${curLength} mm` : "Custom..."}
+                    </button>
 
                   {/* Custom length popover */}
                   {customOpen && (
@@ -546,6 +571,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                       </div>
                     </div>
                   )}
+                  </div>
                 </div>
               )}
             </div>
@@ -563,7 +589,10 @@ export function PrintSettingsFlyout({ onClose }: Props) {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-ink-200">
-            {label.widthMm} × {label.heightMm} mm · {paperType === "gap" ? "Gap" : "Continuous"}
+            {label.isDynamic
+              ? `Dynamic (${label.widthMm} mm) · ${label.heightMm} mm`
+              : `${label.widthMm} × ${label.heightMm} mm`}{" "}
+            · {paperType === "gap" ? "Gap" : "Continuous"}
           </span>
           {!compat.compatible && Boolean(modelId) && (
             <span

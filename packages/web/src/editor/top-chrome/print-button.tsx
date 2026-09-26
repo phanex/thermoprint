@@ -191,7 +191,7 @@ export function PrintButton({ onPrint }: PrintButtonProps) {
             />
             <MiniRow
               label="Media"
-              value={`${label.widthMm} × ${label.heightMm} mm · ${paperType}`}
+              value={`${label.widthMm} × ${label.heightMm} mm · ${paperType === "continuous" && label.isDynamic ? "continuous (dynamic)" : paperType}`}
             />
             <MiniRow
               label="Est. time"

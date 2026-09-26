@@ -22,8 +22,8 @@ export function StatusBar() {
           {label.widthMm}×{label.heightMm} mm
         </span>
         <span className="text-ink-600">/</span>
-        <span title={paperType === "gap" ? "Gap paper (die-cut labels)" : "Continuous tape"}>
-          {paperType === "gap" ? "GAP" : "CONT"}
+        <span title={paperType === "gap" ? "Gap paper (die-cut labels)" : label.isDynamic ? "Continuous tape (Dynamic length)" : "Continuous tape"}>
+          {paperType === "gap" ? "GAP" : label.isDynamic ? "CONT (DYN)" : "CONT"}
         </span>
         <span className="text-ink-600">/</span>
         <span>{elements.length} elements</span>

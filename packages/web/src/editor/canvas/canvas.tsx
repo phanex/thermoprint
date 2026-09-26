@@ -60,6 +60,7 @@ function LabelSizeSelector({
 
   const label = useEditorV2Store((s) => s.label);
   const paperType = useEditorV2Store((s) => s.paperType);
+  const setDynamic = useEditorV2Store((s) => s.setDynamic);
   const modelId = usePrinterStore((s) => s.modelId);
   const profile = useMemo(() => (modelId ? getDevice(modelId) : null), [modelId]);
   const compat = checkPrinterCompatibility(modelId, label, paperType);
@@ -75,7 +76,7 @@ function LabelSizeSelector({
     [currentTapeWidth, paperType]
   );
 
-  const showDynamicBtn = isContinuousSupported(modelId);
+  const showDynamicBtn = isContinuousSupported(modelId) || paperType === "continuous";
 
   const [customLength, setCustomLength] = useState(label.widthMm);
   const [customInputStr, setCustomInputStr] = useState(String(label.widthMm));
@@ -117,6 +118,7 @@ function LabelSizeSelector({
         heightPx: mmToPx(heightMm),
         tapeWidthMm: activeTape,
         labelLengthMm: widthMm,
+        isDynamic: false,
       },
     });
   };
@@ -237,9 +239,13 @@ function LabelSizeSelector({
               ? "bg-accent/15 border-accent/40 text-accent"
               : "bg-ink-850/95 border-white/8 text-ink-200 hover:border-accent/30 hover:text-accent shadow-panel"
           }`}
-          title="Label size"
+          title={label.isDynamic ? "Label size: Dynamic length (auto-fits content)" : "Label size"}
         >
-          <span>{label.widthMm} × {label.heightMm} mm</span>
+          <span>
+            {label.isDynamic
+              ? `Dynamic · ${label.widthMm} mm`
+              : `${label.widthMm} × ${label.heightMm} mm`}
+          </span>
           <ChevronDown
             size={13}
             className={sizeOpen ? "rotate-180" : ""}
@@ -254,7 +260,9 @@ function LabelSizeSelector({
             <div className="max-h-80 overflow-y-auto py-1">
               {sizes.map((s) => {
                 const active =
-                  s.widthMm === label.widthMm && s.heightMm === label.heightMm;
+                  !label.isDynamic &&
+                  s.widthMm === label.widthMm &&
+                  s.heightMm === label.heightMm;
                 const isSupported = !modelId || checkPrinterCompatibility(modelId, s, paperType).compatible;
                 return (
                   <button
@@ -288,19 +296,29 @@ function LabelSizeSelector({
                   <div className="my-1 border-t border-white/5" />
 
                   {/* Dynamic option */}
-                  <div
-                    className="w-full flex items-center justify-between px-3 h-7 text-ui-sm font-mono text-ink-500 cursor-not-allowed select-none opacity-60"
-                    title="Dynamic length adjusts automatically to content (Step 5)"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDynamic(true);
+                      setSizeOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 h-7 text-ui-sm font-mono hover-fade cursor-pointer ${
+                      label.isDynamic
+                        ? "text-accent bg-accent/10"
+                        : "text-ink-300 hover:bg-white/5 hover:text-ink-100"
+                    }`}
+                    title="Dynamic length adjusts automatically to content"
                   >
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 shrink-0 invisible" />
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          label.isDynamic ? "bg-accent" : "invisible"
+                        }`}
+                      />
                       <TapeIcon size={12} />
                       <span>Dynamic</span>
-                    </span>
-                    <span className="text-[10px] uppercase font-mono px-1 py-0.2 bg-white/5 rounded text-ink-400">
-                      Soon
-                    </span>
-                  </div>
+                    </div>
+                  </button>
 
                   {/* Custom... option */}
                   <button
@@ -434,13 +452,21 @@ function LabelSizeSelector({
         )}
       </div>
 
-      {/* 3. Dynamic button [ ▤ ] — shown ONLY if connected to a continuous-capable printer */}
+      {/* 3. Dynamic button [ ▤ ] — shown for continuous printers or continuous paper */}
       {showDynamicBtn && (
         <button
           type="button"
-          disabled
-          title="Dynamic length (coming in Step 5)"
-          className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-ink-850/95 border border-white/8 text-ink-500 cursor-not-allowed shadow-panel opacity-60"
+          onClick={() => setDynamic(!label.isDynamic)}
+          title={
+            label.isDynamic
+              ? "Dynamic length (Active) — click to disable"
+              : "Toggle dynamic length (auto-fits content)"
+          }
+          className={`inline-flex items-center justify-center w-7 h-7 rounded-md border hover-fade shadow-panel cursor-pointer transition-colors ${
+            label.isDynamic
+              ? "bg-accent/15 border-accent/40 text-accent hover:bg-accent/20"
+              : "bg-ink-850/95 border-white/8 text-ink-300 hover:text-accent hover:border-accent/30"
+          }`}
         >
           <TapeIcon size={13} />
         </button>
@@ -521,9 +547,17 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
     return () => ro.disconnect();
   }, []);
 
-  // Fit to screen on mount and when label changes (new label, open label)
+  // Fit to screen on mount and when label changes (new label, open label, fixed size change)
   const currentLabelId = useEditorV2Store((s) => s.currentLabelId);
+  const isDynamic = label.isDynamic;
+  const prevDynamicRef = useRef(isDynamic);
   useEffect(() => {
+    // If in dynamic mode and dynamic mode was already active, do not reset zoom/pan on live width changes
+    if (isDynamic && prevDynamicRef.current) {
+      return;
+    }
+    prevDynamicRef.current = isDynamic;
+
     const padW = window.innerWidth < 768 ? 60 : 160;
     // Header (48px) + lowered dock/status (80px) + selector pills (36px) + comfortable breathing room
     const padH = window.innerWidth < 768 ? 140 : 210;
@@ -533,7 +567,7 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
     setZoom(fit);
     setPan(0, window.innerWidth < 768 ? 0 : -30);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentLabelId, label.widthPx, label.heightPx]);
+  }, [currentLabelId, isDynamic, isDynamic ? null : label.widthPx, label.heightPx]);
 
   // Space key tracking for pan mode
   useEffect(() => {
