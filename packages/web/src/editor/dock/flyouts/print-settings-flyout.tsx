@@ -9,6 +9,7 @@ import {
   getSizesForTapeWidth,
   getLabelSizes,
   checkPrinterCompatibility,
+  isTapeWidthSupported,
 } from "../../../label/label-sizes.ts";
 
 interface Props {
@@ -55,7 +56,6 @@ export function PrintSettingsFlyout({ onClose }: Props) {
   }, [label.widthMm, label.heightMm, currentTape]);
 
   const allTapeWidths = useMemo(() => getAvailableTapeWidths(null), []);
-  const supportedTapeWidths = useMemo(() => getAvailableTapeWidths(modelId), [modelId]);
 
   const availableSizes = useMemo(() => {
     if (selectedWidth === "all") {
@@ -328,7 +328,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                       : "text-ink-300 hover:text-ink-100"
                   }`}
                 >
-                  {pt === "gap" ? "Gap (die-cut)" : "Continuous"}
+                  {pt === "gap" ? "Gap" : "Continuous"}
                 </button>
               ))}
             </div>
@@ -360,11 +360,13 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                         selectedWidth === "all" ? "text-accent bg-accent/10" : "text-ink-300 hover:bg-white/5 hover:text-ink-100"
                       }`}
                     >
-                      <span>All widths</span>
-                      {selectedWidth === "all" && <span className="text-accent">✓</span>}
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0 invisible" />
+                        <span>All widths</span>
+                      </div>
                     </button>
                     {allTapeWidths.map((w) => {
-                      const isSupported = !modelId || supportedTapeWidths.includes(w);
+                      const isSupported = isTapeWidthSupported(modelId, w, paperType);
                       return (
                         <button
                           key={w}
@@ -375,12 +377,14 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                           }`}
                         >
                           <div className="flex items-center gap-1.5">
-                            {isSupported && Boolean(modelId) && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Supported by connected printer" />
-                            )}
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                isSupported && Boolean(modelId) ? "bg-emerald-400" : "invisible"
+                              }`}
+                              title={isSupported && Boolean(modelId) ? "Supported by connected printer" : undefined}
+                            />
                             <span>{w} mm</span>
                           </div>
-                          {selectedWidth === w && <span className="text-accent">✓</span>}
                         </button>
                       );
                     })}

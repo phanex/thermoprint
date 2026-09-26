@@ -7,6 +7,7 @@ All notable changes and improvements in this fork of **Thermoprint**.
 ## [Unreleased]
 
 ### 🔌 Hardware & Protocol Discoveries
+- **Strict Paper Type & Hardware Compatibility Verification**: Added `isTapeWidthSupported(modelId, tapeWidthMm, paperType)` to `packages/web/src/label/label-sizes.ts`. Validates `profile.labelConfig.supportedPaperTypes.includes(paperType)` and tape definition before declaring hardware readiness. Prevents false positive green indicators (e.g. showing 12 mm tape as green on Phomemo P12 when in "Gap" mode, since P12 hardware only supports continuous paper).
 - **Live Hardware Verification of Keep-Alive Heartbeat (Phomemo P12 & Marklife P15)**: 
   - **Phomemo P12**: Verified over 4.5+ minutes of continuous idle connection. 6 consecutive keep-alive battery query cycles (`1F 11 08` -> `01 01` -> `1a 04 64` @36-42ms latency) executed every 40-45s with unmetered flow control (`credits=Infinity`). Successfully prevented firmware auto-sleep through both the critical 3-minute sleep threshold and 4-minute mark with 100% link stability and persistent `CONNECTED Phomemo P12 100%` UI state.
   - **Marklife P15**: Verified over 6+ minutes of continuous idle connection. 9 consecutive keep-alive battery query cycles (`10 FF 50 F1` -> `00 54` / `00 55`) executed every 45s, maintaining the connection through the 3-minute firmware sleep threshold with 100% link uptime, dynamic UI battery synchronization (84% ↔ 85%), and zero flow-control credit loss (4/4 credits).
@@ -25,6 +26,9 @@ All notable changes and improvements in this fork of **Thermoprint**.
 - **Node Test Runner Migration**: Migrated `packages/core/test/protocol/mark-l11.test.ts` from `bun:test` to standard `node:test` and `node:assert/strict`, ensuring unified test suite execution via Node.js (39/39 passing).
 
 ### 🎨 UI & Theme Alignment
+- **Dropdown Text Column Alignment via Reserved Spacers**: Fixed ragged and misaligned text across tape width and label size dropdowns by rendering a fixed 6px spacer (`<span className="w-1.5 h-1.5 rounded-full shrink-0 invisible" />`) for unsupported or non-indicator items. Ensures all items share an identical vertical gutter regardless of whether an active hardware green dot is present.
+- **UI De-Cluttering & Dropdown Checkmark Removal**: Removed redundant checkmark `✓` icons on selected items across canvas and flyout dropdowns (active items are already highlighted via `bg-accent/10 text-accent`).
+- **Clean Paper Type Naming**: Streamlined paper type selector button label from `"Gap (die-cut)"` to `"Gap"`.
 - **Integrated Non-Modal Connection Flow**: Removed intrusive `<ConnectFlow />` modal popup; connection state, device discovery, and live telemetry log now render directly within the top-left `<PrinterChip />` and flyout.
 - **Theme Palette Conformance**: Reverted unrequested `hover:text-red-400` colors on disconnect `[×]`, Forget, Disconnect, and Clear Log buttons back to standard design system tokens (`text-ink-400 hover:text-ink-100`, `text-ink-300 hover:text-ink-100`).
 - **1-Click Quick Disconnect**: Added direct `[×]` disconnect button on the top-left chip bar during Connected and Standby states.

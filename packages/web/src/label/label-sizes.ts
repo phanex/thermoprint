@@ -170,3 +170,25 @@ export function checkPrinterCompatibility(
 
   return { compatible: true };
 }
+
+/**
+ * Checks whether a specific tape width is supported by the printer for the current paper type.
+ */
+export function isTapeWidthSupported(
+  modelId: string | null,
+  tapeWidthMm: number,
+  paperType: "gap" | "continuous",
+): boolean {
+  if (!modelId) return true;
+  const profile = getDevice(modelId);
+  if (!profile || !profile.labelConfig) return true;
+  const lc = profile.labelConfig;
+  if (!lc.supportedPaperTypes.includes(paperType)) return false;
+  const tape = lc.tapes?.find((t) => t.tapeWidthMm === tapeWidthMm);
+  if (!tape) return false;
+  if (paperType === "gap") {
+    return Boolean(tape.gapLengthsMm && tape.gapLengthsMm.length > 0);
+  }
+  return true;
+}
+

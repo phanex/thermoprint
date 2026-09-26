@@ -9,6 +9,7 @@ import {
   getSizesForTapeWidth,
   isContinuousSupported,
   checkPrinterCompatibility,
+  isTapeWidthSupported,
 } from "../../label/label-sizes.ts";
 import { getDevice } from "@thermoprint/core";
 import { ChevronDown, Minus, Plus, X, PrinterX } from "lucide-react";
@@ -180,7 +181,7 @@ function LabelSizeSelector({
               <div className="max-h-72 overflow-y-auto py-1 custom-scrollbar">
                 {allWidths.map((w) => {
                   const active = w === currentTapeWidth;
-                  const isSupported = !modelId || modelWidths.includes(w);
+                  const isSupported = isTapeWidthSupported(modelId, w, paperType);
                   return (
                     <button
                       key={w}
@@ -196,12 +197,14 @@ function LabelSizeSelector({
                       }`}
                     >
                       <div className="flex items-center gap-1.5">
-                        {isSupported && Boolean(modelId) && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Supported by connected printer" />
-                        )}
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                            isSupported && Boolean(modelId) ? "bg-emerald-400" : "invisible"
+                          }`}
+                          title={isSupported && Boolean(modelId) ? "Supported by connected printer" : undefined}
+                        />
                         <span>{w} mm</span>
                       </div>
-                      {active && <span className="text-accent text-ui-xs">✓</span>}
                     </button>
                   );
                 })}
@@ -259,12 +262,14 @@ function LabelSizeSelector({
                     }`}
                   >
                     <div className="flex items-center gap-1.5">
-                      {isSupported && Boolean(modelId) && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Supported by connected printer" />
-                      )}
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          isSupported && Boolean(modelId) ? "bg-emerald-400" : "invisible"
+                        }`}
+                        title={isSupported && Boolean(modelId) ? "Supported by connected printer" : undefined}
+                      />
                       <span>{s.name}</span>
                     </div>
-                    {active && <span className="text-accent text-ui-xs">✓</span>}
                   </button>
                 );
               })}
@@ -277,6 +282,7 @@ function LabelSizeSelector({
                 title="Dynamic length adjusts automatically to content (Step 5)"
               >
                 <span className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 shrink-0 invisible" />
                   <TapeIcon size={12} />
                   <span>Dynamic</span>
                 </span>
