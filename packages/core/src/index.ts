@@ -35,6 +35,7 @@ export { PhoP12Protocol } from "./protocol/pho-p12/protocol.js";
 export type {
   DeviceProfile,
   DeviceLabelConfig,
+  TapeOption,
   LabelSizePreset,
   PrintOptions,
   PrinterStatus,

@@ -53,7 +53,8 @@ export function applyModelDefaults(modelId: string): void {
     paperType: lc.defaultPaperType,
   });
 
-  const { widthMm, heightMm } = lc.defaultSize;
+  const widthMm = lc.defaultLabelLengthMm;
+  const heightMm = lc.defaultTapeWidthMm;
   useEditorStore.setState({
     label: { widthMm, heightMm, widthPx: mmToPx(widthMm), heightPx: mmToPx(heightMm) },
   });

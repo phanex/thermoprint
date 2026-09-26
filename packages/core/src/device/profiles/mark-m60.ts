@@ -1,22 +1,4 @@
-import type { DeviceProfile, LabelSizePreset } from "../types.js";
-
-const gapSizes: LabelSizePreset[] = [
-  { widthMm: 20, heightMm: 10 },
-  { widthMm: 30, heightMm: 15 },
-  { widthMm: 40, heightMm: 12 },
-  { widthMm: 40, heightMm: 20 },
-  { widthMm: 40, heightMm: 30 },
-  { widthMm: 50, heightMm: 30 },
-  { widthMm: 50, heightMm: 40 },
-];
-
-const continuousSizes: LabelSizePreset[] = [
-  { widthMm: 30, heightMm: 15 },
-  { widthMm: 40, heightMm: 20 },
-  { widthMm: 40, heightMm: 30 },
-  { widthMm: 50, heightMm: 30 },
-  { widthMm: 50, heightMm: 40 },
-];
+import type { DeviceProfile } from "../types.js";
 
 export const markM60Profile: DeviceProfile = {
   modelId: "mark-m60",
@@ -36,9 +18,15 @@ export const markM60Profile: DeviceProfile = {
   labelConfig: {
     supportedPaperTypes: ["gap", "continuous"],
     defaultPaperType: "gap",
-    gapSizes,
-    continuousSizes,
-    defaultSize: { widthMm: 50, heightMm: 30 },
+    tapes: [
+      { tapeWidthMm: 15, continuous: true, continuousLengthsMm: [30], gapLengthsMm: [30] },
+      { tapeWidthMm: 20, continuous: true, continuousLengthsMm: [20, 30, 40], gapLengthsMm: [10, 40] },
+      { tapeWidthMm: 30, continuous: true, continuousLengthsMm: [30, 40, 50], gapLengthsMm: [40, 50] },
+      { tapeWidthMm: 40, continuous: true, continuousLengthsMm: [30, 40, 50], gapLengthsMm: [12, 20, 30, 50] },
+      { tapeWidthMm: 50, continuous: true, continuousLengthsMm: [30, 40, 50], gapLengthsMm: [30, 40, 50] },
+    ],
+    defaultTapeWidthMm: 50,
+    defaultLabelLengthMm: 30,
   },
 };
 

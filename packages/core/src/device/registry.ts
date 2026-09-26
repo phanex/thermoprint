@@ -37,9 +37,9 @@ export function getRegisteredDevices(): DeviceProfile[] {
 }
 
 // Register built-in devices
-registerDevice(markP15Profile);
-registerDevice(markP12Profile);
-registerDevice(markM60Profile);
 registerDevice(phoP12Profile);
+registerDevice(markP12Profile);
+registerDevice(markP15Profile);
+// registerDevice(markM60Profile); // Disabled until physical hardware is available for testing
 
 

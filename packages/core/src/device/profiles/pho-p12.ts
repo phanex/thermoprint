@@ -1,12 +1,4 @@
-import type { DeviceProfile, LabelSizePreset } from "../types.js";
-
-const continuousSizes: LabelSizePreset[] = [
-  { widthMm: 30, heightMm: 12 },
-  { widthMm: 40, heightMm: 12 },
-  { widthMm: 50, heightMm: 12 },
-  { widthMm: 60, heightMm: 12 },
-  { widthMm: 80, heightMm: 12 },
-];
+import type { DeviceProfile } from "../types.js";
 
 export const phoP12Profile: DeviceProfile = {
   modelId: "pho-p12",
@@ -44,8 +36,14 @@ export const phoP12Profile: DeviceProfile = {
   labelConfig: {
     supportedPaperTypes: ["continuous"],
     defaultPaperType: "continuous",
-    gapSizes: [],
-    continuousSizes,
-    defaultSize: { widthMm: 40, heightMm: 12 },
+    tapes: [
+      {
+        tapeWidthMm: 12,
+        continuous: true,
+        continuousLengthsMm: [30, 40, 50, 60, 80],
+      },
+    ],
+    defaultTapeWidthMm: 12,
+    defaultLabelLengthMm: 40,
   },
 };

@@ -51,14 +51,14 @@ export interface Command {
 
 function fitToScreen() {
   const { label } = useEditorV2Store.getState();
-  const cw = window.innerWidth - 160;
-  const ch = window.innerHeight - 200;
+  const padW = window.innerWidth < 768 ? 80 : 160;
+  const padH = window.innerWidth < 768 ? 160 : 300;
   const fit = Math.max(
     0.5,
-    Math.min(4, Math.min(cw / label.widthPx, ch / label.heightPx)),
+    Math.min(4, Math.min((window.innerWidth - padW) / label.widthPx, (window.innerHeight - padH) / label.heightPx)),
   );
   useEditorV2Store.getState().setZoom(fit);
-  useEditorV2Store.getState().setPan(0, 0);
+  useEditorV2Store.getState().setPan(0, window.innerWidth < 768 ? 0 : -20);
 }
 
 function setLabelSize(widthMm: number, heightMm: number) {

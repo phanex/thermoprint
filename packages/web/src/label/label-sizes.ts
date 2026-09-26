@@ -1,4 +1,5 @@
-import { getDevice } from "@thermoprint/core";
+import { getDevice, getRegisteredDevices } from "@thermoprint/core";
+import type { TapeOption } from "@thermoprint/core";
 
 export interface LabelSize {
   name: string;
@@ -6,32 +7,106 @@ export interface LabelSize {
   heightMm: number;
 }
 
-const FALLBACK_SIZES: LabelSize[] = [
-  { name: "40 × 12 mm", widthMm: 40, heightMm: 12 },
-  { name: "40 × 20 mm", widthMm: 40, heightMm: 20 },
-  { name: "40 × 30 mm", widthMm: 40, heightMm: 30 },
-  { name: "40 × 40 mm", widthMm: 40, heightMm: 40 },
-  { name: "40 × 60 mm", widthMm: 40, heightMm: 60 },
-  { name: "50 × 15 mm", widthMm: 50, heightMm: 15 },
-  { name: "50 × 25 mm", widthMm: 50, heightMm: 25 },
-  { name: "50 × 30 mm", widthMm: 50, heightMm: 30 },
-  { name: "50 × 50 mm", widthMm: 50, heightMm: 50 },
-];
+/**
+ * Returns all available tape / roll widths (in mm) for a given printer model,
+ * or across all known printer profiles if no printer is connected.
+ */
+export function getAvailableTapeWidths(modelId: string | null): number[] {
+  const widths = new Set<number>();
 
+  if (modelId) {
+    const profile = getDevice(modelId);
+    profile?.labelConfig?.tapes?.forEach((t) => widths.add(t.tapeWidthMm));
+  } else {
+    const devices = getRegisteredDevices();
+    for (const dev of devices) {
+      dev.labelConfig?.tapes?.forEach((t) => widths.add(t.tapeWidthMm));
+    }
+  }
+
+  // Fallback to 12 if none found
+  if (widths.size === 0) widths.add(12);
+
+  return Array.from(widths).sort((a, b) => a - b);
+}
+
+/**
+ * Returns all label sizes matching a specific tape / roll width (in mm).
+ * Deduplicated and sorted by length (widthMm) ascending.
+ */
+export function getSizesForTapeWidth(
+  modelId: string | null,
+  tapeWidthMm: number,
+  paperType?: "gap" | "continuous",
+): LabelSize[] {
+  const lengths = new Set<number>();
+
+  const collectLengths = (tape: TapeOption) => {
+    if (tape.tapeWidthMm === tapeWidthMm) {
+      if (!paperType || paperType === "gap") {
+        tape.gapLengthsMm?.forEach((len) => lengths.add(len));
+      }
+      if (!paperType || paperType === "continuous") {
+        tape.continuousLengthsMm?.forEach((len) => lengths.add(len));
+      }
+    }
+  };
+
+  if (modelId) {
+    const profile = getDevice(modelId);
+    profile?.labelConfig?.tapes?.forEach(collectLengths);
+  } else {
+    const devices = getRegisteredDevices();
+    for (const dev of devices) {
+      dev.labelConfig?.tapes?.forEach(collectLengths);
+    }
+  }
+
+  // If no lengths found for this width, provide a few standard lengths
+  if (lengths.size === 0) {
+    [30, 40, 50].forEach((l) => lengths.add(l));
+  }
+
+  return Array.from(lengths)
+    .sort((a, b) => a - b)
+    .map((len) => ({
+      name: `${len} × ${tapeWidthMm} mm`,
+      widthMm: len,
+      heightMm: tapeWidthMm,
+    }));
+}
+
+/**
+ * Checks whether the specified printer (if connected) supports continuous tape.
+ * Returns false if no printer is connected or if printer is gap-only.
+ */
+export function isContinuousSupported(
+  modelId: string | null,
+  tapeWidthMm?: number,
+): boolean {
+  if (!modelId) return false;
+  const profile = getDevice(modelId);
+  if (!profile?.labelConfig?.supportedPaperTypes?.includes("continuous")) {
+    return false;
+  }
+  if (tapeWidthMm !== undefined) {
+    const tape = profile.labelConfig.tapes?.find((t) => t.tapeWidthMm === tapeWidthMm);
+    return tape?.continuous ?? false;
+  }
+  return true;
+}
+
+/**
+ * Compatibility helper returning all configured label sizes.
+ */
 export function getLabelSizes(
   modelId: string | null,
-  paperType: "gap" | "continuous",
+  paperType?: "gap" | "continuous",
 ): LabelSize[] {
-  if (!modelId) return FALLBACK_SIZES;
-  const profile = getDevice(modelId);
-  const presets =
-    paperType === "gap"
-      ? profile?.labelConfig?.gapSizes
-      : profile?.labelConfig?.continuousSizes;
-  if (!presets?.length) return FALLBACK_SIZES;
-  return presets.map((p) => ({
-    name: `${p.widthMm} × ${p.heightMm} mm`,
-    widthMm: p.widthMm,
-    heightMm: p.heightMm,
-  }));
+  const tapeWidths = getAvailableTapeWidths(modelId);
+  const result: LabelSize[] = [];
+  for (const tw of tapeWidths) {
+    result.push(...getSizesForTapeWidth(modelId, tw, paperType));
+  }
+  return result;
 }

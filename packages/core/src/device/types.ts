@@ -4,6 +4,14 @@ export interface FlowControlOptions {
   unmetered?: boolean;
 }
 
+export interface TapeOption {
+  tapeWidthMm: number;
+  continuous?: boolean;
+  continuousLengthsMm?: number[];
+  gapLengthsMm?: number[];
+}
+
+/** @deprecated Use TapeOption instead */
 export interface LabelSizePreset {
   widthMm: number;
   heightMm: number;
@@ -12,9 +20,9 @@ export interface LabelSizePreset {
 export interface DeviceLabelConfig {
   supportedPaperTypes: ("gap" | "continuous")[];
   defaultPaperType: "gap" | "continuous";
-  gapSizes: LabelSizePreset[];
-  continuousSizes: LabelSizePreset[];
-  defaultSize: LabelSizePreset;
+  tapes: TapeOption[];
+  defaultTapeWidthMm: number;
+  defaultLabelLengthMm: number;
 }
 
 export interface DeviceProfile {

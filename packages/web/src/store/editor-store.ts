@@ -50,7 +50,6 @@ export interface EditorState {
   panY: number;
   gridVisible: boolean;
   rulersVisible: boolean;
-  rollDirection: "horizontal" | "vertical";
   uiScale: number;
   theme: "cyan" | "amber" | "graphite" | "violet" | "forest" | "paper";
   mode: "dark" | "light";
@@ -163,7 +162,6 @@ export const useEditorV2Store = create<EditorState>()(
       panY: 0,
       gridVisible: true,
       rulersVisible: true,
-      rollDirection: "horizontal",
       uiScale: (() => {
         try {
           const v = parseFloat(localStorage.getItem("tp.uiScale.v1") || "1");

@@ -1,12 +1,16 @@
-import { useRef, useState, useEffect, useCallback, useLayoutEffect, forwardRef } from "react";
+import { useRef, useState, useEffect, useCallback, useLayoutEffect, useMemo, forwardRef } from "react";
 import { createPortal } from "react-dom";
 import { Stage, Layer, Rect } from "react-konva";
 import type Konva from "konva";
 import { useEditorV2Store, type BaseElement } from "../../store/editor-store.ts";
 import { mmToPx } from "../../utils/px-mm.ts";
 import { usePrinterStore } from "../../store/printer-store.ts";
-import { getLabelSizes } from "../../label/label-sizes.ts";
-import { ChevronDown } from "lucide-react";
+import {
+  getAvailableTapeWidths,
+  getSizesForTapeWidth,
+  isContinuousSupported,
+} from "../../label/label-sizes.ts";
+import { ChevronDown, Minus, Plus, X } from "lucide-react";
 import { LabelPaper } from "./label-paper.tsx";
 import { TextElement } from "./elements/text-element.tsx";
 import { RectElement } from "./elements/rect-element.tsx";
@@ -14,6 +18,25 @@ import { LineElement } from "./elements/line-element.tsx";
 import { QrElement } from "./elements/qr-element.tsx";
 import { BarcodeElement } from "./elements/barcode-element.tsx";
 import { ImageElement } from "./elements/image-element.tsx";
+
+function TapeIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="7" y="3" width="10" height="5" rx="1" />
+      <rect x="7" y="10" width="10" height="5" rx="1" opacity="0.55" />
+      <rect x="7" y="17" width="10" height="4" rx="1" opacity="0.3" />
+    </svg>
+  );
+}
 
 function LabelSizeSelector({
   originX,
@@ -28,104 +51,309 @@ function LabelSizeSelector({
   displayH: number;
   containerRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  const [open, setOpen] = useState(false);
+  const [tapeWidthOpen, setTapeWidthOpen] = useState(false);
+  const [sizeOpen, setSizeOpen] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const label = useEditorV2Store((s) => s.label);
-  const paperType = useEditorV2Store((s) => s.paperType);
-  const rollDirection = useEditorV2Store((s) => s.rollDirection);
-  const modelId = usePrinterStore((s) => s.modelId);
-  const sizes = getLabelSizes(modelId, paperType);
 
+  const label = useEditorV2Store((s) => s.label);
+  const modelId = usePrinterStore((s) => s.modelId);
+
+  // Available tape widths based on connected model or all profiles
+  const widths = useMemo(() => getAvailableTapeWidths(modelId), [modelId]);
+
+  // Current selected tape width (defaults to current label height, or first available)
+  const currentTapeWidth = widths.includes(label.heightMm)
+    ? label.heightMm
+    : (widths[0] ?? 12);
+
+  // Sizes available for the currently selected tape width
+  const sizes = useMemo(
+    () => getSizesForTapeWidth(modelId, currentTapeWidth),
+    [modelId, currentTapeWidth]
+  );
+
+  const showDynamicBtn = isContinuousSupported(modelId);
+
+  const [customLength, setCustomLength] = useState(label.widthMm);
+
+  // Update customLength when label.widthMm changes
   useEffect(() => {
-    if (!open) return;
+    setCustomLength(label.widthMm);
+  }, [label.widthMm]);
+
+  // Close menus on outside click
+  useEffect(() => {
+    if (!tapeWidthOpen && !sizeOpen && !customOpen) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setTapeWidthOpen(false);
+        setSizeOpen(false);
+        setCustomOpen(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+  }, [tapeWidthOpen, sizeOpen, customOpen]);
 
   const setSize = (widthMm: number, heightMm: number) => {
     useEditorV2Store.setState({
-      label: { widthMm, heightMm, widthPx: mmToPx(widthMm), heightPx: mmToPx(heightMm) },
+      label: {
+        widthMm,
+        heightMm,
+        widthPx: mmToPx(widthMm),
+        heightPx: mmToPx(heightMm),
+      },
     });
-    setOpen(false);
+  };
+
+  const handleSelectTapeWidth = (w: number) => {
+    // If switching tape width, pick either matching length or first available size
+    const available = getSizesForTapeWidth(modelId, w);
+    const existingMatch = available.find((s) => s.widthMm === label.widthMm);
+    const nextWidthMm = existingMatch ? existingMatch.widthMm : (available[0]?.widthMm ?? 40);
+    setSize(nextWidthMm, w);
   };
 
   // Compute fixed (viewport) position from container-relative coordinates
   const containerRect = containerRef.current?.getBoundingClientRect();
   const fixedLeft = (containerRect?.left ?? 0) + originX + displayW / 2;
   const fixedTop = (containerRect?.top ?? 0) + originY + displayH + 8;
+  const openUpwards = typeof window !== "undefined" && (window.innerHeight - fixedTop) < 320;
 
   return createPortal(
     <div
       ref={ref}
-      className="fixed select-none flex justify-center z-30"
+      className="fixed select-none flex items-center justify-center gap-1 z-40"
       style={{ left: fixedLeft, top: fixedTop, transform: "translateX(-50%)" }}
     >
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className={`mx-auto flex items-center gap-1.5 px-3 h-7 rounded-md border hover-fade font-mono text-ui-base font-semibold whitespace-nowrap ${
-          open
-            ? "bg-accent/15 border-accent/40 text-accent"
-            : "bg-ink-850/95 border-white/8 text-ink-200 hover:border-accent/30 hover:text-accent shadow-panel"
-        }`}
-      >
-        {label.widthMm} × {label.heightMm} mm
-        <ChevronDown size={13} className={open ? "rotate-180" : ""} style={{ transition: "transform 150ms ease" }} />
-      </button>
-      {paperType === "gap" && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            useEditorV2Store.setState((s) => ({
-              rollDirection: s.rollDirection === "vertical" ? "horizontal" : "vertical",
-            }));
-          }}
-          title={`Roll direction: ${rollDirection} — click to flip`}
-          className="ml-1 inline-flex items-center justify-center w-7 h-7 rounded-md bg-ink-850/95 border border-white/8 hover:border-white/15 hover:bg-ink-800 text-ink-300 hover:text-accent hover-fade shadow-panel"
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{
-              transform: rollDirection === "vertical" ? "none" : "rotate(90deg)",
-              transition: "transform 180ms ease",
+      {/* 1. Tape Width dropdown — shown only if multiple tape widths available */}
+      {widths.length > 1 && (
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              setTapeWidthOpen((o) => !o);
+              setSizeOpen(false);
+              setCustomOpen(false);
             }}
+            className={`flex items-center gap-1 px-2.5 h-7 rounded-md border hover-fade font-mono text-ui-base font-semibold whitespace-nowrap cursor-pointer ${
+              tapeWidthOpen
+                ? "bg-accent/15 border-accent/40 text-accent"
+                : "bg-ink-850/95 border-white/8 text-ink-200 hover:border-accent/30 hover:text-accent shadow-panel"
+            }`}
+            title="Tape width"
           >
-            <rect x="7" y="3" width="10" height="5" rx="1" />
-            <rect x="7" y="10" width="10" height="5" rx="1" opacity="0.55" />
-            <rect x="7" y="17" width="10" height="4" rx="1" opacity="0.3" />
-          </svg>
-        </button>
-      )}
-      {open && (
-        <div className="absolute left-1/2 -translate-x-1/2 mt-1 w-40 bg-ink-850/95 backdrop-blur-sm border border-white/8 rounded-lg shadow-panel overflow-hidden z-40">
-          <div className="max-h-52 overflow-y-auto py-1">
-            {sizes.map((s) => {
-              const active = s.widthMm === label.widthMm && s.heightMm === label.heightMm;
-              return (
-                <button
-                  key={`${s.widthMm}x${s.heightMm}`}
-                  onClick={() => setSize(s.widthMm, s.heightMm)}
-                  className={`w-full flex items-center px-3 h-7 text-ui-sm font-mono hover-fade ${
-                    active
-                      ? "text-accent bg-accent/10"
-                      : "text-ink-300 hover:bg-white/5 hover:text-ink-100"
-                  }`}
-                >
-                  {s.name}
-                </button>
-              );
-            })}
-          </div>
+            <span>{currentTapeWidth} mm</span>
+            <ChevronDown
+              size={13}
+              className={tapeWidthOpen ? "rotate-180" : ""}
+              style={{ transition: "transform 150ms ease" }}
+            />
+          </button>
+
+          {tapeWidthOpen && (
+            <div
+              className={`absolute left-0 ${openUpwards ? "bottom-full mb-1.5" : "top-full mt-1.5"} w-28 bg-ink-850/95 backdrop-blur-sm border border-white/8 rounded-lg shadow-panel overflow-hidden z-50`}
+            >
+              <div className="max-h-72 overflow-y-auto py-1">
+                {widths.map((w) => {
+                  const active = w === currentTapeWidth;
+                  return (
+                    <button
+                      key={w}
+                      type="button"
+                      onClick={() => {
+                        handleSelectTapeWidth(w);
+                        setTapeWidthOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 h-7 text-ui-sm font-mono hover-fade cursor-pointer ${
+                        active
+                          ? "text-accent bg-accent/10"
+                          : "text-ink-300 hover:bg-white/5 hover:text-ink-100"
+                      }`}
+                    >
+                      <span>{w} mm</span>
+                      {active && <span className="text-accent text-ui-xs">✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
+      )}
+
+      {/* 2. Label Size / Length dropdown */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => {
+            setSizeOpen((o) => !o);
+            setTapeWidthOpen(false);
+            setCustomOpen(false);
+          }}
+          className={`flex items-center gap-1.5 px-3 h-7 rounded-md border hover-fade font-mono text-ui-base font-semibold whitespace-nowrap cursor-pointer ${
+            sizeOpen
+              ? "bg-accent/15 border-accent/40 text-accent"
+              : "bg-ink-850/95 border-white/8 text-ink-200 hover:border-accent/30 hover:text-accent shadow-panel"
+          }`}
+          title="Label size"
+        >
+          <span>{label.widthMm} × {label.heightMm} mm</span>
+          <ChevronDown
+            size={13}
+            className={sizeOpen ? "rotate-180" : ""}
+            style={{ transition: "transform 150ms ease" }}
+          />
+        </button>
+
+        {sizeOpen && (
+          <div
+            className={`absolute left-1/2 -translate-x-1/2 ${openUpwards ? "bottom-full mb-1.5" : "top-full mt-1.5"} w-44 bg-ink-850/95 backdrop-blur-sm border border-white/8 rounded-lg shadow-panel overflow-hidden z-50`}
+          >
+            <div className="max-h-80 overflow-y-auto py-1">
+              {sizes.map((s) => {
+                const active =
+                  s.widthMm === label.widthMm && s.heightMm === label.heightMm;
+                return (
+                  <button
+                    key={`${s.widthMm}x${s.heightMm}`}
+                    type="button"
+                    onClick={() => {
+                      setSize(s.widthMm, s.heightMm);
+                      setSizeOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 h-7 text-ui-sm font-mono hover-fade cursor-pointer ${
+                      active
+                        ? "text-accent bg-accent/10"
+                        : "text-ink-300 hover:bg-white/5 hover:text-ink-100"
+                    }`}
+                  >
+                    <span>{s.name}</span>
+                    {active && <span className="text-accent text-ui-xs">✓</span>}
+                  </button>
+                );
+              })}
+
+              <div className="my-1 border-t border-white/5" />
+
+              {/* Dynamic option */}
+              <div
+                className="w-full flex items-center justify-between px-3 h-7 text-ui-sm font-mono text-ink-500 cursor-not-allowed select-none opacity-60"
+                title="Dynamic length adjusts automatically to content (Step 5)"
+              >
+                <span className="flex items-center gap-1.5">
+                  <TapeIcon size={12} />
+                  <span>Dynamic</span>
+                </span>
+                <span className="text-[10px] uppercase font-mono px-1 py-0.2 bg-white/5 rounded text-ink-400">
+                  Soon
+                </span>
+              </div>
+
+              {/* Custom... option */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSizeOpen(false);
+                  setCustomLength(label.widthMm);
+                  setCustomOpen(true);
+                }}
+                className="w-full flex items-center px-3 h-7 text-ui-sm font-mono text-ink-300 hover:bg-white/5 hover:text-ink-100 hover-fade cursor-pointer"
+              >
+                Custom...
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Custom Length micro-dialog popover */}
+        {customOpen && (
+          <div
+            className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 bg-ink-850 border border-white/10 rounded-lg shadow-panel p-2.5 z-50 select-none"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-ui-xs font-mono uppercase tracking-wider text-ink-400">
+                Custom Length
+              </span>
+              <button
+                type="button"
+                onClick={() => setCustomOpen(false)}
+                className="text-ink-400 hover:text-ink-100 p-0.5 cursor-pointer"
+              >
+                <X size={13} />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <div className="relative flex-1 flex items-center bg-ink-800 border border-white/8 rounded px-2 h-7">
+                <input
+                  type="number"
+                  min={10}
+                  max={300}
+                  value={customLength}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val)) {
+                      setCustomLength(val);
+                      setSize(val, currentTapeWidth);
+                    }
+                  }}
+                  onWheel={(e) => {
+                    e.preventDefault();
+                    const step = e.shiftKey ? 4 : 1;
+                    const delta = e.deltaY < 0 ? step : -step;
+                    const next = Math.max(10, Math.min(300, customLength + delta));
+                    setCustomLength(next);
+                    setSize(next, currentTapeWidth);
+                  }}
+                  className="w-full bg-transparent font-mono text-ui-sm text-right pr-1 outline-none text-ink-100"
+                />
+                <span className="text-ui-xs font-mono text-ink-400 shrink-0">mm</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const next = Math.max(10, customLength - 5);
+                  setCustomLength(next);
+                  setSize(next, currentTapeWidth);
+                }}
+                className="w-7 h-7 flex items-center justify-center rounded bg-ink-800 border border-white/8 hover:bg-ink-750 text-ink-300 hover:text-ink-100 cursor-pointer"
+                title="-5 mm"
+              >
+                <Minus size={12} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const next = Math.min(300, customLength + 5);
+                  setCustomLength(next);
+                  setSize(next, currentTapeWidth);
+                }}
+                className="w-7 h-7 flex items-center justify-center rounded bg-ink-800 border border-white/8 hover:bg-ink-750 text-ink-300 hover:text-ink-100 cursor-pointer"
+                title="+5 mm"
+              >
+                <Plus size={12} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 3. Dynamic button [ ▤ ] — shown ONLY if connected to a continuous-capable printer */}
+      {showDynamicBtn && (
+        <button
+          type="button"
+          disabled
+          title="Dynamic length (coming in Step 5)"
+          className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-ink-850/95 border border-white/8 text-ink-500 cursor-not-allowed shadow-panel opacity-60"
+        >
+          <TapeIcon size={13} />
+        </button>
       )}
     </div>,
     document.body,
@@ -183,7 +411,6 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
   const gridVisible = useEditorV2Store((s) => s.gridVisible);
   const rulersVisible = useEditorV2Store((s) => s.rulersVisible);
   const paperType = useEditorV2Store((s) => s.paperType);
-  const rollDirection = useEditorV2Store((s) => s.rollDirection);
 
   const selectOnly = useEditorV2Store((s) => s.selectOnly);
   const setZoom = useEditorV2Store((s) => s.setZoom);
@@ -203,12 +430,14 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
   // Fit to screen on mount and when label changes (new label, open label)
   const currentLabelId = useEditorV2Store((s) => s.currentLabelId);
   useEffect(() => {
-    const pad = window.innerWidth < 768 ? 80 : 200;
-    const fitW = (size.w - pad) / label.widthPx;
-    const fitH = (size.h - pad) / label.heightPx;
+    const padW = window.innerWidth < 768 ? 80 : 200;
+    // Bottom dock + shortcuts + label size selector pills require ~300px vertical room
+    const padH = window.innerWidth < 768 ? 160 : 300;
+    const fitW = (size.w - padW) / label.widthPx;
+    const fitH = (size.h - padH) / label.heightPx;
     const fit = Math.max(0.5, Math.min(4, Math.min(fitW, fitH)));
     setZoom(fit);
-    setPan(0, 0);
+    setPan(0, window.innerWidth < 768 ? 0 : -20);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLabelId, label.widthPx, label.heightPx]);
 
@@ -366,7 +595,9 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
     >
       {/* Gap mode: backing paper strip, ghost labels, perforation marks */}
       {paperType === "gap" && (() => {
-        const vertical = rollDirection === "vertical";
+        // Automatically determine strip orientation from label aspect:
+        // if height (tape width) >= width (feed length), strip runs vertically
+        const vertical = label.heightMm >= label.widthMm;
         const gap = 24 * zoom;
         const rollOverhang = 16 * zoom;
         const stride = vertical ? displayH + gap : displayW + gap;
