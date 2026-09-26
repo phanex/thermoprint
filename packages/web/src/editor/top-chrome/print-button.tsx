@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Printer, ChevronDown, X, Plus, Minus } from "lucide-react";
 import { useEditorV2Store } from "../../store/editor-store.ts";
+import { scanAndConnect } from "../../hooks/use-web-bluetooth.ts";
 
 function MiniRow({ label, value }: { label: string; value: string }) {
   return (
@@ -53,12 +54,10 @@ export function PrintButton({ onPrint }: PrintButtonProps) {
   }, []);
 
   const fire = useCallback(async () => {
-    // If no printer is connected, open the connect flow instead
+    // If no printer is connected, initiate scan and connect
     if (!printer.connected) {
       setOpen(false);
-      useEditorV2Store.setState((s) => ({
-        connectFlow: { ...s.connectFlow, open: true, step: "idle" },
-      }));
+      scanAndConnect();
       return;
     }
 

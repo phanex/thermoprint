@@ -53,10 +53,23 @@ export function applyModelDefaults(modelId: string): void {
     paperType: lc.defaultPaperType,
   });
 
-  const widthMm = lc.defaultLabelLengthMm;
-  const heightMm = lc.defaultTapeWidthMm;
+  const defaultTape = lc.defaultTapeWidthMm ?? 12;
+  const defaultLength = lc.defaultLabelLengthMm ?? 40;
+  const widthMm = Math.max(defaultLength, defaultTape);
+  const heightMm = Math.min(defaultLength, defaultTape);
   useEditorStore.setState({
-    label: { widthMm, heightMm, widthPx: mmToPx(widthMm), heightPx: mmToPx(heightMm) },
+    paperType: lc.defaultPaperType,
+    label: {
+      widthMm,
+      heightMm,
+      widthPx: mmToPx(widthMm),
+      heightPx: mmToPx(heightMm),
+      tapeWidthMm: defaultTape,
+    },
+    printSettings: {
+      ...useEditorStore.getState().printSettings,
+      density: profile.defaults.density,
+    },
   });
 }
 

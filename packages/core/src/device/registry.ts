@@ -6,15 +6,47 @@ import { phoP12Profile } from "./profiles/pho-p12.js";
 
 const devices: DeviceProfile[] = [];
 
+export interface DeviceMatchContext {
+  hasCx?: boolean;
+  hardwareId?: number;
+}
+
 export function registerDevice(profile: DeviceProfile): void {
   devices.push(profile);
 }
 
-export function findDeviceByName(name: string): DeviceProfile | null {
-  const upperName = name.toUpperCase();
+export function findDeviceByName(
+  name: string,
+  context?: DeviceMatchContext,
+): DeviceProfile | null {
+  const trimmed = name.trim();
+
+  // 1. Declarative identification via RegExp and hardware/GATT markers
+  for (const profile of devices) {
+    if (!profile.identification) continue;
+    const { namePattern, hasCx, hardwareId } = profile.identification;
+
+    if (!namePattern.test(trimmed)) continue;
+
+    // If GATT context (CX characteristic presence) is provided, verify match
+    if (context?.hasCx !== undefined && hasCx !== undefined) {
+      if (context.hasCx !== hasCx) continue;
+    }
+
+    // If hardware ID is provided, verify match
+    if (context?.hardwareId !== undefined && hardwareId !== undefined) {
+      if (context.hardwareId !== hardwareId) continue;
+    }
+
+    return profile;
+  }
+
+  // 2. Fallback prefix-based matching for unmigrated profiles
+  const upperName = trimmed.toUpperCase();
   let bestMatch: { profile: DeviceProfile; prefixLen: number } | null = null;
 
   for (const profile of devices) {
+    if (!profile.namePrefixes) continue;
     for (const prefix of profile.namePrefixes) {
       const upperPrefix = prefix.toUpperCase();
       if (upperName.startsWith(upperPrefix)) {
@@ -40,6 +72,6 @@ export function getRegisteredDevices(): DeviceProfile[] {
 registerDevice(phoP12Profile);
 registerDevice(markP12Profile);
 registerDevice(markP15Profile);
-// registerDevice(markM60Profile); // Disabled until physical hardware is available for testing
+registerDevice(markM60Profile);
 
 

@@ -7,7 +7,6 @@ import { StatusBar } from "./status-bar.tsx";
 import { Dock } from "./dock/dock.tsx";
 import { PrintProgressToast } from "./print-progress-toast.tsx";
 import { Palette } from "./palette/palette.tsx";
-import { ConnectFlow } from "./connect-flow/connect-flow.tsx";
 import { useKeyboardShortcuts, setPrintFn } from "../lib/keyboard.ts";
 import { useEditorV2Store } from "../store/editor-store.ts";
 import { usePrinterStore } from "../store/printer-store.ts";
@@ -120,7 +119,15 @@ export function Editor() {
 
     // Capture the label region at 1:1 pixel resolution
     const raw = captureLabel(stage, label.widthPx, label.heightPx);
-    const canvas = rotateCanvas90CW(raw);
+
+    // Determine whether 90° CW rotation is needed:
+    // If the thermal print head width matches heightMm (e.g. 12mm tape on a 40x12 label),
+    // we rotate 90° CW so height becomes line width (96 dots) and width becomes feed length.
+    // If the print head width already matches widthMm (e.g. 50mm tape on a 50x30 label),
+    // line width is already along X, so direct print (no rotation) is used.
+    const activeTapeWidth = label.tapeWidthMm ?? (label.heightMm <= label.widthMm ? label.heightMm : label.widthMm);
+    const needsRotation = Math.abs(label.heightMm - activeTapeWidth) < 0.1 && Math.abs(label.widthMm - activeTapeWidth) >= 0.1;
+    const canvas = needsRotation ? rotateCanvas90CW(raw) : raw;
     const rotatedW = canvas.width;
     const rotatedH = canvas.height;
 
@@ -169,7 +176,6 @@ export function Editor() {
         <StatusBar />
       </div>
       <Palette />
-      <ConnectFlow />
     </div>
   );
 }

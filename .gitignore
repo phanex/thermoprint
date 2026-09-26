@@ -32,3 +32,9 @@ test-label.png
 .reference/
 reference/
 
+# Agent local configs & skills
+.agents/
+.agent/
+GEMINI.md
+AGENTS.md
+

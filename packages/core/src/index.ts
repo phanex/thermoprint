@@ -27,13 +27,14 @@ export type {
   ImageBitmap1bpp,
 } from "./protocol/types.js";
 export { registerProtocol, getProtocol } from "./protocol/registry.js";
-export { L11Protocol } from "./protocol/l11/protocol.js";
-export { X2Protocol } from "./protocol/x2/protocol.js";
+export { MarkL11Protocol, L11Protocol } from "./protocol/mark-l11/protocol.js";
+export { MarkX2Protocol, X2Protocol } from "./protocol/mark-x2/protocol.js";
 export { PhoP12Protocol } from "./protocol/pho-p12/protocol.js";
 
 // Device types & registry (for adding new printer models)
 export type {
   DeviceProfile,
+  DeviceIdentification,
   DeviceLabelConfig,
   TapeOption,
   LabelSizePreset,
@@ -48,6 +49,7 @@ export {
   getDevice,
   getRegisteredDevices,
 } from "./device/registry.js";
+export type { DeviceMatchContext } from "./device/registry.js";
 export { markP15Profile, p15Profile } from "./device/profiles/mark-p15.js";
 export { markP12Profile, p12Profile } from "./device/profiles/mark-p12.js";
 export { markM60Profile, m60Profile } from "./device/profiles/mark-m60.js";

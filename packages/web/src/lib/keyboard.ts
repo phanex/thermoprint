@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useEditorV2Store, type BaseElement } from "../store/editor-store.ts";
+import { scanAndConnect } from "../hooks/use-web-bluetooth.ts";
 
 // Module-level print callback, set by Editor when it mounts
 let _printFn: ((copies: number) => Promise<boolean>) | null = null;
@@ -297,11 +298,9 @@ export function useKeyboardShortcuts() {
       // Print
       if (cmd && (key === "p" || code === "KeyP")) {
         e.preventDefault();
-        // If no printer connected, open the connect flow
+        // If no printer connected, trigger scan and connect
         if (!store.printer.connected) {
-          useEditorV2Store.setState((s) => ({
-            connectFlow: { ...s.connectFlow, open: true, step: "idle" },
-          }));
+          scanAndConnect();
           return;
         }
         let copies = 1;
@@ -384,14 +383,14 @@ export function useKeyboardShortcuts() {
       // Fit to screen
       if (e.key === "1" && !cmd) {
         const { label } = store;
-        const padW = window.innerWidth < 768 ? 80 : 160;
-        const padH = window.innerWidth < 768 ? 160 : 300;
+        const padW = window.innerWidth < 768 ? 60 : 160;
+        const padH = window.innerWidth < 768 ? 140 : 210;
         const fit = Math.max(
           0.5,
           Math.min(4, Math.min((window.innerWidth - padW) / label.widthPx, (window.innerHeight - padH) / label.heightPx)),
         );
         store.setZoom(fit);
-        store.setPan(0, window.innerWidth < 768 ? 0 : -20);
+        store.setPan(0, window.innerWidth < 768 ? 0 : -30);
         return;
       }
 

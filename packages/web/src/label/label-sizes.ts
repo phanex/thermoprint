@@ -5,6 +5,8 @@ export interface LabelSize {
   name: string;
   widthMm: number;
   heightMm: number;
+  tapeWidthMm?: number;
+  labelLengthMm?: number;
 }
 
 /**
@@ -69,11 +71,17 @@ export function getSizesForTapeWidth(
 
   return Array.from(lengths)
     .sort((a, b) => a - b)
-    .map((len) => ({
-      name: `${len} × ${tapeWidthMm} mm`,
-      widthMm: len,
-      heightMm: tapeWidthMm,
-    }));
+    .map((len) => {
+      const widthMm = Math.max(len, tapeWidthMm);
+      const heightMm = Math.min(len, tapeWidthMm);
+      return {
+        name: `${widthMm} × ${heightMm} mm`,
+        widthMm,
+        heightMm,
+        tapeWidthMm,
+        labelLengthMm: len,
+      };
+    });
 }
 
 /**

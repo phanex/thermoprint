@@ -3,7 +3,7 @@ import type { DeviceProfile } from "../types.js";
 export const markP12Profile: DeviceProfile = {
   modelId: "mark-p12",
   name: "Marklife P12",
-  protocolId: "l11",
+  protocolId: "mark-l11",
   serviceUuid: "0000ff00-0000-1000-8000-00805f9b34fb",
   characteristics: {
     tx: "0000ff02-0000-1000-8000-00805f9b34fb",
@@ -15,7 +15,11 @@ export const markP12Profile: DeviceProfile = {
     packetDelayMs: 30,
   },
   defaults: { density: 2, paperType: "gap" },
-  namePrefixes: ["p12_", "P12_", "Marklife P12", "marklife p12", "LP90", "P11"],
+  identification: {
+    namePattern: /^(marklife[\s_-]?p12|p12.*_ble|lp90|p11)$/i,
+    hasCx: true,
+  },
+  namePrefixes: ["Marklife P12", "LP90", "P11"],
   labelConfig: {
     supportedPaperTypes: ["gap", "continuous"],
     defaultPaperType: "gap",
@@ -41,6 +45,7 @@ export const markP12Profile: DeviceProfile = {
     ],
     defaultTapeWidthMm: 12,
     defaultLabelLengthMm: 40,
+    defaultSize: { widthMm: 40, heightMm: 12 },
   },
 };
 

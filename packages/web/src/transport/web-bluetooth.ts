@@ -149,7 +149,7 @@ export class WebBluetoothTransport implements BleTransport {
   ): Promise<ScanHandle> {
     const devices = getRegisteredDevices();
     const filters: BluetoothLEScanFilter[] = devices.flatMap((d) =>
-      d.namePrefixes.map((prefix) => ({ namePrefix: prefix })),
+      d.namePrefixes ? d.namePrefixes.map((prefix) => ({ namePrefix: prefix })) : [],
     );
 
     const serviceUuids: BluetoothServiceUUID[] = [
@@ -213,7 +213,7 @@ export class WebBluetoothTransport implements BleTransport {
         return new WebBluetoothConnection(device);
       } catch (err) {
         lastError = err;
-        debugLog("BLE", `connect attempt ${attempt}/${maxAttempts} failed:`, err);
+        debugLog("BLE", `connect attempt ${attempt}/${maxAttempts} failed: ${err instanceof Error ? err.message : String(err)}`);
         if (attempt < maxAttempts) {
           // 600ms, 1200ms, 1800ms, 2400ms, 3000ms (~9s total window)
           await new Promise((r) => setTimeout(r, 600 * attempt));
@@ -262,12 +262,12 @@ export class WebBluetoothTransport implements BleTransport {
 
       debugLog("BLE", "watching advertisements for device ready...");
       devAny
-        .watchAdvertisements({ signal: abortController.signal })
-        .catch((e: Error) => {
+        .watchAdvertisements?.({ signal: abortController.signal })
+        ?.catch((e: Error) => {
           if (!resolved) {
             resolved = true;
             clearTimeout(timer);
-            debugLog("BLE", "watchAdvertisements ended:", e.message);
+            debugLog("BLE", `watchAdvertisements ended: ${e.message}`);
             resolve();
           }
         });

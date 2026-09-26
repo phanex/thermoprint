@@ -1,50 +1,18 @@
 import { Settings, X } from "lucide-react";
 import { useEditorV2Store } from "../../../store/editor-store.ts";
 import { usePrinterStore } from "../../../store/printer-store.ts";
-import { getDevice, type LabelSizePreset } from "@thermoprint/core";
+import { getDevice } from "@thermoprint/core";
 import { mmToPx } from "../../../utils/px-mm.ts";
+import { getSizesForTapeWidth } from "../../../label/label-sizes.ts";
 
-// Fallback sizes when no printer is connected
-const FALLBACK_GAP_SIZES: LabelSizePreset[] = [
-  { widthMm: 22, heightMm: 12 },
-  { widthMm: 30, heightMm: 12 },
-  { widthMm: 30, heightMm: 15 },
-  { widthMm: 40, heightMm: 12 },
-  { widthMm: 40, heightMm: 15 },
-  { widthMm: 50, heightMm: 15 },
-  { widthMm: 50, heightMm: 30 },
-];
-const FALLBACK_CONTINUOUS_SIZES: LabelSizePreset[] = [
-  { widthMm: 22, heightMm: 12 },
-  { widthMm: 30, heightMm: 15 },
-  { widthMm: 40, heightMm: 12 },
-  { widthMm: 40, heightMm: 15 },
-  { widthMm: 50, heightMm: 15 },
-];
-
-function useLabelConfig(): {
-  supportedPaperTypes: ("gap" | "continuous")[];
-  sizesForPaperType: (pt: "gap" | "continuous") => LabelSizePreset[];
-  hasProfile: boolean;
-} {
+function useLabelConfig() {
   const modelId = usePrinterStore((s) => s.modelId);
   const profile = modelId ? getDevice(modelId) : null;
   const lc = profile?.labelConfig;
 
-  if (lc) {
-    return {
-      supportedPaperTypes: lc.supportedPaperTypes,
-      sizesForPaperType: (pt) =>
-        pt === "gap" ? lc.gapSizes : lc.continuousSizes,
-      hasProfile: true,
-    };
-  }
-
   return {
-    supportedPaperTypes: ["gap", "continuous"],
-    sizesForPaperType: (pt) =>
-      pt === "gap" ? FALLBACK_GAP_SIZES : FALLBACK_CONTINUOUS_SIZES,
-    hasProfile: false,
+    supportedPaperTypes: lc?.supportedPaperTypes ?? ["gap", "continuous"],
+    hasProfile: Boolean(profile),
   };
 }
 
@@ -74,9 +42,10 @@ export function PrintSettingsFlyout({ onClose }: Props) {
     { id: "paper",    name: "Paper",    swatch: "#e2bc7a" },
   ];
 
-  const { supportedPaperTypes, sizesForPaperType, hasProfile } =
-    useLabelConfig();
-  const availableSizes = sizesForPaperType(paperType);
+  const profile = modelId ? getDevice(modelId) : null;
+  const currentTape = label.tapeWidthMm ?? (label.heightMm <= label.widthMm ? label.heightMm : label.widthMm);
+  const { supportedPaperTypes, hasProfile } = useLabelConfig();
+  const availableSizes = getSizesForTapeWidth(modelId, currentTape, paperType);
 
   const updateSettings = (patch: Partial<typeof printSettings>) =>
     useEditorV2Store.setState((s) => ({
@@ -85,8 +54,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
 
   const setPaperType = (pt: "gap" | "continuous") => {
     useEditorV2Store.setState({ paperType: pt });
-    // If current label size isn't valid for the new paper type, switch to the first valid size
-    const sizes = sizesForPaperType(pt);
+    const sizes = getSizesForTapeWidth(modelId, currentTape, pt);
     const currentValid = sizes.some(
       (s) => s.widthMm === label.widthMm && s.heightMm === label.heightMm,
     );
@@ -98,10 +66,10 @@ export function PrintSettingsFlyout({ onClose }: Props) {
           heightMm: def.heightMm,
           widthPx: mmToPx(def.widthMm),
           heightPx: mmToPx(def.heightMm),
+          tapeWidthMm: currentTape,
         },
       });
     }
-    // Also sync to old printer store
     usePrinterStore.getState().updateSettings({ paperType: pt });
   };
 

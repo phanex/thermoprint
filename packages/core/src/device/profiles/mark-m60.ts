@@ -3,7 +3,7 @@ import type { DeviceProfile } from "../types.js";
 export const markM60Profile: DeviceProfile = {
   modelId: "mark-m60",
   name: "Marklife M60",
-  protocolId: "x2",
+  protocolId: "mark-x2",
   serviceUuid: "0000ff00-0000-1000-8000-00805f9b34fb",
   characteristics: {
     tx: "0000ff02-0000-1000-8000-00805f9b34fb",
@@ -14,6 +14,10 @@ export const markM60Profile: DeviceProfile = {
     packetDelayMs: 1,
   },
   defaults: { density: 2, paperType: "gap" },
+  identification: {
+    namePattern: /^(marklife[\s_-]?m60|m60.*|x2.*)$/i,
+    hasCx: true,
+  },
   namePrefixes: ["M60", "X2"],
   labelConfig: {
     supportedPaperTypes: ["gap", "continuous"],
@@ -27,6 +31,7 @@ export const markM60Profile: DeviceProfile = {
     ],
     defaultTapeWidthMm: 50,
     defaultLabelLengthMm: 30,
+    defaultSize: { widthMm: 50, heightMm: 30 },
   },
 };
 

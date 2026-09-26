@@ -1,5 +1,4 @@
 import { useRef, useState, useEffect, useCallback, useLayoutEffect, useMemo, forwardRef } from "react";
-import { createPortal } from "react-dom";
 import { Stage, Layer, Rect } from "react-konva";
 import type Konva from "konva";
 import { useEditorV2Store, type BaseElement } from "../../store/editor-store.ts";
@@ -62,10 +61,15 @@ function LabelSizeSelector({
   // Available tape widths based on connected model or all profiles
   const widths = useMemo(() => getAvailableTapeWidths(modelId), [modelId]);
 
-  // Current selected tape width (defaults to current label height, or first available)
-  const currentTapeWidth = widths.includes(label.heightMm)
-    ? label.heightMm
-    : (widths[0] ?? 12);
+  // Current selected tape width (from label.tapeWidthMm, or matching height/width, or first available)
+  const currentTapeWidth =
+    (label.tapeWidthMm && widths.includes(label.tapeWidthMm))
+      ? label.tapeWidthMm
+      : widths.includes(label.heightMm)
+        ? label.heightMm
+        : widths.includes(label.widthMm)
+          ? label.widthMm
+          : (widths[0] ?? 12);
 
   // Sizes available for the currently selected tape width
   const sizes = useMemo(
@@ -76,11 +80,14 @@ function LabelSizeSelector({
   const showDynamicBtn = isContinuousSupported(modelId);
 
   const [customLength, setCustomLength] = useState(label.widthMm);
+  const [customInputStr, setCustomInputStr] = useState(String(label.widthMm));
 
-  // Update customLength when label.widthMm changes
+  // Update customLength when label changes
   useEffect(() => {
-    setCustomLength(label.widthMm);
-  }, [label.widthMm]);
+    const curLen = label.widthMm === currentTapeWidth ? label.heightMm : label.widthMm;
+    setCustomLength(curLen);
+    setCustomInputStr(String(curLen));
+  }, [label.widthMm, label.heightMm, currentTapeWidth]);
 
   // Close menus on outside click
   useEffect(() => {
@@ -96,36 +103,43 @@ function LabelSizeSelector({
     return () => document.removeEventListener("mousedown", handler);
   }, [tapeWidthOpen, sizeOpen, customOpen]);
 
-  const setSize = (widthMm: number, heightMm: number) => {
+  const setSize = (wMm: number, hMm: number, tapeWidthMm?: number) => {
+    const widthMm = Math.max(wMm, hMm);
+    const heightMm = Math.min(wMm, hMm);
+    const activeTape = tapeWidthMm ?? currentTapeWidth;
     useEditorV2Store.setState({
       label: {
         widthMm,
         heightMm,
         widthPx: mmToPx(widthMm),
         heightPx: mmToPx(heightMm),
+        tapeWidthMm: activeTape,
       },
     });
   };
 
   const handleSelectTapeWidth = (w: number) => {
-    // If switching tape width, pick either matching length or first available size
     const available = getSizesForTapeWidth(modelId, w);
-    const existingMatch = available.find((s) => s.widthMm === label.widthMm);
-    const nextWidthMm = existingMatch ? existingMatch.widthMm : (available[0]?.widthMm ?? 40);
-    setSize(nextWidthMm, w);
+    const existingMatch = available.find(
+      (s) => s.labelLengthMm === label.labelLengthMm || s.widthMm === label.widthMm || s.heightMm === label.heightMm
+    );
+    const selected = existingMatch ?? available[0];
+    if (selected) {
+      setSize(selected.widthMm, selected.heightMm, w);
+    } else {
+      setSize(Math.max(40, w), Math.min(40, w), w);
+    }
   };
 
-  // Compute fixed (viewport) position from container-relative coordinates
   const containerRect = containerRef.current?.getBoundingClientRect();
-  const fixedLeft = (containerRect?.left ?? 0) + originX + displayW / 2;
-  const fixedTop = (containerRect?.top ?? 0) + originY + displayH + 8;
-  const openUpwards = typeof window !== "undefined" && (window.innerHeight - fixedTop) < 320;
+  const screenBottom = (containerRect?.top ?? 0) + originY + displayH + 8;
+  const openUpwards = typeof window !== "undefined" && (window.innerHeight - screenBottom) < 320;
 
-  return createPortal(
+  return (
     <div
       ref={ref}
-      className="fixed select-none flex items-center justify-center gap-1 z-40"
-      style={{ left: fixedLeft, top: fixedTop, transform: "translateX(-50%)" }}
+      className="absolute select-none flex items-center justify-center gap-1 z-10 pointer-events-auto"
+      style={{ left: originX + displayW / 2, top: originY + displayH + 8, transform: "translateX(-50%)" }}
     >
       {/* 1. Tape Width dropdown — shown only if multiple tape widths available */}
       {widths.length > 1 && (
@@ -221,7 +235,7 @@ function LabelSizeSelector({
                     key={`${s.widthMm}x${s.heightMm}`}
                     type="button"
                     onClick={() => {
-                      setSize(s.widthMm, s.heightMm);
+                      setSize(s.widthMm, s.heightMm, currentTapeWidth);
                       setSizeOpen(false);
                     }}
                     className={`w-full flex items-center justify-between px-3 h-7 text-ui-sm font-mono hover-fade cursor-pointer ${
@@ -257,7 +271,9 @@ function LabelSizeSelector({
                 type="button"
                 onClick={() => {
                   setSizeOpen(false);
-                  setCustomLength(label.widthMm);
+                  const curLen = label.widthMm === currentTapeWidth ? label.heightMm : label.widthMm;
+                  setCustomLength(curLen);
+                  setCustomInputStr(String(curLen));
                   setCustomOpen(true);
                 }}
                 className="w-full flex items-center px-3 h-7 text-ui-sm font-mono text-ink-300 hover:bg-white/5 hover:text-ink-100 hover-fade cursor-pointer"
@@ -290,24 +306,39 @@ function LabelSizeSelector({
             <div className="flex items-center gap-1.5">
               <div className="relative flex-1 flex items-center bg-ink-800 border border-white/8 rounded px-2 h-7">
                 <input
-                  type="number"
-                  min={10}
-                  max={300}
-                  value={customLength}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={customInputStr}
                   onChange={(e) => {
-                    const val = parseInt(e.target.value, 10);
-                    if (!isNaN(val)) {
+                    const text = e.target.value.replace(/[^0-9]/g, "");
+                    setCustomInputStr(text);
+                    const val = parseInt(text, 10);
+                    if (!isNaN(val) && val >= 10 && val <= 300) {
                       setCustomLength(val);
-                      setSize(val, currentTapeWidth);
+                      setSize(val, currentTapeWidth, currentTapeWidth);
+                    }
+                  }}
+                  onBlur={() => {
+                    const val = parseInt(customInputStr, 10);
+                    const clamped = isNaN(val) ? 40 : Math.max(10, Math.min(300, val));
+                    setCustomLength(clamped);
+                    setCustomInputStr(String(clamped));
+                    setSize(clamped, currentTapeWidth, currentTapeWidth);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      (e.target as HTMLInputElement).blur();
                     }
                   }}
                   onWheel={(e) => {
                     e.preventDefault();
-                    const step = e.shiftKey ? 4 : 1;
+                    const step = e.shiftKey ? 5 : 1;
                     const delta = e.deltaY < 0 ? step : -step;
                     const next = Math.max(10, Math.min(300, customLength + delta));
                     setCustomLength(next);
-                    setSize(next, currentTapeWidth);
+                    setCustomInputStr(String(next));
+                    setSize(next, currentTapeWidth, currentTapeWidth);
                   }}
                   className="w-full bg-transparent font-mono text-ui-sm text-right pr-1 outline-none text-ink-100"
                 />
@@ -319,7 +350,8 @@ function LabelSizeSelector({
                 onClick={() => {
                   const next = Math.max(10, customLength - 5);
                   setCustomLength(next);
-                  setSize(next, currentTapeWidth);
+                  setCustomInputStr(String(next));
+                  setSize(next, currentTapeWidth, currentTapeWidth);
                 }}
                 className="w-7 h-7 flex items-center justify-center rounded bg-ink-800 border border-white/8 hover:bg-ink-750 text-ink-300 hover:text-ink-100 cursor-pointer"
                 title="-5 mm"
@@ -332,7 +364,8 @@ function LabelSizeSelector({
                 onClick={() => {
                   const next = Math.min(300, customLength + 5);
                   setCustomLength(next);
-                  setSize(next, currentTapeWidth);
+                  setCustomInputStr(String(next));
+                  setSize(next, currentTapeWidth, currentTapeWidth);
                 }}
                 className="w-7 h-7 flex items-center justify-center rounded bg-ink-800 border border-white/8 hover:bg-ink-750 text-ink-300 hover:text-ink-100 cursor-pointer"
                 title="+5 mm"
@@ -355,8 +388,7 @@ function LabelSizeSelector({
           <TapeIcon size={13} />
         </button>
       )}
-    </div>,
-    document.body,
+    </div>
   );
 }
 
@@ -430,14 +462,14 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
   // Fit to screen on mount and when label changes (new label, open label)
   const currentLabelId = useEditorV2Store((s) => s.currentLabelId);
   useEffect(() => {
-    const padW = window.innerWidth < 768 ? 80 : 200;
-    // Bottom dock + shortcuts + label size selector pills require ~300px vertical room
-    const padH = window.innerWidth < 768 ? 160 : 300;
+    const padW = window.innerWidth < 768 ? 60 : 160;
+    // Header (48px) + lowered dock/status (80px) + selector pills (36px) + comfortable breathing room
+    const padH = window.innerWidth < 768 ? 140 : 210;
     const fitW = (size.w - padW) / label.widthPx;
     const fitH = (size.h - padH) / label.heightPx;
     const fit = Math.max(0.5, Math.min(4, Math.min(fitW, fitH)));
     setZoom(fit);
-    setPan(0, window.innerWidth < 768 ? 0 : -20);
+    setPan(0, window.innerWidth < 768 ? 0 : -30);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLabelId, label.widthPx, label.heightPx]);
 
@@ -595,9 +627,12 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
     >
       {/* Gap mode: backing paper strip, ghost labels, perforation marks */}
       {paperType === "gap" && (() => {
-        // Automatically determine strip orientation from label aspect:
-        // if height (tape width) >= width (feed length), strip runs vertically
-        const vertical = label.heightMm >= label.widthMm;
+        // Determine tape ribbon orientation:
+        // If the physical tape width equals widthMm, the tape is horizontal across the screen,
+        // and the roll unwinds vertically (along heightMm).
+        // Otherwise (or if tape width equals heightMm), the tape width is vertical and unwinds horizontally.
+        const activeTapeWidth = label.tapeWidthMm ?? (label.heightMm <= label.widthMm ? label.heightMm : label.widthMm);
+        const vertical = label.widthMm === activeTapeWidth;
         const gap = 24 * zoom;
         const rollOverhang = 16 * zoom;
         const stride = vertical ? displayH + gap : displayW + gap;

@@ -15,19 +15,17 @@ export const phoP12Profile: DeviceProfile = {
     unmetered: true,
   },
   defaults: { density: 2, paperType: "continuous" },
+  identification: {
+    namePattern: /^(?!.*_ble$)(pho[_-]?p12|phomemo[\s_-]?p12|p12[\s_-]?pro.*|p12(_[0-9a-z]{4,6})?|p12)$/i,
+    hasCx: false,
+    hardwareId: 0xb6,
+  },
   namePrefixes: [
     "P12 PRO",
     "P12PRO",
-    "p12 pro",
-    "p12pro",
     "Phomemo P12",
-    "phomemo p12",
     "Pho-P12",
-    "pho-p12",
-    "Phomemo",
-    "phomemo",
     "P12",
-    "p12",
   ],
   cutterMargins: {
     leadMm: 9,
@@ -45,5 +43,6 @@ export const phoP12Profile: DeviceProfile = {
     ],
     defaultTapeWidthMm: 12,
     defaultLabelLengthMm: 40,
+    defaultSize: { widthMm: 40, heightMm: 12 },
   },
 };

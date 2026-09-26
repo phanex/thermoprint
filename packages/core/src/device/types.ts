@@ -23,6 +23,14 @@ export interface DeviceLabelConfig {
   tapes: TapeOption[];
   defaultTapeWidthMm: number;
   defaultLabelLengthMm: number;
+  /** @deprecated Kept for backward compatibility */
+  defaultSize?: LabelSizePreset;
+}
+
+export interface DeviceIdentification {
+  namePattern: RegExp;
+  hasCx?: boolean;
+  hardwareId?: number;
 }
 
 export interface DeviceProfile {
@@ -36,9 +44,11 @@ export interface DeviceProfile {
   defaults: { density: number; paperType: "gap" | "continuous" };
   /** Which command to use for print darkness: "density" (1F 70 02) or "thickness" (10 FF 10 00) */
   densityCommand?: "density" | "thickness";
-  namePrefixes: string[];
+  namePrefixes?: string[];
+  identification?: DeviceIdentification;
   cutterMargins?: { leadMm: number; trailMm: number };
   labelConfig?: DeviceLabelConfig;
+  hasBattery?: boolean;
 }
 
 export interface PrintOptions {
@@ -58,4 +68,5 @@ export interface PrinterEventMap {
   status: PrinterStatus;
   disconnected: { reason?: string };
   progress: { bytesSent: number; totalBytes: number };
+  battery: { battery: number };
 }

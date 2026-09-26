@@ -87,6 +87,10 @@ describe("Phomemo P12 Protocol", () => {
     assert.equal(full?.type, "battery");
     assert.equal(full?.value, 100);
 
+    const fullNumeric = protocol.parseResponse(new Uint8Array([0x1a, 0x04, 0x64]));
+    assert.equal(fullNumeric?.type, "battery");
+    assert.equal(fullNumeric?.value, 100);
+
     const half = protocol.parseResponse(new Uint8Array([0x1a, 0x04, 0xa2]));
     assert.equal(half?.value, 50);
 
@@ -95,6 +99,12 @@ describe("Phomemo P12 Protocol", () => {
 
     const critical = protocol.parseResponse(new Uint8Array([0x1a, 0x04, 0xa4]));
     assert.equal(critical?.value, 10);
+  });
+
+  it("parseResponse decodes 0x02 model packets", () => {
+    const modelPkt = protocol.parseResponse(new Uint8Array([0x02, 0xb6, 0x00]));
+    assert.equal(modelPkt?.type, "model");
+    assert.equal(modelPkt?.value, 0xb6);
   });
 
   it("parseResponse decodes cover status", () => {
@@ -125,7 +135,7 @@ describe("Phomemo P12 Protocol", () => {
 });
 
 describe("Device Registry & Matching", () => {
-  it("matches Phomemo P12 by name prefixes", () => {
+  it("matches Phomemo P12 by name pattern", () => {
     const p1 = findDeviceByName("P12 PRO 3412");
     assert.ok(p1);
     assert.equal(p1?.modelId, "pho-p12");
@@ -136,9 +146,12 @@ describe("Device Registry & Matching", () => {
 
     const p3 = findDeviceByName("Phomemo P12");
     assert.equal(p3?.modelId, "pho-p12");
+
+    const p4 = findDeviceByName("P12");
+    assert.equal(p4?.modelId, "pho-p12");
   });
 
-  it("matches Marklife models with mark- prefix", () => {
+  it("matches Marklife models with mark- prefix and avoids Phomemo false match", () => {
     const p15 = findDeviceByName("p15_3549_BLE");
     assert.ok(p15);
     assert.equal(p15?.modelId, "mark-p15");
@@ -153,6 +166,11 @@ describe("Device Registry & Matching", () => {
     assert.ok(m60);
     assert.equal(m60?.modelId, "mark-m60");
     assert.equal(m60?.name, "Marklife M60");
+  });
+
+  it("disambiguates via GATT context if names collide", () => {
+    const pho = findDeviceByName("P12", { hasCx: false });
+    assert.equal(pho?.modelId, "pho-p12");
   });
 
   it("can retrieve profiles by new modelId standard", () => {

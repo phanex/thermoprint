@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bluetooth, X } from "lucide-react";
 import { useEditorV2Store } from "../../store/editor-store.ts";
 import { usePrinterStore } from "../../store/printer-store.ts";
@@ -55,16 +55,6 @@ function PixelBattery({ battery, className }: { battery: number; className?: str
   );
 }
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  out_of_paper: { label: "Out of paper", color: "text-red-400 bg-red-400/10 border-red-400/20" },
-  cover_open: { label: "Cover open", color: "text-yellow-400 bg-yellow-400/10 border-yellow-400/20" },
-  overheating: { label: "Overheating", color: "text-red-400 bg-red-400/10 border-red-400/20" },
-  low_battery: { label: "Low battery", color: "text-yellow-400 bg-yellow-400/10 border-yellow-400/20" },
-  cover_closed: { label: "Cover closed", color: "text-ink-300 bg-ink-800 border-white/5" },
-};
-
-
-
 function MiniRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between">
@@ -80,12 +70,17 @@ export function PrinterChip() {
   const battery = usePrinterStore((s) => s.battery);
   const peripheral = usePrinterStore((s) => s.peripheral);
   const isConnected = usePrinterStore((s) => s.isConnected);
+  const isConnecting = usePrinterStore((s) => s.isConnecting);
+  const isScanning = usePrinterStore((s) => s.isScanning);
+  const error = usePrinterStore((s) => s.error);
   const deviceInfo = usePrinterStore((s) => s.deviceInfo);
   const modelId = usePrinterStore((s) => s.modelId);
-  const { disconnect } = useWebBluetooth();
+  const { scanAndConnect, connect, disconnect } = useWebBluetooth();
+
+  const [isManualOpen, setIsManualOpen] = useState(false);
 
   const profile = modelId ? getDevice(modelId) : null;
-  const fullName = profile ? profile.name : printer.name;
+  const fullName = profile ? profile.name : (peripheral?.name || printer.name || "Printer");
 
   const ref = useRef<HTMLDivElement>(null);
 
@@ -94,6 +89,7 @@ export function PrinterChip() {
     if (!printFlyoutOpen) return;
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsManualOpen(false);
         useEditorV2Store.setState({ printFlyoutOpen: false });
       }
     };
@@ -101,48 +97,45 @@ export function PrinterChip() {
     return () => document.removeEventListener("mousedown", handler);
   }, [printFlyoutOpen]);
 
-  const openConnect = () => {
-    useEditorV2Store.setState({
-      printFlyoutOpen: false,
-      connectFlow: { open: true, step: "idle", devices: [], selectedId: null },
-    });
-  };
-
-  const handleDisconnect = async () => {
-    await disconnect();
-    useEditorV2Store.setState({
-      printer: { connected: false, name: "", battery: 0, model: "" },
-      printFlyoutOpen: false,
-    });
-  };
-
-  if (!peripheral) {
+  // When neither connected nor connecting: show Connect button
+  if (!peripheral && !isConnecting) {
     return (
       <button
-        onClick={openConnect}
-        className="flex items-center gap-2 h-8 px-2 md:px-3 rounded-md border border-accent/30 bg-accent/10 text-accent hover:bg-accent/15 hover-fade"
+        onClick={scanAndConnect}
+        disabled={isScanning}
+        className={`flex items-center gap-2 h-8 px-2 md:px-3 rounded-md border text-ui-sm font-semibold transition-colors ${
+          isScanning
+            ? "border-accent/40 bg-accent/15 text-accent animate-pulse cursor-wait"
+            : "border-accent/30 bg-accent/10 text-accent hover:bg-accent/15 hover-fade"
+        }`}
       >
-        <Bluetooth size={15} />
-        <span className="hidden md:inline text-ui-sm font-semibold">Connect printer</span>
+        <Bluetooth size={15} className={isScanning ? "animate-pulse" : ""} />
+        <span className="hidden md:inline">
+          {isScanning ? "Select printer..." : "Connect printer"}
+        </span>
       </button>
     );
   }
 
-  const isStandby = !isConnected;
+  const isStandby = !isConnected && !isConnecting;
+  const showBattery = profile?.hasBattery !== false && isConnected && battery >= 0 && battery <= 100;
 
   return (
     <div className="relative" ref={ref}>
       <div className="flex items-center rounded-md bg-ink-800 hover:bg-ink-750 border border-white/5 hover-fade">
         <button
-          onClick={() =>
+          onClick={() => {
+            setIsManualOpen(true);
             useEditorV2Store.setState((s) => ({
               printFlyoutOpen: !s.printFlyoutOpen,
-            }))
-          }
+            }));
+          }}
           className="group flex items-center gap-2 px-2.5 h-8"
         >
           <span className="relative flex items-center justify-center w-4 h-4 shrink-0">
-            {isStandby ? (
+            {isConnecting ? (
+              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-ping" />
+            ) : isStandby ? (
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
             ) : (
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
@@ -154,15 +147,28 @@ export function PrinterChip() {
           </span>
           {/* Desktop: full info */}
           <div className="hidden md:flex flex-col items-start leading-tight">
-            <span className={`text-[10px] font-mono uppercase tracking-wider ${isStandby ? "text-amber-400/70" : "text-ink-400"}`}>
-              {isStandby ? "Standby" : "Connected"}
+            <span
+              className={`text-[10px] font-mono uppercase tracking-wider ${
+                isConnecting
+                  ? "text-accent animate-pulse"
+                  : isStandby
+                  ? "text-amber-400/70"
+                  : "text-ink-400"
+              }`}
+            >
+              {isConnecting ? "Connecting" : isStandby ? "Standby" : "Connected"}
             </span>
             <span className="text-ui-sm text-ink-100 font-medium leading-none mt-0.5">
               {fullName}
             </span>
           </div>
-          {battery >= 0 && (() => {
-            const color = battery > 60 ? "text-emerald-400" : battery > 20 ? "text-yellow-400" : "text-red-400";
+          {showBattery && (() => {
+            const color =
+              battery > 60
+                ? "text-emerald-400"
+                : battery > 20
+                ? "text-yellow-400"
+                : "text-red-400";
             return (
               <div className="hidden md:flex flex-col items-start justify-center pl-2 border-l border-white/10 leading-tight">
                 <PixelBattery battery={battery} className={color} />
@@ -173,11 +179,14 @@ export function PrinterChip() {
             );
           })()}
         </button>
-        {isStandby && (
+        {(isConnected || isStandby) && (
           <button
-            onClick={handleDisconnect}
-            className="flex items-center justify-center h-8 px-2 text-ink-400 hover:text-ink-100 border-l border-white/5"
-            title="Disconnect and forget"
+            onClick={(e) => {
+              e.stopPropagation();
+              disconnect();
+            }}
+            className="flex items-center justify-center h-8 px-2 text-ink-400 hover:text-ink-100 border-l border-white/5 cursor-pointer"
+            title="Disconnect printer"
           >
             <X size={14} />
           </button>
@@ -187,7 +196,7 @@ export function PrinterChip() {
       {printFlyoutOpen && (
         <div
           onMouseDown={(e) => e.stopPropagation()}
-          className="fixed inset-x-2 top-14 max-h-[80vh] overflow-y-auto md:max-h-none md:overflow-visible md:inset-auto md:absolute md:right-0 md:top-10 md:w-72 bg-ink-850 border border-white/8 rounded-lg shadow-panel p-3 z-[60]"
+          className="fixed inset-x-2 top-14 max-h-[85vh] overflow-y-auto md:max-h-none md:overflow-visible md:inset-auto md:absolute md:left-0 md:top-10 md:w-80 bg-ink-850 border border-white/8 rounded-lg shadow-panel p-3.5 z-[60]"
         >
           <div className="flex items-start justify-between mb-3">
             <div>
@@ -195,42 +204,88 @@ export function PrinterChip() {
                 {fullName}
               </div>
               <div className="text-ui-sm text-ink-400 mt-0.5 font-mono">
-                {profile?.protocolId || "unknown"} &middot; ID {peripheral.id.slice(0, 8)}
+                {profile?.protocolId || "detecting..."} &middot; ID {peripheral?.id ? peripheral.id.slice(0, 8) : "—"}
               </div>
             </div>
             <button
-              onClick={() =>
-                useEditorV2Store.setState({ printFlyoutOpen: false })
-              }
-              className="text-ink-400 hover:text-ink-100"
+              onClick={() => {
+                setIsManualOpen(false);
+                useEditorV2Store.setState({ printFlyoutOpen: false });
+              }}
+              className="text-ink-400 hover:text-ink-100 p-0.5"
             >
               <X size={16} />
             </button>
           </div>
-          
-          <div className={`flex items-center mb-3 px-2 py-1.5 rounded-md border text-ui-sm font-medium ${isStandby ? "bg-amber-400/10 border-amber-400/20 text-amber-400" : "bg-emerald-400/10 border-emerald-400/20 text-emerald-400"}`}>
-            <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5" />
-            {isStandby ? "Standby" : "Ready"}
-            {battery >= 0 && (
-              <div className="flex items-center ml-2 pl-2 border-l border-current/20">
-                <PixelBattery battery={battery} className="mr-1.5" />
-                {battery}%
+
+          {error ? (
+            <div className="flex items-center mb-3 px-2.5 py-1.5 rounded-md border text-ui-sm font-medium bg-red-400/10 border-red-400/20 text-red-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 mr-2 shrink-0" />
+              <span className="truncate">{error}</span>
+            </div>
+          ) : isConnecting ? (
+            <div className="flex items-center mb-3 px-2.5 py-1.5 rounded-md border text-ui-sm font-medium bg-accent/10 border-accent/20 text-accent animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent mr-2 shrink-0" />
+              Connecting to printer...
+            </div>
+          ) : isStandby ? (
+            <div className="flex items-center mb-3 px-2.5 py-1.5 rounded-md border text-ui-sm font-medium bg-amber-400/10 border-amber-400/20 text-amber-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mr-2 shrink-0" />
+              Standby
+            </div>
+          ) : (
+            <div className="flex items-center justify-between mb-3 px-2.5 py-1.5 rounded-md border text-ui-sm font-medium bg-emerald-400/10 border-emerald-400/20 text-emerald-400">
+              <div className="flex items-center">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2 shrink-0" />
+                Ready
               </div>
-            )}
-          </div>
-          
+              {showBattery && (
+                <div className="flex items-center pl-2 border-l border-emerald-400/20">
+                  <PixelBattery battery={battery} className="mr-1.5" />
+                  <span>{battery}%</span>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="space-y-1.5 text-ui-sm mb-3">
-            {deviceInfo.firmware && <MiniRow label="Firmware" value={deviceInfo.firmware} />}
-            {deviceInfo.serial && <MiniRow label="Serial" value={deviceInfo.serial} />}
+            <MiniRow label="Firmware" value={deviceInfo.firmware || "—"} />
+            <MiniRow label="Serial" value={deviceInfo.serial || "—"} />
           </div>
-          <DebugLogSection />
+
+          <DebugLogSection hideActions={!isManualOpen || isConnecting} />
+
           <div className="mt-3 pt-3 border-t border-white/5">
-            <button
-              onClick={handleDisconnect}
-              className="w-full h-7 rounded-md bg-ink-800 hover:bg-ink-750 border border-white/5 text-ui-sm text-ink-300"
-            >
-              Disconnect
-            </button>
+            {isConnecting ? (
+              <button
+                onClick={disconnect}
+                className="w-full h-7 rounded-md bg-ink-800 hover:bg-ink-750 border border-white/5 text-ui-sm text-ink-300 hover:text-ink-100"
+              >
+                Cancel
+              </button>
+            ) : isStandby ? (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => peripheral && connect(peripheral)}
+                  className="flex-1 h-7 rounded-md bg-accent/15 hover:bg-accent/25 border border-accent/30 text-ui-sm font-medium text-accent"
+                >
+                  Reconnect
+                </button>
+                <button
+                  onClick={disconnect}
+                  className="h-7 px-3 rounded-md bg-ink-800 hover:bg-ink-750 border border-white/5 text-ui-sm text-ink-400 hover:text-ink-100"
+                >
+                  Forget
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={disconnect}
+                className="w-full h-7 rounded-md bg-ink-800 hover:bg-ink-750 border border-white/5 text-ui-sm text-ink-300 hover:text-ink-100"
+              >
+                Disconnect
+              </button>
+            )}
           </div>
         </div>
       )}

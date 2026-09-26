@@ -163,3 +163,15 @@ kbd {
   color: var(--color-ink-300);
   line-height: 1;
 }
+
+/* Remove native browser number input spin arrows */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+

@@ -54,10 +54,8 @@ import "@fontsource/lxgw-wenkai-mono-tc/cyrillic.css";
 import "@fontsource/lxgw-wenkai-mono-tc/cyrillic-ext.css";
 import "@fontsource/lxgw-wenkai-mono-tc/cyrillic-700.css";
 import "@fontsource/lxgw-wenkai-mono-tc/cyrillic-ext-700.css";
-// @ts-expect-error — fontsource variable font CSS import
 import "@fontsource-variable/jetbrains-mono";
 import "@fontsource-variable/jetbrains-mono/wght-italic.css";
-// @ts-expect-error — fontsource variable font CSS import
 import "@fontsource-variable/nunito";
 import "@fontsource-variable/nunito/wght-italic.css";
 import Konva from "konva";

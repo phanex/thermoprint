@@ -164,6 +164,7 @@ export function TextElement({ element, isSelected }: Props) {
     textarea.style.height = `${element.height * scale.y}px`;
     textarea.style.boxSizing = "content-box";
     const scaledFontSize = (p.fontSize || 18) * scale.y;
+    textarea.style.fontSize = `${scaledFontSize}px`;
     textarea.style.fontFamily = getFontFamilyStack(p.fontFamily);
     // Match Konva's fontStyle exactly: "normal", "bold", "italic", or "italic bold"
     const isBold = fontStyle.includes("bold");

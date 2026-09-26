@@ -15,8 +15,6 @@ import {
 import { DockBtn } from "./dock-btn.tsx";
 import { DockGroup } from "./dock-group.tsx";
 import { DockDivider } from "./dock-divider.tsx";
-import { Kbd } from "./kbd.tsx";
-import { useEditorV2Store } from "../../store/editor-store.ts";
 import {
   addTextEl,
   addQrEl,
@@ -155,7 +153,7 @@ export function Dock() {
         </div>
       )}
 
-      <div className="absolute bottom-2 md:bottom-10 left-1/2 -translate-x-1/2 z-30">
+      <div className="absolute bottom-2 md:bottom-8 left-1/2 -translate-x-1/2 z-30">
         <div className="relative">
           {/* Ambient cyan glow */}
           <div
@@ -234,25 +232,6 @@ export function Dock() {
               />
             </DockGroup>
           </div>
-        </div>
-
-        {/* Shortcut legend */}
-        <div className="hidden md:flex items-center justify-center gap-3 mt-3 text-ui-xs font-mono text-ink-400 uppercase tracking-wider">
-          <span>
-            <Kbd>Space</Kbd> pan
-          </span>
-          <span className="text-ink-700">•</span>
-          <span>
-            <Kbd>⌘</Kbd>+<Kbd>scroll</Kbd> zoom
-          </span>
-          <span className="text-ink-700">•</span>
-          <button
-            onClick={() => useEditorV2Store.setState({ paletteOpen: true })}
-            className="hover:text-accent hover-fade flex items-center gap-1 cursor-pointer outline-none"
-            title="Click or press ⌘K to open Command Palette"
-          >
-            <Kbd>⌘K</Kbd> commands
-          </button>
         </div>
       </div>
     </>

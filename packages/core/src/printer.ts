@@ -29,6 +29,7 @@ export class Printer {
   private flowController: FlowController;
   private disconnecting = false;
   private _printing = false;
+  private keepAliveTimer: ReturnType<typeof setInterval> | null = null;
 
   private constructor(
     private readonly connection: BleConnection,
@@ -124,12 +125,15 @@ export class Printer {
     // Emit disconnected event on unexpected BLE link loss
     if (connection.onDisconnect) {
       connection.onDisconnect(() => {
+        printer.stopKeepAlive();
         if (!printer.disconnecting) {
           debugLog("BLE", "unexpected disconnect");
           printer.emit("disconnected", {});
         }
       });
     }
+
+    printer.startKeepAlive();
 
     debugLog("BLE", `connected to "${peripheral.name}" model=${profile.modelId} protocol=${profile.protocolId} packet=${packetSize} cx=${cx ? "yes" : "no"}`);
     return printer;
@@ -243,13 +247,17 @@ export class Printer {
 
   async getBattery(): Promise<number> {
     if (this._printing) throw new ThermoprintError(ErrorCode.PRINT_FAILED, "Cannot query battery while printing");
+    if (this.profile.hasBattery === false) return -1;
     const cmd = this.protocol.buildBatteryQuery();
     await this.flowController.send(cmd.data);
     const response = await this.waitForResponse("battery", 3000);
-    // Battery is in response[1] as a raw byte (0-100)
-    if (response.value !== undefined) return response.value as number;
-    if (response.raw.length >= 2) return response.raw[1];
-    return response.raw[0] ?? -1;
+    let val = -1;
+    if (response.value !== undefined) val = response.value as number;
+    else if (response.raw.length >= 2) val = response.raw[1];
+    else val = response.raw[0] ?? -1;
+    if (val < 0 || val > 100) return -1;
+    this.emit("battery", { battery: val });
+    return val;
   }
 
   async getModel(): Promise<string> {
@@ -271,8 +279,28 @@ export class Printer {
     return new TextDecoder().decode(response.raw).replace(/\0/g, "").trim();
   }
 
+  startKeepAlive(intervalMs = 45000): void {
+    this.stopKeepAlive();
+    this.keepAliveTimer = setInterval(async () => {
+      if (!this.isConnected || this._printing || this.disconnecting) return;
+      try {
+        await this.getBattery();
+      } catch {
+        // Silently ignore keep-alive failures
+      }
+    }, intervalMs);
+  }
+
+  stopKeepAlive(): void {
+    if (this.keepAliveTimer) {
+      clearInterval(this.keepAliveTimer);
+      this.keepAliveTimer = null;
+    }
+  }
+
   async disconnect(): Promise<void> {
     debugLog("BLE", "disconnecting");
+    this.stopKeepAlive();
     this.disconnecting = true;
     if (this.rx) await this.rx.unsubscribe();
     if (this.cx) await this.cx.unsubscribe();
@@ -320,6 +348,9 @@ export class Printer {
     if (response) {
       if (response.type === "status") {
         this.emit("status", { status: response.value as string, raw: data });
+      }
+      if (response.type === "battery" && typeof response.value === "number") {
+        this.emit("battery", { battery: response.value });
       }
 
       // Resolve any pending waiters matching the parsed type

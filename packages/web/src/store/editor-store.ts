@@ -34,6 +34,8 @@ export interface LabelSize {
   heightMm: number;
   widthPx: number;
   heightPx: number;
+  tapeWidthMm?: number;
+  labelLengthMm?: number;
 }
 
 // ---- State shape ----
@@ -144,6 +146,7 @@ const DEFAULT_LABEL: LabelSize = {
   heightMm: 12,
   widthPx: mmToPx(40),
   heightPx: mmToPx(12),
+  tapeWidthMm: 12,
 };
 
 // ---- Store ----

@@ -74,6 +74,11 @@ export class PhoP12Protocol implements PrinterProtocol {
   parseResponse(data: Uint8Array): PrinterResponse | null {
     if (data.length < 2) return null;
 
+    // Model ID response: [0x02, modelId, 0x00]
+    if (data.length === 3 && data[0] === 0x02) {
+      return { type: "model", raw: data, value: data[1] };
+    }
+
     // Special result response: [0x01, code]
     if (data.length === 2 && data[0] === 0x01) {
       return { type: "success", raw: data, value: data[1] };
