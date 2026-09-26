@@ -35,9 +35,11 @@ All notable changes and improvements in this fork of **Thermoprint**.
 - **Custom Length for Continuous Paper**: Added `Custom...` / `Custom: {len} mm` button in the print settings grid for continuous tape, featuring direct numeric input, ±5 mm steppers, and mouse wheel adjustments (10–300 mm).
 - **2-Column Layout for Print Settings**: Overhauled `PrintSettingsFlyout` into a balanced 2-column desktop layout (Left: Interface scale, theme, density, dither; Right: Paper type, tape width filter, label sizes grid). Reduces flyout height by 50% to prevent viewport overflow at 120%–140% interface scale.
 - **Unified Section Header Typography**: Standardized all section headers (`INTERFACE SIZE`, `THEME`, `PAPER TYPE`, `LABEL SIZE`, `DENSITY`, `DITHER`) to `text-ui-2xs font-mono uppercase tracking-wider text-ink-400`.
-- **Label Sizes Deduplication & Discreet Amber Indicators**: Merged duplicate dimensions across profiles in `getLabelSizes`. Replaced the bulky warning banner with a subtle amber dot directly on unprintable size buttons.
-- **Pixel-Perfect Canvas Status Bar**: Cleaned bottom canvas pills: moved non-printable indicator to the far left as a clean, non-button status icon (no cursor-help or question mark); synchronized tape width pill to the physical roll width of the active label; added comfortable breathing room (`gap-2`).
-- **Custom Subtle Scrollbar**: Added `.custom-scrollbar` utility with thin theme thumb (`scrollbar-thin`), eliminating native system scrollbars in flyouts.
+- **Pulsing Connection Status Dot Restored**: Restored the 8px green pulsing LED indicator with soft `animate-ping` aura in `<PrinterChip />` for active Bluetooth connections.
+- **Pixel-Perfect 24px Canvas PrinterOff Icon**: Redesigned `PrinterOffIcon` using native 24×24 integer coordinates and 2px stroke width, eliminating fuzzy subpixel rendering on canvas.
+- **Green Dot Indicator for Supported Sizes**: Flipped grid size dots to green (`emerald-400`) on native supported formats for the connected printer, leaving unsupported formats plain to prevent user confusion.
+- **Extended Size Grid Height**: Stretched the right-column sizes grid to `flex-1 min-h-[220px] max-h-[270px]` to fill vertical space flush with the footer.
+- **Clean Flyout Footer**: Stripped superfluous `(gap)` / `(continuous)` parentheses from footer and added inline `PrinterOffIcon` before incompatible active dimensions.
 - **Production Build Cleanliness & TypeScript Zero-Errors**: Resolved all type discrepancies across `@thermoprint/web` (`print-settings-flyout.tsx`, `canvas.tsx`, `text-element.tsx`, `web-bluetooth.ts`), removed legacy fallback sizes, and verified complete clean production build (`tsc -b && vite build`).
 - **Inline Textarea Font Scaling Fix**: Bound `scaledFontSize` to `textarea.style.fontSize` during canvas inline text editing to eliminate font jumping on double-click.
 

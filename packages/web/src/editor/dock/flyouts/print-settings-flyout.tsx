@@ -15,6 +15,27 @@ interface Props {
   onClose: () => void;
 }
 
+function PrinterOffIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6" />
+      <rect x="6" y="14" width="12" height="8" rx="1" />
+      <line x1="2" y1="2" x2="22" y2="22" />
+    </svg>
+  );
+}
+
 export function PrintSettingsFlyout({ onClose }: Props) {
   const printSettings = useEditorV2Store((s) => s.printSettings);
   const paperType = useEditorV2Store((s) => s.paperType);
@@ -66,6 +87,8 @@ export function PrintSettingsFlyout({ onClose }: Props) {
   const isCurrentPreset = availableSizes.some(
     (s) => s.widthMm === label.widthMm && s.heightMm === label.heightMm,
   );
+
+  const compat = checkPrinterCompatibility(modelId, label, paperType);
 
   const updateSettings = (patch: Partial<typeof printSettings>) =>
     useEditorV2Store.setState((s) => ({
@@ -288,7 +311,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
         </div>
 
         {/* Right Column: Media / Paper & Label Size */}
-        <div className="space-y-3">
+        <div className="space-y-3 flex flex-col h-full">
           {/* Paper type */}
           <div>
             <div className="text-ui-2xs font-mono uppercase tracking-wider text-ink-400 mb-1.5">
@@ -313,7 +336,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
           </div>
 
           {/* Label size with Tape width filter dropdown */}
-          <div>
+          <div className="flex-1 flex flex-col min-h-0">
             <div className="flex items-center justify-between mb-1.5">
               <div className="text-ui-2xs font-mono uppercase tracking-wider text-ink-400">
                 Label size
@@ -361,7 +384,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
 
             {/* Sizes Grid */}
             <div
-              className="grid grid-cols-2 gap-1.5 max-h-[175px] overflow-y-auto pr-1 custom-scrollbar"
+              className="grid grid-cols-2 gap-1.5 flex-1 min-h-[220px] max-h-[270px] overflow-y-auto pr-1 custom-scrollbar"
               onWheel={(e) => e.stopPropagation()}
             >
               {availableSizes.map((s) => {
@@ -378,8 +401,8 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                         : "bg-ink-800 text-ink-300 border-white/5 hover:text-ink-100 hover:bg-ink-750"
                     }`}
                   >
-                    {!isSupported && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Not supported by connected printer" />
+                    {isSupported && Boolean(modelId) && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Supported by connected printer" />
                     )}
                     <span>{s.widthMm} × {s.heightMm} mm</span>
                   </button>
@@ -507,10 +530,13 @@ export function PrintSettingsFlyout({ onClose }: Props) {
             {isConnected ? (profile?.name || modelId || "Connected") : "Not connected"}
           </span>
         </div>
-        <div>
+        <div className="flex items-center gap-1.5">
           <span>Active: </span>
+          {!compat.compatible && Boolean(modelId) && (
+            <PrinterOffIcon size={14} className="text-amber-400" />
+          )}
           <span className="text-ink-200">
-            {label.widthMm} × {label.heightMm} mm ({paperType})
+            {label.widthMm} × {label.heightMm} mm
           </span>
         </div>
       </div>
