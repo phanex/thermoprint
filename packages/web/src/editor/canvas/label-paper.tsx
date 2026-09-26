@@ -3,7 +3,6 @@ import { useEditorV2Store } from "../../store/editor-store.ts";
 
 export function LabelPaper() {
   const label = useEditorV2Store((s) => s.label);
-  const paperType = useEditorV2Store((s) => s.paperType);
 
   return (
     <Rect
@@ -12,7 +11,7 @@ export function LabelPaper() {
       width={label.widthPx}
       height={label.heightPx}
       fill="#ffffff"
-      cornerRadius={paperType === "continuous" ? 0 : 4}
+      cornerRadius={4}
       shadowColor="rgba(0,0,0,0.3)"
       shadowBlur={20}
       shadowOffsetY={4}
