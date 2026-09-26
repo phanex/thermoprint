@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Printer, ChevronDown, X, Plus, Minus } from "lucide-react";
 import { useEditorV2Store } from "../../store/editor-store.ts";
+import { usePrinterStore } from "../../store/printer-store.ts";
 import { scanAndConnect } from "../../hooks/use-web-bluetooth.ts";
+import { checkPrinterCompatibility } from "../../label/label-sizes.ts";
 
 function MiniRow({ label, value }: { label: string; value: string }) {
   return (
@@ -61,6 +63,13 @@ export function PrintButton({ onPrint }: PrintButtonProps) {
       return;
     }
 
+    const currentModel = usePrinterStore.getState().modelId ?? (printer.model || null);
+    const compat = checkPrinterCompatibility(currentModel, label, paperType);
+    if (!compat.compatible) {
+      const ok = confirm(`Warning: ${compat.reason}\n\nDo you want to send this print job anyway?`);
+      if (!ok) return;
+    }
+
     const duration = Math.min(4500, 1200 + copies * 220);
     useEditorV2Store.getState().startPrint(copies, duration);
     setOpen(false);
@@ -78,7 +87,7 @@ export function PrintButton({ onPrint }: PrintButtonProps) {
       console.error("Print failed:", err);
       useEditorV2Store.getState().endPrint();
     }
-  }, [copies, onPrint, printer.connected]);
+  }, [copies, onPrint, printer.connected, printer.model, label, paperType]);
 
   return (
     <div className="relative ml-1" ref={ref}>

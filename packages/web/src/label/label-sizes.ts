@@ -118,3 +118,47 @@ export function getLabelSizes(
   }
   return result;
 }
+
+/**
+ * Checks whether the current label dimensions and paper type are compatible
+ * with the currently connected printer model.
+ */
+export function checkPrinterCompatibility(
+  modelId: string | null,
+  label: { widthMm: number; heightMm: number; tapeWidthMm?: number },
+  paperType: "gap" | "continuous",
+): { compatible: boolean; reason?: string } {
+  if (!modelId) return { compatible: true };
+  const profile = getDevice(modelId);
+  if (!profile || !profile.labelConfig) return { compatible: true };
+
+  const lc = profile.labelConfig;
+  if (!lc.supportedPaperTypes.includes(paperType)) {
+    return {
+      compatible: false,
+      reason: `${profile.name} only supports ${lc.supportedPaperTypes.join(", ")} paper`,
+    };
+  }
+
+  const activeTapeWidth = label.tapeWidthMm ?? Math.min(label.widthMm, label.heightMm);
+  const tape = lc.tapes?.find((t) => t.tapeWidthMm === activeTapeWidth);
+  if (!tape) {
+    const supportedWidths = lc.tapes?.map((t) => `${t.tapeWidthMm} mm`).join(", ") ?? "";
+    return {
+      compatible: false,
+      reason: `${profile.name} does not support ${activeTapeWidth} mm tape (supported: ${supportedWidths})`,
+    };
+  }
+
+  if (paperType === "gap" && tape.gapLengthsMm && tape.gapLengthsMm.length > 0) {
+    const activeLen = Math.max(label.widthMm, label.heightMm);
+    if (!tape.gapLengthsMm.includes(activeLen)) {
+      return {
+        compatible: false,
+        reason: `${activeLen} × ${activeTapeWidth} mm is not a supported gap size for ${profile.name}`,
+      };
+    }
+  }
+
+  return { compatible: true };
+}

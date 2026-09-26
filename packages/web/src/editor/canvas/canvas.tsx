@@ -8,6 +8,7 @@ import {
   getAvailableTapeWidths,
   getSizesForTapeWidth,
   isContinuousSupported,
+  checkPrinterCompatibility,
 } from "../../label/label-sizes.ts";
 import { ChevronDown, Minus, Plus, X } from "lucide-react";
 import { LabelPaper } from "./label-paper.tsx";
@@ -37,6 +38,26 @@ function TapeIcon({ size = 13 }: { size?: number }) {
   );
 }
 
+function PrinterOffIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="6 9 6 2 18 2 18 9" />
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <rect x="6" y="14" width="12" height="8" />
+      <line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" strokeWidth="1.75" />
+    </svg>
+  );
+}
+
 function LabelSizeSelector({
   originX,
   originY,
@@ -56,7 +77,9 @@ function LabelSizeSelector({
   const ref = useRef<HTMLDivElement>(null);
 
   const label = useEditorV2Store((s) => s.label);
+  const paperType = useEditorV2Store((s) => s.paperType);
   const modelId = usePrinterStore((s) => s.modelId);
+  const compat = checkPrinterCompatibility(modelId, label, paperType);
 
   // Available tape widths based on connected model or all profiles
   const widths = useMemo(() => getAvailableTapeWidths(modelId), [modelId]);
@@ -387,6 +410,16 @@ function LabelSizeSelector({
         >
           <TapeIcon size={13} />
         </button>
+      )}
+
+      {/* 4. Incompatibility warning badge if current label is not printable on connected printer */}
+      {!compat.compatible && Boolean(modelId) && (
+        <div
+          className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-ink-850/95 border border-amber-400/30 text-amber-400 shadow-panel cursor-help"
+          title={`Warning: ${compat.reason}`}
+        >
+          <PrinterOffIcon size={13} />
+        </div>
       )}
     </div>
   );

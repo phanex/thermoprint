@@ -1,20 +1,15 @@
-import { Settings, X } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Settings, X, ChevronDown, Minus, Plus } from "lucide-react";
 import { useEditorV2Store } from "../../../store/editor-store.ts";
 import { usePrinterStore } from "../../../store/printer-store.ts";
 import { getDevice } from "@thermoprint/core";
 import { mmToPx } from "../../../utils/px-mm.ts";
-import { getSizesForTapeWidth } from "../../../label/label-sizes.ts";
-
-function useLabelConfig() {
-  const modelId = usePrinterStore((s) => s.modelId);
-  const profile = modelId ? getDevice(modelId) : null;
-  const lc = profile?.labelConfig;
-
-  return {
-    supportedPaperTypes: lc?.supportedPaperTypes ?? ["gap", "continuous"],
-    hasProfile: Boolean(profile),
-  };
-}
+import {
+  getAvailableTapeWidths,
+  getSizesForTapeWidth,
+  getLabelSizes,
+  checkPrinterCompatibility,
+} from "../../../label/label-sizes.ts";
 
 interface Props {
   onClose: () => void;
@@ -33,6 +28,10 @@ export function PrintSettingsFlyout({ onClose }: Props) {
   const setTheme = useEditorV2Store((s) => s.setTheme);
   const setMode = useEditorV2Store((s) => s.setMode);
 
+  const [tapeFilterOpen, setTapeFilterOpen] = useState(false);
+  const [selectedWidth, setSelectedWidth] = useState<number | "all">("all");
+  const [customOpen, setCustomOpen] = useState(false);
+
   const themes = [
     { id: "cyan",     name: "Cyan",     swatch: "#2ad0ff" },
     { id: "amber",    name: "Amber",    swatch: "#ff9f40" },
@@ -44,8 +43,31 @@ export function PrintSettingsFlyout({ onClose }: Props) {
 
   const profile = modelId ? getDevice(modelId) : null;
   const currentTape = label.tapeWidthMm ?? (label.heightMm <= label.widthMm ? label.heightMm : label.widthMm);
-  const { supportedPaperTypes, hasProfile } = useLabelConfig();
-  const availableSizes = getSizesForTapeWidth(modelId, currentTape, paperType);
+  const curLength = label.widthMm === currentTape ? label.heightMm : label.widthMm;
+
+  const [customLength, setCustomLength] = useState(curLength);
+  const [customInputStr, setCustomInputStr] = useState(String(curLength));
+
+  useEffect(() => {
+    const len = label.widthMm === currentTape ? label.heightMm : label.widthMm;
+    setCustomLength(len);
+    setCustomInputStr(String(len));
+  }, [label.widthMm, label.heightMm, currentTape]);
+
+  const allTapeWidths = useMemo(() => getAvailableTapeWidths(null), []);
+
+  const availableSizes = useMemo(() => {
+    if (selectedWidth === "all") {
+      return getLabelSizes(null, paperType);
+    }
+    return getSizesForTapeWidth(null, selectedWidth, paperType);
+  }, [selectedWidth, paperType]);
+
+  const compat = checkPrinterCompatibility(modelId, label, paperType);
+
+  const isCurrentPreset = availableSizes.some(
+    (s) => s.widthMm === label.widthMm && s.heightMm === label.heightMm,
+  );
 
   const updateSettings = (patch: Partial<typeof printSettings>) =>
     useEditorV2Store.setState((s) => ({
@@ -54,7 +76,8 @@ export function PrintSettingsFlyout({ onClose }: Props) {
 
   const setPaperType = (pt: "gap" | "continuous") => {
     useEditorV2Store.setState({ paperType: pt });
-    const sizes = getSizesForTapeWidth(modelId, currentTape, pt);
+    const tw = selectedWidth !== "all" ? selectedWidth : currentTape;
+    const sizes = getSizesForTapeWidth(null, tw, pt);
     const currentValid = sizes.some(
       (s) => s.widthMm === label.widthMm && s.heightMm === label.heightMm,
     );
@@ -66,20 +89,24 @@ export function PrintSettingsFlyout({ onClose }: Props) {
           heightMm: def.heightMm,
           widthPx: mmToPx(def.widthMm),
           heightPx: mmToPx(def.heightMm),
-          tapeWidthMm: currentTape,
+          tapeWidthMm: tw,
         },
       });
     }
     usePrinterStore.getState().updateSettings({ paperType: pt });
   };
 
-  const setLabelSize = (widthMm: number, heightMm: number) => {
+  const setLabelSize = (widthMm: number, heightMm: number, tapeWidthMm?: number) => {
+    const w = Math.max(widthMm, heightMm);
+    const h = Math.min(widthMm, heightMm);
+    const tw = tapeWidthMm ?? (selectedWidth !== "all" ? selectedWidth : h);
     useEditorV2Store.setState({
       label: {
-        widthMm,
-        heightMm,
-        widthPx: mmToPx(widthMm),
-        heightPx: mmToPx(heightMm),
+        widthMm: w,
+        heightMm: h,
+        widthPx: mmToPx(w),
+        heightPx: mmToPx(h),
+        tapeWidthMm: tw,
       },
     });
   };
@@ -93,7 +120,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
             Print settings
           </span>
         </div>
-        <button onClick={onClose} className="text-ink-400 hover:text-ink-100">
+        <button onClick={onClose} className="text-ink-400 hover:text-ink-100 cursor-pointer">
           <X size={14} />
         </button>
       </div>
@@ -111,7 +138,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
               {uiScale !== 1 && (
                 <button
                   onClick={() => setUiScale(1)}
-                  className="text-ui-2xs font-mono text-ink-400 hover:text-accent hover-fade"
+                  className="text-ui-2xs font-mono text-ink-400 hover:text-accent hover-fade cursor-pointer"
                 >
                   Reset
                 </button>
@@ -146,7 +173,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                 <button
                   key={m}
                   onClick={() => setMode(m)}
-                  className={`px-2 h-6 rounded-[3px] text-ui-2xs font-medium capitalize ${
+                  className={`px-2 h-6 rounded-[3px] text-ui-2xs font-medium capitalize cursor-pointer ${
                     mode === m
                       ? "bg-ink-700 text-accent"
                       : "text-ink-400 hover:text-ink-100"
@@ -164,7 +191,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                 <button
                   key={t.id}
                   onClick={() => setTheme(t.id)}
-                  className={`flex items-center gap-1.5 h-8 px-2 rounded-md border hover-fade ${
+                  className={`flex items-center gap-1.5 h-8 px-2 rounded-md border hover-fade cursor-pointer ${
                     active
                       ? "bg-accent/10 border-accent/40 text-accent"
                       : "bg-ink-800 border-white/5 text-ink-200 hover:border-white/15"
@@ -190,48 +217,80 @@ export function PrintSettingsFlyout({ onClose }: Props) {
             Paper type
           </div>
           <div className="flex items-center gap-1 p-0.5 rounded-md bg-ink-800 border border-white/5">
-            {(["gap", "continuous"] as const).map((pt) => {
-              const supported = supportedPaperTypes.includes(pt);
-              return (
-                <button
-                  key={pt}
-                  onClick={() => supported && setPaperType(pt)}
-                  disabled={!supported}
-                  className={`flex-1 h-7 rounded-[4px] text-ui-sm font-medium ${
-                    paperType === pt
-                      ? "bg-ink-700 text-accent"
-                      : supported
-                        ? "text-ink-300 hover:text-ink-100"
-                        : "text-ink-600 cursor-not-allowed"
-                  }`}
-                >
-                  {pt === "gap" ? "Gap (die-cut)" : "Continuous"}
-                </button>
-              );
-            })}
+            {(["gap", "continuous"] as const).map((pt) => (
+              <button
+                key={pt}
+                type="button"
+                onClick={() => setPaperType(pt)}
+                className={`flex-1 h-7 rounded-[4px] text-ui-sm font-medium transition-colors cursor-pointer ${
+                  paperType === pt
+                    ? "bg-ink-700 text-accent"
+                    : "text-ink-300 hover:text-ink-100"
+                }`}
+              >
+                {pt === "gap" ? "Gap (die-cut)" : "Continuous"}
+              </button>
+            ))}
           </div>
-          {hasProfile &&
-            supportedPaperTypes.length === 1 && (
-              <div className="text-ui-2xs text-ink-500 mt-1 font-mono">
-                Only {supportedPaperTypes[0]} supported by this printer
-              </div>
-            )}
         </div>
 
-        {/* Label size */}
+        {/* Label size with Tape width filter dropdown */}
         <div>
-          <div className="text-ui-xs font-mono uppercase tracking-wider text-ink-400 mb-1.5">
-            Label size
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="text-ui-xs font-mono uppercase tracking-wider text-ink-400">
+              Label size
+            </div>
+            {/* Tape width filter dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setTapeFilterOpen((o) => !o)}
+                className="flex items-center gap-1 px-2 h-6 rounded bg-ink-800 border border-white/5 hover:border-white/15 text-ui-2xs font-mono text-ink-300 hover:text-ink-100 cursor-pointer"
+                title="Filter by tape width"
+              >
+                <span>{selectedWidth === "all" ? "All widths" : `${selectedWidth} mm`}</span>
+                <ChevronDown size={11} className={tapeFilterOpen ? "rotate-180" : ""} />
+              </button>
+              {tapeFilterOpen && (
+                <div className="absolute right-0 top-full mt-1 w-28 bg-ink-850 border border-white/10 rounded-lg shadow-panel py-1 z-50">
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedWidth("all"); setTapeFilterOpen(false); }}
+                    className={`w-full text-left px-2.5 h-6 text-ui-2xs font-mono flex items-center justify-between cursor-pointer ${
+                      selectedWidth === "all" ? "text-accent bg-accent/10" : "text-ink-300 hover:bg-white/5 hover:text-ink-100"
+                    }`}
+                  >
+                    <span>All widths</span>
+                    {selectedWidth === "all" && <span className="text-accent">✓</span>}
+                  </button>
+                  {allTapeWidths.map((w) => (
+                    <button
+                      key={w}
+                      type="button"
+                      onClick={() => { setSelectedWidth(w); setTapeFilterOpen(false); }}
+                      className={`w-full text-left px-2.5 h-6 text-ui-2xs font-mono flex items-center justify-between cursor-pointer ${
+                        selectedWidth === w ? "text-accent bg-accent/10" : "text-ink-300 hover:bg-white/5 hover:text-ink-100"
+                      }`}
+                    >
+                      <span>{w} mm</span>
+                      {selectedWidth === w && <span className="text-accent">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-1">
+
+          <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto pr-0.5">
             {availableSizes.map((s) => {
               const active =
                 s.widthMm === label.widthMm && s.heightMm === label.heightMm;
               return (
                 <button
                   key={`${s.widthMm}x${s.heightMm}`}
-                  onClick={() => setLabelSize(s.widthMm, s.heightMm)}
-                  className={`h-7 rounded-md text-ui-xs font-mono border ${
+                  type="button"
+                  onClick={() => setLabelSize(s.widthMm, s.heightMm, s.tapeWidthMm)}
+                  className={`h-7 rounded-md text-ui-xs font-mono border hover-fade cursor-pointer ${
                     active
                       ? "bg-accent/10 text-accent border-accent/30"
                       : "bg-ink-800 text-ink-300 border-white/5 hover:text-ink-100 hover:bg-ink-750"
@@ -241,7 +300,124 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                 </button>
               );
             })}
+
+            {/* Custom Length button for Continuous paper */}
+            {paperType === "continuous" && (
+              <div className="relative col-span-2">
+                <button
+                  type="button"
+                  onClick={() => setCustomOpen((o) => !o)}
+                  className={`w-full h-7 rounded-md text-ui-xs font-mono border hover-fade cursor-pointer ${
+                    !isCurrentPreset
+                      ? "bg-accent/10 text-accent border-accent/30"
+                      : "bg-ink-800 text-ink-300 border-white/5 hover:text-ink-100 hover:bg-ink-750"
+                  }`}
+                >
+                  {!isCurrentPreset ? `Custom: ${curLength} mm` : "Custom..."}
+                </button>
+
+                {/* Custom length popover */}
+                {customOpen && (
+                  <div
+                    className="absolute left-0 bottom-full mb-1.5 w-full bg-ink-850 border border-white/10 rounded-lg shadow-panel p-2.5 z-50 select-none"
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-ui-xs font-mono uppercase tracking-wider text-ink-400">
+                        Custom Length
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCustomOpen(false)}
+                        className="text-ink-400 hover:text-ink-100 p-0.5 cursor-pointer"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <div className="relative flex-1 flex items-center bg-ink-800 border border-white/8 rounded px-2 h-7">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={customInputStr}
+                          onChange={(e) => {
+                            const text = e.target.value.replace(/[^0-9]/g, "");
+                            setCustomInputStr(text);
+                            const val = parseInt(text, 10);
+                            if (!isNaN(val) && val >= 10 && val <= 300) {
+                              setCustomLength(val);
+                              setLabelSize(val, currentTape, currentTape);
+                            }
+                          }}
+                          onBlur={() => {
+                            const val = parseInt(customInputStr, 10);
+                            const clamped = isNaN(val) ? 40 : Math.max(10, Math.min(300, val));
+                            setCustomLength(clamped);
+                            setCustomInputStr(String(clamped));
+                            setLabelSize(clamped, currentTape, currentTape);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              (e.target as HTMLInputElement).blur();
+                            }
+                          }}
+                          onWheel={(e) => {
+                            e.preventDefault();
+                            const step = e.shiftKey ? 5 : 1;
+                            const delta = e.deltaY < 0 ? step : -step;
+                            const next = Math.max(10, Math.min(300, customLength + delta));
+                            setCustomLength(next);
+                            setCustomInputStr(String(next));
+                            setLabelSize(next, currentTape, currentTape);
+                          }}
+                          className="w-full bg-transparent font-mono text-ui-sm text-right pr-1 outline-none text-ink-100"
+                        />
+                        <span className="text-ui-xs font-mono text-ink-400 shrink-0">mm</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = Math.max(10, customLength - 5);
+                          setCustomLength(next);
+                          setCustomInputStr(String(next));
+                          setLabelSize(next, currentTape, currentTape);
+                        }}
+                        className="w-7 h-7 flex items-center justify-center rounded bg-ink-800 border border-white/8 hover:bg-ink-750 text-ink-300 hover:text-ink-100 cursor-pointer"
+                        title="-5 mm"
+                      >
+                        <Minus size={12} />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = Math.min(300, customLength + 5);
+                          setCustomLength(next);
+                          setCustomInputStr(String(next));
+                          setLabelSize(next, currentTape, currentTape);
+                        }}
+                        className="w-7 h-7 flex items-center justify-center rounded bg-ink-800 border border-white/8 hover:bg-ink-750 text-ink-300 hover:text-ink-100 cursor-pointer"
+                        title="+5 mm"
+                      >
+                        <Plus size={12} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+
+          {/* Compatibility warning if incompatible with connected printer */}
+          {!compat.compatible && isConnected && (
+            <div className="flex items-center gap-1.5 text-ui-2xs font-mono text-amber-400 mt-2 bg-amber-400/5 border border-amber-400/15 rounded px-2 py-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+              <span>{compat.reason}</span>
+            </div>
+          )}
         </div>
 
         {/* Density */}
