@@ -860,9 +860,13 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
         const gapY = 6;
         const hatchBg = `repeating-linear-gradient(-45deg, transparent, transparent 4px, color-mix(in srgb, var(--color-accent) 20%, transparent) 4px, color-mix(in srgb, var(--color-accent) 20%, transparent) 7px)`;
 
-        const leftX = Math.round(originX);
+        const leftX = label.isDynamic
+          ? Math.round(originX - leadPx)
+          : Math.round(originX);
         const leftW = Math.round(leadPx);
-        const rightX = Math.round(originX + displayW - trailPx);
+        const rightX = label.isDynamic
+          ? Math.round(originX + displayW)
+          : Math.round(originX + displayW - trailPx);
         const rightW = Math.round(trailPx);
         const topY = Math.round(originY - earH - gapY);
         const bottomY = Math.round(originY + displayH + gapY);

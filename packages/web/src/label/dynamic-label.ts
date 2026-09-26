@@ -78,14 +78,15 @@ export interface DynamicFitResult {
 /**
  * Fits continuous ribbon snugly around canvas elements:
  * - Zero arbitrary padding (pure bounding box of elements).
- * - Left edge of content snaps exactly flush to the end of the lead cutter margin (leadPx).
- * - Right cutter margin (trailPx) starts immediately flush to the rightmost edge of content.
- * - Compensates panX so the visual screen position of all elements remains 100% stationary (zero jumping).
+ * - Canvas width is strictly the content width: (maxX - minX).
+ * - All content is normalized so the leftmost element starts at x = 0 ("весь вміст ставимо на нуль").
+ * - Compensates panX by deltaPanX = ((newWidthPx - oldWidthPx) * zoom) / 2 + minX * zoom
+ *   so that the screen position of all elements remains 100% stationary (zero jumping).
  */
 export function fitDynamicLabel(
   elements: BaseElement[],
   currentLabel: LabelSize,
-  cutterMargins?: { leadMm: number; trailMm: number },
+  _cutterMargins?: { leadMm: number; trailMm: number },
   zoom: number = 1,
 ): DynamicFitResult {
   if (!currentLabel.isDynamic) {
@@ -94,13 +95,9 @@ export function fitDynamicLabel(
 
   const tapeWidthMm =
     currentLabel.tapeWidthMm ?? Math.min(currentLabel.widthMm, currentLabel.heightMm);
-  const leadMm = cutterMargins?.leadMm ?? 0;
-  const trailMm = cutterMargins?.trailMm ?? 0;
-  const leadPx = mmToPx(leadMm);
-  const trailPx = mmToPx(trailMm);
 
   if (elements.length === 0) {
-    const defaultLenMm = Math.max(30, leadMm + trailMm + 10);
+    const defaultLenMm = 30;
     const newWidthPx = mmToPx(defaultLenMm);
     const deltaPanX = ((newWidthPx - currentLabel.widthPx) * zoom) / 2;
     return {
@@ -129,27 +126,29 @@ export function fitDynamicLabel(
   }
 
   if (!isFinite(minX) || !isFinite(maxX)) {
-    minX = leadPx;
-    maxX = leadPx + 100;
+    minX = 0;
+    maxX = 100;
   }
 
-  // Pure fit: zero artificial padding
-  const contentWidth = Math.max(1, maxX - minX);
-  const targetMinX = leadPx;
-  const shiftX = Math.round(targetMinX - minX);
+  // Exact content width: distance from leftmost to rightmost edge
+  const contentWidth = Math.max(10, Math.round(maxX - minX));
 
+  // "Весь вміст ставимо на нуль":
+  // Shift all elements so the leftmost edge starts at x = 0
+  const shiftX = -Math.round(minX);
   const nextElements =
     shiftX === 0
       ? elements
       : elements.map((el) => ({ ...el, x: Math.round(el.x + shiftX) }));
 
-  const newWidthPx = Math.round(leadPx + contentWidth + trailPx);
+  const newWidthPx = contentWidth;
   const newWidthMm = Math.max(1, Math.round(pxToMm(newWidthPx)));
 
-  // Exact camera stabilization formula:
-  // (newWidthPx - oldWidthPx) * zoom / 2 - shiftX * zoom ensures elements don't move on screen.
+  // Camera stabilization:
+  // originX_new = originX_old + minX * zoom
+  // deltaPanX = ((newWidthPx - oldWidthPx) * zoom) / 2 + minX * zoom
   const oldWidthPx = currentLabel.widthPx;
-  const deltaPanX = ((newWidthPx - oldWidthPx) * zoom) / 2 - shiftX * zoom;
+  const deltaPanX = ((newWidthPx - oldWidthPx) * zoom) / 2 + Math.round(minX) * zoom;
 
   return {
     label: {

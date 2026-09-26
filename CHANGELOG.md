@@ -8,16 +8,17 @@ All notable changes and improvements in this fork of **Thermoprint**.
 
 ### 🎨 UI & Theme Alignment
 - **Step 5: Dynamic Tape Mode (`isDynamic`) & Content-Fitting Canvas**:
-  - **Zero-Padding Dynamic Fitting (`fitDynamicLabel`)**: Replaced arbitrary 3 mm margins with pure content-bounding fit (`contentWidth = maxX - minX`). The canvas printable area hugs the outer bounds of all elements without artificial whitespace.
-  - **Flush Cutter Margin Alignment ("Підгонка до вух")**:
-    - Left edge: On drop or transform end, all elements are normalized with offset `dx = leadPx - minX`, snapping the leftmost content edge flush to the end of the lead cutter margin (`leadPx`).
-    - Right edge: The trail cutter margin (`trailPx`) begins immediately at the rightmost content edge (`leadPx + contentWidth`).
-    - Total ribbon length in pixels is strictly `leadPx + contentWidth + trailPx` (in mm: `Math.round(pxToMm(widthPx))`).
+  - **Zero-Padding Pure Content Fit (`fitDynamicLabel`)**:
+    - The printable canvas width is strictly the content span: `contentWidth = Math.max(10, Math.round(maxX - minX))`.
+    - Content is normalized to zero: `shiftX = -Math.round(minX)`, setting the leftmost object to `x = 0` ("весь вміст ставимо на нуль").
+    - Canvas width is strictly `contentWidth` without injecting printer cutter margins into the label size (`widthPx = contentWidth`, `widthMm = Math.round(pxToMm(widthPx))`).
+  - **Outside Cutter Margin Positioning ("Вуха ззовні холста")**:
+    - In dynamic mode, cutter margins ("вуха") are rendered strictly **outside** the printable canvas: lead ear spans from `originX - leadPx` to `originX`, trail ear spans from `originX + displayW` to `originX + displayW + trailPx`.
+    - Stretching an element to the left or right pulls it outside the canvas onto the ears. Releasing snaps the canvas around the element, keeping ears flush on the exterior.
   - **Mathematical Camera Stabilization (Zero Jitter / No Canvas Jumps)**:
-    - Derived and implemented exact camera pan compensation in Zustand:
-      `deltaPanX = ((newWidthPx - oldWidthPx) * zoom) / 2 - shiftX * zoom`.
-    - Applied atomically inside store updates (`addElement`, `updateElement`, `updateElements`, `updateElementLive`, `removeSelected`, `duplicateSelected`, `setDynamic`).
-    - Elements remain 100% stationary on screen at the exact drop/typed position (zero jumping or shifting under the cursor) while the canvas boundaries and cutter ears adapt smoothly around them.
+    - Implemented camera pan compensation in Zustand:
+      `deltaPanX = ((newWidthPx - oldWidthPx) * zoom) / 2 + Math.round(minX) * zoom`.
+    - Guaranteed invariant `originX_new = originX_old + minX * zoom`: elements remain 100% stationary on screen at the exact drop/typed position (zero jumping when dragging left or right).
   - **Transformer Alignment**: Added element coordinates and dimensions into `ElementWrapper` dependencies across `RectElement`, `TextElement`, `LineElement`, `ImageElement`, `BarcodeElement`, and `QrElement`, ensuring selection handles and bounding boxes re-anchor instantly upon drop/transform.
   - **Dynamic Ribbon Selector & Quick-Toggle Button `[ ▤ ]`**:
     - Activated the canvas pill `[ ▤ ]` button with design token styling (`bg-accent/15 border-accent/40 text-accent` when active; `bg-ink-850/95 border-white/8 text-ink-300` when inactive).
