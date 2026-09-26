@@ -822,7 +822,7 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
         const trailMm = cutterMargins.trailMm;
         const leadPx = mmToPx(leadMm) * zoom;
         const trailPx = mmToPx(trailMm) * zoom;
-        const earH = 14;
+        const earH = 28;
         const gapY = 6;
         const hatchBg = `repeating-linear-gradient(-45deg, transparent, transparent 4px, color-mix(in srgb, var(--color-accent) 20%, transparent) 4px, color-mix(in srgb, var(--color-accent) 20%, transparent) 7px)`;
 
@@ -855,7 +855,7 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
             >
               {leftW >= 18 && (
                 <div style={{ color: "var(--color-accent)", opacity: 0.6 }}>
-                  <Scissors size={10} />
+                  <Scissors size={11} />
                 </div>
               )}
             </div>
@@ -898,7 +898,7 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
             >
               {rightW >= 18 && (
                 <div style={{ color: "var(--color-accent)", opacity: 0.6 }}>
-                  <Scissors size={10} />
+                  <Scissors size={11} />
                 </div>
               )}
             </div>
