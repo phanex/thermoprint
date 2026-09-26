@@ -372,8 +372,11 @@ export function TextElement({ element, isSelected }: Props) {
             return newBox;
           }}
           deps={[
+            element.x,
+            element.y,
             element.width,
             element.height,
+            element.rotation,
             displayText,
             p.fontSize,
             p.fontFamily,

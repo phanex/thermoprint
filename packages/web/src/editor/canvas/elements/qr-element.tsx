@@ -99,7 +99,11 @@ export function QrElement({ element, isSelected }: Props) {
           });
         }}
       />
-      <ElementWrapper nodeRef={ref} isSelected={isSelected} />
+      <ElementWrapper
+        nodeRef={ref}
+        isSelected={isSelected}
+        deps={[element.x, element.y, element.width, element.height, element.rotation]}
+      />
     </>
   );
 }

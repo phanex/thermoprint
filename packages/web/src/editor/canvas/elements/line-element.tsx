@@ -66,6 +66,7 @@ export function LineElement({ element, isSelected }: Props) {
           if (Math.abs(newBox.width) < 5) return oldBox;
           return newBox;
         }}
+        deps={[element.x, element.y, element.width, element.height, element.rotation]}
       />
     </>
   );

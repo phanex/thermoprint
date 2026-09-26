@@ -114,7 +114,7 @@ export function ImageElement({ element, isSelected }: Props) {
       <ElementWrapper
         nodeRef={ref}
         isSelected={isSelected}
-        deps={[image, element.width, element.height, p.src]}
+        deps={[image, element.x, element.y, element.width, element.height, element.rotation, p.src]}
       />
     </>
   );

@@ -150,7 +150,11 @@ export function RectElement({ element, isSelected }: Props) {
           });
         }}
       />
-      <ElementWrapper nodeRef={ref as React.RefObject<Konva.Node>} isSelected={isSelected} />
+      <ElementWrapper
+        nodeRef={ref as React.RefObject<Konva.Node>}
+        isSelected={isSelected}
+        deps={[element.x, element.y, element.width, element.height, element.rotation]}
+      />
     </>
   );
 }

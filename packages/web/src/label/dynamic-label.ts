@@ -14,7 +14,7 @@ export interface ElementBounds {
  */
 export function getElementBounds(el: BaseElement): ElementBounds {
   const w = Math.max(1, el.width);
-  const h = Math.max(1, el.height);
+  const h = Math.max(0, el.height);
   const rot = ((el.rotation || 0) % 360 + 360) % 360;
 
   if (rot === 0) {
@@ -69,82 +69,111 @@ export function getActiveCutterMargins(
   return undefined;
 }
 
+export interface DynamicFitResult {
+  label: LabelSize;
+  elements: BaseElement[];
+  deltaPanX: number;
+}
+
 /**
- * Automatically computes continuous tape length based on canvas content:
- * length = max(x + width) + padding (+ cutter margins for P12).
- *
- * Symmetrically balances left and right margins so content is aesthetically
- * centered between the feed lead-in and cutter trail-off margins.
+ * Fits continuous ribbon snugly around canvas elements:
+ * - Zero arbitrary padding (pure bounding box of elements).
+ * - Left edge of content snaps exactly flush to the end of the lead cutter margin (leadPx).
+ * - Right cutter margin (trailPx) starts immediately flush to the rightmost edge of content.
+ * - Compensates panX so the visual screen position of all elements remains 100% stationary (zero jumping).
  */
-export function computeDynamicLabel(
+export function fitDynamicLabel(
   elements: BaseElement[],
   currentLabel: LabelSize,
   cutterMargins?: { leadMm: number; trailMm: number },
-): LabelSize {
+  zoom: number = 1,
+): DynamicFitResult {
   if (!currentLabel.isDynamic) {
-    return currentLabel;
+    return { label: currentLabel, elements, deltaPanX: 0 };
   }
 
   const tapeWidthMm =
     currentLabel.tapeWidthMm ?? Math.min(currentLabel.widthMm, currentLabel.heightMm);
   const leadMm = cutterMargins?.leadMm ?? 0;
   const trailMm = cutterMargins?.trailMm ?? 0;
-  const paddingMm = 3; // 3 mm standard breathing room
   const leadPx = mmToPx(leadMm);
   const trailPx = mmToPx(trailMm);
-  const paddingPx = mmToPx(paddingMm);
 
-  // If no elements exist on canvas, return a sensible standard continuous length (40 mm)
   if (elements.length === 0) {
-    const defaultLen = 40;
+    const defaultLenMm = Math.max(30, leadMm + trailMm + 10);
+    const newWidthPx = mmToPx(defaultLenMm);
+    const deltaPanX = ((newWidthPx - currentLabel.widthPx) * zoom) / 2;
     return {
-      ...currentLabel,
-      widthMm: defaultLen,
-      heightMm: tapeWidthMm,
-      widthPx: mmToPx(defaultLen),
-      heightPx: mmToPx(tapeWidthMm),
-      labelLengthMm: defaultLen,
-      tapeWidthMm,
-      isDynamic: true,
+      label: {
+        ...currentLabel,
+        widthMm: defaultLenMm,
+        heightMm: tapeWidthMm,
+        widthPx: newWidthPx,
+        heightPx: mmToPx(tapeWidthMm),
+        labelLengthMm: defaultLenMm,
+        tapeWidthMm,
+        isDynamic: true,
+      },
+      elements,
+      deltaPanX,
     };
   }
 
-  let maxRightPx = -Infinity;
-  let minLeftPx = Infinity;
+  let minX = Infinity;
+  let maxX = -Infinity;
 
   for (const el of elements) {
-    const bounds = getElementBounds(el);
-    if (bounds.maxX > maxRightPx) maxRightPx = bounds.maxX;
-    if (bounds.minX < minLeftPx) minLeftPx = bounds.minX;
+    const b = getElementBounds(el);
+    if (b.minX < minX) minX = b.minX;
+    if (b.maxX > maxX) maxX = b.maxX;
   }
 
-  if (!isFinite(maxRightPx)) maxRightPx = 0;
-  if (!isFinite(minLeftPx)) minLeftPx = 0;
+  if (!isFinite(minX) || !isFinite(maxX)) {
+    minX = leadPx;
+    maxX = leadPx + 100;
+  }
 
-  // Symmetric right margin:
-  // If user positioned content at or past leadPx + paddingPx, mirror that whitespace
-  // to the right edge before the trail margin / cutter edge.
-  const leftWhitespacePx = Math.max(paddingPx, minLeftPx - leadPx);
-  const rightWhitespacePx = leftWhitespacePx;
+  // Pure fit: zero artificial padding
+  const contentWidth = Math.max(1, maxX - minX);
+  const targetMinX = leadPx;
+  const shiftX = Math.round(targetMinX - minX);
 
-  // Total length = rightmost content edge + right whitespace + cutter trail margin
-  const totalLengthPx = maxRightPx + rightWhitespacePx + trailPx;
-  const lengthMm = Math.ceil(pxToMm(totalLengthPx));
+  const nextElements =
+    shiftX === 0
+      ? elements
+      : elements.map((el) => ({ ...el, x: Math.round(el.x + shiftX) }));
 
-  // Minimum length guarantees comfortable printable area between cutter ears:
-  // For P12 with ears (9 + 9 = 18 mm), minimum is 30 mm (matching standard continuous preset).
-  // For printers without ears, minimum is 20 mm. Maximum is capped at 300 mm.
-  const minLenMm = cutterMargins ? Math.max(30, leadMm + trailMm + 10) : 20;
-  const finalLenMm = Math.max(minLenMm, Math.min(300, lengthMm));
+  const newWidthPx = Math.round(leadPx + contentWidth + trailPx);
+  const newWidthMm = Math.max(1, Math.round(pxToMm(newWidthPx)));
+
+  // Exact camera stabilization formula:
+  // (newWidthPx - oldWidthPx) * zoom / 2 - shiftX * zoom ensures elements don't move on screen.
+  const oldWidthPx = currentLabel.widthPx;
+  const deltaPanX = ((newWidthPx - oldWidthPx) * zoom) / 2 - shiftX * zoom;
 
   return {
-    ...currentLabel,
-    widthMm: finalLenMm,
-    heightMm: tapeWidthMm,
-    widthPx: mmToPx(finalLenMm),
-    heightPx: mmToPx(tapeWidthMm),
-    labelLengthMm: finalLenMm,
-    tapeWidthMm,
-    isDynamic: true,
+    label: {
+      ...currentLabel,
+      widthMm: newWidthMm,
+      heightMm: tapeWidthMm,
+      widthPx: newWidthPx,
+      heightPx: mmToPx(tapeWidthMm),
+      labelLengthMm: newWidthMm,
+      tapeWidthMm,
+      isDynamic: true,
+    },
+    elements: nextElements,
+    deltaPanX,
   };
+}
+
+/**
+ * Backward compatibility wrapper returning only the next label config.
+ */
+export function computeDynamicLabel(
+  elements: BaseElement[],
+  currentLabel: LabelSize,
+  cutterMargins?: { leadMm: number; trailMm: number },
+): LabelSize {
+  return fitDynamicLabel(elements, currentLabel, cutterMargins, 1).label;
 }

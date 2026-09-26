@@ -200,7 +200,11 @@ export function BarcodeElement({ element, isSelected }: Props) {
           });
         }}
       />
-      <ElementWrapper nodeRef={ref} isSelected={isSelected} deps={[image]} />
+      <ElementWrapper
+        nodeRef={ref}
+        isSelected={isSelected}
+        deps={[image, element.x, element.y, element.width, element.height, element.rotation]}
+      />
     </>
   );
 }

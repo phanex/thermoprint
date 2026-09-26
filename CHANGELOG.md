@@ -7,11 +7,18 @@ All notable changes and improvements in this fork of **Thermoprint**.
 ## [Unreleased]
 
 ### 🎨 UI & Theme Alignment
-- **Step 5: Dynamic Tape Mode (`isDynamic`) & Real-Time Content-Aware Canvas**:
-  - **Dynamic Ribbon Length Calculation (`computeDynamicLabel`)**: Added dedicated `packages/web/src/label/dynamic-label.ts` computing ribbon cut length dynamically based on the rightmost element coordinate (`max(x + width)`), standard 3 mm padding, and physical printer cutter margins (9 mm lead + 9 mm trail on Phomemo P12).
-  - **Symmetric Cutter Margin Balancing**: Computes `leftWhitespacePx = Math.max(paddingPx, minLeftPx - leadPx)` and mirrors it as `rightWhitespacePx`, guaranteeing content is aesthetically centered between the lead-in feed line and cutter scissors edge with matching 3 mm breathing room.
-  - **100% Real-Time Reactive Store Updates**: Integrated automatic dynamic recalculation in `useEditorV2Store` across all element mutations: `addElement`, `updateElement`, `updateElements`, `updateElementLive`, `removeSelected`, `duplicateSelected`, and `setDynamic`. Ribbon length adapts live as elements are added, edited, dragged, or deleted.
-  - **Zoom & Pan Viewport Stability (Zero Jitter)**: Guarded `fitToScreen` in `canvas.tsx` from firing on live `label.widthPx` changes while `label.isDynamic` is active. Editing text or dragging objects no longer causes canvas zoom-out jumps or resets pan coordinates.
+- **Step 5: Dynamic Tape Mode (`isDynamic`) & Content-Fitting Canvas**:
+  - **Zero-Padding Dynamic Fitting (`fitDynamicLabel`)**: Replaced arbitrary 3 mm margins with pure content-bounding fit (`contentWidth = maxX - minX`). The canvas printable area hugs the outer bounds of all elements without artificial whitespace.
+  - **Flush Cutter Margin Alignment ("Підгонка до вух")**:
+    - Left edge: On drop or transform end, all elements are normalized with offset `dx = leadPx - minX`, snapping the leftmost content edge flush to the end of the lead cutter margin (`leadPx`).
+    - Right edge: The trail cutter margin (`trailPx`) begins immediately at the rightmost content edge (`leadPx + contentWidth`).
+    - Total ribbon length in pixels is strictly `leadPx + contentWidth + trailPx` (in mm: `Math.round(pxToMm(widthPx))`).
+  - **Mathematical Camera Stabilization (Zero Jitter / No Canvas Jumps)**:
+    - Derived and implemented exact camera pan compensation in Zustand:
+      `deltaPanX = ((newWidthPx - oldWidthPx) * zoom) / 2 - shiftX * zoom`.
+    - Applied atomically inside store updates (`addElement`, `updateElement`, `updateElements`, `updateElementLive`, `removeSelected`, `duplicateSelected`, `setDynamic`).
+    - Elements remain 100% stationary on screen at the exact drop/typed position (zero jumping or shifting under the cursor) while the canvas boundaries and cutter ears adapt smoothly around them.
+  - **Transformer Alignment**: Added element coordinates and dimensions into `ElementWrapper` dependencies across `RectElement`, `TextElement`, `LineElement`, `ImageElement`, `BarcodeElement`, and `QrElement`, ensuring selection handles and bounding boxes re-anchor instantly upon drop/transform.
   - **Dynamic Ribbon Selector & Quick-Toggle Button `[ ▤ ]`**:
     - Activated the canvas pill `[ ▤ ]` button with design token styling (`bg-accent/15 border-accent/40 text-accent` when active; `bg-ink-850/95 border-white/8 text-ink-300` when inactive).
     - Activated the `Dynamic` option in the canvas label size dropdown, completely removing the disabled state and "Soon" tag.
