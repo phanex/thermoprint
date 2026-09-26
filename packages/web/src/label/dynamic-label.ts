@@ -30,7 +30,6 @@ export function getElementBounds(el: BaseElement): ElementBounds {
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
 
-  // Four corners relative to (el.x, el.y)
   const x1 = 0;
   const y1 = 0;
   const x2 = w * cos;
@@ -62,7 +61,6 @@ export function getActiveCutterMargins(
     const profile = getDevice(modelId);
     return profile?.cutterMargins;
   }
-  // If no printer connected, default 12mm continuous tape to pho-p12 cutter margins
   if (tapeWidthMm === 12) {
     return getDevice("pho-p12")?.cutterMargins;
   }
@@ -72,50 +70,50 @@ export function getActiveCutterMargins(
 export interface DynamicFitResult {
   label: LabelSize;
   elements: BaseElement[];
-  deltaPanX: number;
+  shiftX: number;
 }
 
 /**
- * Fits continuous ribbon snugly around canvas elements:
- * - Zero arbitrary padding (pure bounding box of elements).
- * - Canvas width is strictly the content width: (maxX - minX).
- * - All content is normalized so the leftmost element starts at x = 0 ("весь вміст ставимо на нуль").
- * - Compensates panX by deltaPanX = ((newWidthPx - oldWidthPx) * zoom) / 2 + minX * zoom
- *   so that the screen position of all elements remains 100% stationary (zero jumping).
+ * Clean Dynamic Label Fitting:
+ * - Canvas strictly represents the printable area: [0 .. widthPx].
+ * - Point (0, 0) is the first printable dot.
+ * - Minimum dynamic width is strictly (tapeWidthMm + 1) mm (e.g. 13 mm for 12 mm tape)
+ *   to guarantee length > height and prevent orientation flipping.
+ * - Width is rounded up to the nearest millimeter (Math.ceil).
+ * - All elements are shifted as a block so the leftmost edge snaps flush to x = 0.
  */
 export function fitDynamicLabel(
   elements: BaseElement[],
   currentLabel: LabelSize,
-  _cutterMargins?: { leadMm: number; trailMm: number },
-  zoom: number = 1,
 ): DynamicFitResult {
   if (!currentLabel.isDynamic) {
-    return { label: currentLabel, elements, deltaPanX: 0 };
+    return { label: currentLabel, elements, shiftX: 0 };
   }
 
   const tapeWidthMm =
     currentLabel.tapeWidthMm ?? Math.min(currentLabel.widthMm, currentLabel.heightMm);
+  const minLenMm = tapeWidthMm + 1; // e.g. 13 mm for 12 mm tape
 
+  // 1. Empty canvas: default to minimum length
   if (elements.length === 0) {
-    const defaultLenMm = 30;
-    const newWidthPx = mmToPx(defaultLenMm);
-    const deltaPanX = ((newWidthPx - currentLabel.widthPx) * zoom) / 2;
+    const defaultWidthPx = mmToPx(minLenMm);
     return {
       label: {
         ...currentLabel,
-        widthMm: defaultLenMm,
+        widthMm: minLenMm,
         heightMm: tapeWidthMm,
-        widthPx: newWidthPx,
+        widthPx: defaultWidthPx,
         heightPx: mmToPx(tapeWidthMm),
-        labelLengthMm: defaultLenMm,
+        labelLengthMm: minLenMm,
         tapeWidthMm,
         isDynamic: true,
       },
       elements,
-      deltaPanX,
+      shiftX: 0,
     };
   }
 
+  // 2. Compute exact bounding box across all elements
   let minX = Infinity;
   let maxX = -Infinity;
 
@@ -127,28 +125,22 @@ export function fitDynamicLabel(
 
   if (!isFinite(minX) || !isFinite(maxX)) {
     minX = 0;
-    maxX = 100;
+    maxX = mmToPx(minLenMm);
   }
 
-  // Exact content width: distance from leftmost to rightmost edge
-  const contentWidth = Math.max(10, Math.round(maxX - minX));
+  // 3. Content width in pixels and rounded up in millimeters
+  const contentWidthPx = Math.max(1, maxX - minX);
+  const rawContentMm = Math.ceil(pxToMm(contentWidthPx));
+  const newWidthMm = Math.max(minLenMm, rawContentMm);
+  const newWidthPx = mmToPx(newWidthMm);
 
-  // "Весь вміст ставимо на нуль":
-  // Shift all elements so the leftmost edge starts at x = 0
-  const shiftX = -Math.round(minX);
+  // 4. Shift elements so leftmost edge aligns to x = 0
+  const shiftX = Math.round(0 - minX);
+
   const nextElements =
     shiftX === 0
       ? elements
       : elements.map((el) => ({ ...el, x: Math.round(el.x + shiftX) }));
-
-  const newWidthPx = contentWidth;
-  const newWidthMm = Math.max(1, Math.round(pxToMm(newWidthPx)));
-
-  // Camera stabilization:
-  // originX_new = originX_old + minX * zoom
-  // deltaPanX = ((newWidthPx - oldWidthPx) * zoom) / 2 + minX * zoom
-  const oldWidthPx = currentLabel.widthPx;
-  const deltaPanX = ((newWidthPx - oldWidthPx) * zoom) / 2 + Math.round(minX) * zoom;
 
   return {
     label: {
@@ -162,7 +154,7 @@ export function fitDynamicLabel(
       isDynamic: true,
     },
     elements: nextElements,
-    deltaPanX,
+    shiftX,
   };
 }
 
@@ -172,7 +164,6 @@ export function fitDynamicLabel(
 export function computeDynamicLabel(
   elements: BaseElement[],
   currentLabel: LabelSize,
-  cutterMargins?: { leadMm: number; trailMm: number },
 ): LabelSize {
-  return fitDynamicLabel(elements, currentLabel, cutterMargins, 1).label;
+  return fitDynamicLabel(elements, currentLabel).label;
 }

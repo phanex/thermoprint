@@ -12,8 +12,9 @@ import {
   isTapeWidthSupported,
 } from "../../label/label-sizes.ts";
 import { getDevice } from "@thermoprint/core";
-import { ChevronDown, Minus, Plus, X, PrinterX, Scissors } from "lucide-react";
+import { ChevronDown, Minus, Plus, X, PrinterX } from "lucide-react";
 import { LabelPaper } from "./label-paper.tsx";
+import { CutterEars } from "./cutter-ears.tsx";
 import { TextElement } from "./elements/text-element.tsx";
 import { RectElement } from "./elements/rect-element.tsx";
 import { LineElement } from "./elements/line-element.tsx";
@@ -526,12 +527,6 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
   const gridVisible = useEditorV2Store((s) => s.gridVisible);
   const rulersVisible = useEditorV2Store((s) => s.rulersVisible);
   const paperType = useEditorV2Store((s) => s.paperType);
-  const modelId = usePrinterStore((s) => s.modelId);
-  const profile = modelId ? getDevice(modelId) : null;
-  const cutterMargins = paperType === "continuous"
-    ? (profile?.cutterMargins ?? ((label.tapeWidthMm ?? 12) === 12 && !modelId ? getDevice("pho-p12")?.cutterMargins : undefined))
-    : undefined;
-
   const selectOnly = useEditorV2Store((s) => s.selectOnly);
   const setZoom = useEditorV2Store((s) => s.setZoom);
   const setPan = useEditorV2Store((s) => s.setPan);
@@ -835,7 +830,7 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
           />
         </Layer>
 
-        {/* Paper + elements layer */}
+        {/* Paper + elements + cutter ears layer */}
         <Layer
           id="label-group"
           x={originX}
@@ -847,120 +842,9 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
           {elements.map((el) =>
             renderElement(el, selectedIds.includes(el.id)),
           )}
+          <CutterEars />
         </Layer>
       </Stage>
-
-      {/* Continuous mode: Cutter Margins (ears) above and below the printable label */}
-      {paperType === "continuous" && cutterMargins && (() => {
-        const leadMm = cutterMargins.leadMm;
-        const trailMm = cutterMargins.trailMm;
-        const leadPx = mmToPx(leadMm) * zoom;
-        const trailPx = mmToPx(trailMm) * zoom;
-        const earH = 28;
-        const gapY = 6;
-        const hatchBg = `repeating-linear-gradient(-45deg, transparent, transparent 4px, color-mix(in srgb, var(--color-accent) 20%, transparent) 4px, color-mix(in srgb, var(--color-accent) 20%, transparent) 7px)`;
-
-        const leftX = label.isDynamic
-          ? Math.round(originX - leadPx)
-          : Math.round(originX);
-        const leftW = Math.round(leadPx);
-        const rightX = label.isDynamic
-          ? Math.round(originX + displayW)
-          : Math.round(originX + displayW - trailPx);
-        const rightW = Math.round(trailPx);
-        const topY = Math.round(originY - earH - gapY);
-        const bottomY = Math.round(originY + displayH + gapY);
-
-        return (
-          <>
-            {/* Top-Left ear (lead margin) */}
-            <div
-              style={{
-                position: "absolute",
-                left: leftX,
-                top: topY,
-                width: leftW,
-                height: earH,
-                background: hatchBg,
-                borderTop: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
-                borderBottom: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
-                borderLeft: "1.5px dashed var(--color-accent)",
-                borderRight: "1px solid color-mix(in srgb, var(--color-accent) 35%, transparent)",
-                pointerEvents: "none",
-                zIndex: 1,
-              }}
-              className="flex items-center justify-center select-none"
-            >
-              {leftW >= 18 && (
-                <div style={{ color: "var(--color-accent)", opacity: 0.6 }}>
-                  <Scissors size={11} />
-                </div>
-              )}
-            </div>
-
-            {/* Bottom-Left ear (lead margin) */}
-            <div
-              style={{
-                position: "absolute",
-                left: leftX,
-                top: bottomY,
-                width: leftW,
-                height: earH,
-                background: hatchBg,
-                borderTop: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
-                borderBottom: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
-                borderLeft: "1.5px dashed var(--color-accent)",
-                borderRight: "1px solid color-mix(in srgb, var(--color-accent) 35%, transparent)",
-                pointerEvents: "none",
-                zIndex: 1,
-              }}
-            />
-
-            {/* Top-Right ear (trail margin) */}
-            <div
-              style={{
-                position: "absolute",
-                left: rightX,
-                top: topY,
-                width: rightW,
-                height: earH,
-                background: hatchBg,
-                borderTop: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
-                borderBottom: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
-                borderLeft: "1px solid color-mix(in srgb, var(--color-accent) 35%, transparent)",
-                borderRight: "1.5px dashed var(--color-accent)",
-                pointerEvents: "none",
-                zIndex: 1,
-              }}
-              className="flex items-center justify-center select-none"
-            >
-              {rightW >= 18 && (
-                <div style={{ color: "var(--color-accent)", opacity: 0.6 }}>
-                  <Scissors size={11} />
-                </div>
-              )}
-            </div>
-
-            {/* Bottom-Right ear (trail margin) */}
-            <div
-              style={{
-                position: "absolute",
-                left: rightX,
-                top: bottomY,
-                width: rightW,
-                height: earH,
-                background: hatchBg,
-                borderTop: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
-                borderBottom: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
-                borderLeft: "1px solid color-mix(in srgb, var(--color-accent) 35%, transparent)",
-                borderRight: "1.5px dashed var(--color-accent)",
-                pointerEvents: "none",
-                zIndex: 1,
-              }}
-            />
-          </>
-        );
-      })()}
 
       {/* Marquee selection rectangle (HTML overlay) */}
       {marquee && marquee.w > 2 && marquee.h > 2 && (

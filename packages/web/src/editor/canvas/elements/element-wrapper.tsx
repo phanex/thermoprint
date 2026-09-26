@@ -51,6 +51,7 @@ export function ElementWrapper({
   useEffect(() => {
     if (isSelected && trRef.current && nodeRef.current) {
       trRef.current.nodes([nodeRef.current]);
+      trRef.current.moveToTop();
       trRef.current.forceUpdate();
       trRef.current.getLayer()?.batchDraw();
     }

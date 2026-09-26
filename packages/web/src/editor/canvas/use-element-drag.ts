@@ -1,12 +1,13 @@
 import { useRef, useCallback } from "react";
 import type Konva from "konva";
-import { useEditorV2Store } from "../../store/editor-store.ts";
+import { useEditorV2Store, cancelDynamicFit } from "../../store/editor-store.ts";
 
 export function useElementDrag(elementId: string) {
   const startPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
 
   const handleDragStart = useCallback(
     (_e: Konva.KonvaEventObject<DragEvent>) => {
+      cancelDynamicFit();
       const { selectedIds, elements, selectOnly } = useEditorV2Store.getState();
       const isPartOfSelection = selectedIds.includes(elementId);
 

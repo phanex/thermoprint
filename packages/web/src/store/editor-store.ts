@@ -7,14 +7,14 @@ import {
   loadLibrary,
   persistLibrary,
 } from "../lib/library.ts";
-import {
-  fitDynamicLabel,
-  getActiveCutterMargins,
-} from "../label/dynamic-label.ts";
+import { fitDynamicLabel } from "../label/dynamic-label.ts";
 
 let _modelIdGetter: (() => string | null) | null = null;
 export function setModelIdGetter(getter: () => string | null) {
   _modelIdGetter = getter;
+}
+export function getModelId(): string | null {
+  return _modelIdGetter?.() ?? null;
 }
 
 // ---- Element types ----
@@ -125,6 +125,7 @@ export interface EditorState {
   duplicateSelected: () => void;
   zOrder: (id: string, dir: "up" | "down" | "top" | "bottom") => void;
   setDynamic: (enabled: boolean) => void;
+  fitDynamicToContent: () => void;
 
   // Actions — selection
   selectOnly: (ids: string[]) => void;
@@ -151,6 +152,26 @@ function uid(): string {
 }
 
 // ---- Default values ----
+
+let _dynamicFitTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function scheduleDynamicFit(delayMs = 600) {
+  if (_dynamicFitTimer) clearTimeout(_dynamicFitTimer);
+  _dynamicFitTimer = setTimeout(() => {
+    _dynamicFitTimer = null;
+    const state = useEditorV2Store.getState();
+    if (state.label.isDynamic && state.paperType === "continuous") {
+      state.fitDynamicToContent();
+    }
+  }, delayMs);
+}
+
+export function cancelDynamicFit() {
+  if (_dynamicFitTimer) {
+    clearTimeout(_dynamicFitTimer);
+    _dynamicFitTimer = null;
+  }
+}
 
 const DEFAULT_LABEL: LabelSize = {
   widthMm: 40,
@@ -405,36 +426,19 @@ export const useEditorV2Store = create<EditorState>()(
 
       // ---- Actions — document ----
 
-      addElement: (el) =>
-        set((s) => {
-          const nextElements = [...s.elements, el];
-          if (s.label.isDynamic && s.paperType === "continuous") {
-            const cutterMargins = getActiveCutterMargins(
-              _modelIdGetter?.() ?? null,
-              s.label.tapeWidthMm,
-              "continuous",
-            );
-            const fit = fitDynamicLabel(nextElements, s.label, cutterMargins, s.zoom);
-            return {
-              elements: fit.elements,
-              label: fit.label,
-              panX: s.panX + fit.deltaPanX,
-              selectedIds: [el.id],
-              activeTool: "select",
-              currentLabelDirty: true,
-            };
-          }
-          return {
-            elements: nextElements,
-            selectedIds: [el.id],
-            activeTool: "select",
-            currentLabelDirty: true,
-          };
-        }),
+      addElement: (el) => {
+        set((s) => ({
+          elements: [...s.elements, el],
+          selectedIds: [el.id],
+          activeTool: "select",
+          currentLabelDirty: true,
+        }));
+        scheduleDynamicFit();
+      },
 
-      updateElement: (id, patch) =>
-        set((s) => {
-          const nextElements = s.elements.map((e) =>
+      updateElement: (id, patch) => {
+        set((s) => ({
+          elements: s.elements.map((e) =>
             e.id === id
               ? {
                   ...e,
@@ -442,30 +446,15 @@ export const useEditorV2Store = create<EditorState>()(
                   props: patch.props ? { ...e.props, ...patch.props } : e.props,
                 }
               : e,
-          );
-          if (s.label.isDynamic && s.paperType === "continuous") {
-            const cutterMargins = getActiveCutterMargins(
-              _modelIdGetter?.() ?? null,
-              s.label.tapeWidthMm,
-              "continuous",
-            );
-            const fit = fitDynamicLabel(nextElements, s.label, cutterMargins, s.zoom);
-            return {
-              elements: fit.elements,
-              label: fit.label,
-              panX: s.panX + fit.deltaPanX,
-              currentLabelDirty: true,
-            };
-          }
-          return {
-            elements: nextElements,
-            currentLabelDirty: true,
-          };
-        }),
+          ),
+          currentLabelDirty: true,
+        }));
+        scheduleDynamicFit();
+      },
 
-      updateElements: (patches) =>
-        set((s) => {
-          const nextElements = s.elements.map((e) => {
+      updateElements: (patches) => {
+        set((s) => ({
+          elements: s.elements.map((e) => {
             const patch = patches[e.id];
             if (!patch) return e;
             return {
@@ -473,76 +462,28 @@ export const useEditorV2Store = create<EditorState>()(
               ...patch,
               props: patch.props ? { ...e.props, ...patch.props } : e.props,
             };
-          });
-          if (s.label.isDynamic && s.paperType === "continuous") {
-            const cutterMargins = getActiveCutterMargins(
-              _modelIdGetter?.() ?? null,
-              s.label.tapeWidthMm,
-              "continuous",
-            );
-            const fit = fitDynamicLabel(nextElements, s.label, cutterMargins, s.zoom);
-            return {
-              elements: fit.elements,
-              label: fit.label,
-              panX: s.panX + fit.deltaPanX,
-              currentLabelDirty: true,
-            };
-          }
-          return {
-            elements: nextElements,
-            currentLabelDirty: true,
-          };
-        }),
+          }),
+          currentLabelDirty: true,
+        }));
+        scheduleDynamicFit();
+      },
 
       updateElementLive: (id, patch) =>
-        set((s) => {
-          const nextElements = s.elements.map((e) =>
+        set((s) => ({
+          elements: s.elements.map((e) =>
             e.id === id ? { ...e, ...patch } : e,
-          );
-          if (s.label.isDynamic && s.paperType === "continuous") {
-            const cutterMargins = getActiveCutterMargins(
-              _modelIdGetter?.() ?? null,
-              s.label.tapeWidthMm,
-              "continuous",
-            );
-            const fit = fitDynamicLabel(nextElements, s.label, cutterMargins, s.zoom);
-            return {
-              elements: fit.elements,
-              label: fit.label,
-              panX: s.panX + fit.deltaPanX,
-            };
-          }
-          return {
-            elements: nextElements,
-          };
-        }),
+          ),
+        })),
 
       removeSelected: () => {
         const { selectedIds } = get();
         if (!selectedIds.length) return;
-        set((s) => {
-          const nextElements = s.elements.filter((e) => !s.selectedIds.includes(e.id));
-          if (s.label.isDynamic && s.paperType === "continuous") {
-            const cutterMargins = getActiveCutterMargins(
-              _modelIdGetter?.() ?? null,
-              s.label.tapeWidthMm,
-              "continuous",
-            );
-            const fit = fitDynamicLabel(nextElements, s.label, cutterMargins, s.zoom);
-            return {
-              elements: fit.elements,
-              label: fit.label,
-              panX: s.panX + fit.deltaPanX,
-              selectedIds: [],
-              currentLabelDirty: true,
-            };
-          }
-          return {
-            elements: nextElements,
-            selectedIds: [],
-            currentLabelDirty: true,
-          };
-        });
+        set((s) => ({
+          elements: s.elements.filter((e) => !s.selectedIds.includes(e.id)),
+          selectedIds: [],
+          currentLabelDirty: true,
+        }));
+        scheduleDynamicFit();
       },
 
       duplicateSelected: () => {
@@ -557,30 +498,24 @@ export const useEditorV2Store = create<EditorState>()(
             y: e.y + 16,
             props: { ...e.props },
           }));
+        set((s) => ({
+          elements: [...s.elements, ...dups],
+          selectedIds: dups.map((d) => d.id),
+          currentLabelDirty: true,
+        }));
+        scheduleDynamicFit();
+      },
+
+      fitDynamicToContent: () =>
         set((s) => {
-          const nextElements = [...s.elements, ...dups];
-          if (s.label.isDynamic && s.paperType === "continuous") {
-            const cutterMargins = getActiveCutterMargins(
-              _modelIdGetter?.() ?? null,
-              s.label.tapeWidthMm,
-              "continuous",
-            );
-            const fit = fitDynamicLabel(nextElements, s.label, cutterMargins, s.zoom);
-            return {
-              elements: fit.elements,
-              label: fit.label,
-              panX: s.panX + fit.deltaPanX,
-              selectedIds: dups.map((d) => d.id),
-              currentLabelDirty: true,
-            };
-          }
+          if (!s.label.isDynamic || s.paperType !== "continuous") return s;
+          const fit = fitDynamicLabel(s.elements, s.label);
           return {
-            elements: nextElements,
-            selectedIds: dups.map((d) => d.id),
+            elements: fit.elements,
+            label: fit.label,
             currentLabelDirty: true,
           };
-        });
-      },
+        }),
 
       setDynamic: (enabled) =>
         set((s) => {
@@ -592,18 +527,13 @@ export const useEditorV2Store = create<EditorState>()(
               },
             };
           }
-          const modelId = _modelIdGetter?.() ?? null;
-          const cutterMargins = getActiveCutterMargins(modelId, s.label.tapeWidthMm, "continuous");
           const fit = fitDynamicLabel(
             s.elements,
             { ...s.label, isDynamic: true },
-            cutterMargins,
-            s.zoom,
           );
           return {
             elements: fit.elements,
             label: fit.label,
-            panX: s.panX + fit.deltaPanX,
             paperType: "continuous",
             currentLabelDirty: true,
           };

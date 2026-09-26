@@ -8,23 +8,22 @@ All notable changes and improvements in this fork of **Thermoprint**.
 
 ### 🎨 UI & Theme Alignment
 - **Step 5: Dynamic Tape Mode (`isDynamic`) & Content-Fitting Canvas**:
-  - **Zero-Padding Pure Content Fit (`fitDynamicLabel`)**:
-    - The printable canvas width is strictly the content span: `contentWidth = Math.max(10, Math.round(maxX - minX))`.
-    - Content is normalized to zero: `shiftX = -Math.round(minX)`, setting the leftmost object to `x = 0` ("весь вміст ставимо на нуль").
-    - Canvas width is strictly `contentWidth` without injecting printer cutter margins into the label size (`widthPx = contentWidth`, `widthMm = Math.round(pxToMm(widthPx))`).
-  - **Outside Cutter Margin Positioning ("Вуха ззовні холста")**:
-    - In dynamic mode, cutter margins ("вуха") are rendered strictly **outside** the printable canvas: lead ear spans from `originX - leadPx` to `originX`, trail ear spans from `originX + displayW` to `originX + displayW + trailPx`.
-    - Stretching an element to the left or right pulls it outside the canvas onto the ears. Releasing snaps the canvas around the element, keeping ears flush on the exterior.
-  - **Mathematical Camera Stabilization (Zero Jitter / No Canvas Jumps)**:
-    - Implemented camera pan compensation in Zustand:
-      `deltaPanX = ((newWidthPx - oldWidthPx) * zoom) / 2 + Math.round(minX) * zoom`.
-    - Guaranteed invariant `originX_new = originX_old + minX * zoom`: elements remain 100% stationary on screen at the exact drop/typed position (zero jumping when dragging left or right).
-  - **Transformer Alignment**: Added element coordinates and dimensions into `ElementWrapper` dependencies across `RectElement`, `TextElement`, `LineElement`, `ImageElement`, `BarcodeElement`, and `QrElement`, ensuring selection handles and bounding boxes re-anchor instantly upon drop/transform.
+  - **Pure Printable Canvas (`[0 .. widthPx]`) & Bounding-Box Fitting**:
+    - The printable canvas strictly represents the printable dots from `x = 0` to `x = widthPx`. Point `(0, 0)` is the first printable dot, ensuring 1:1 raster alignment for Bluetooth printing without requiring virtual margin offsets or raster slicing.
+    - Minimum dynamic label length is strictly `tapeWidthMm + 1` mm (e.g. 13 mm for 12 mm tape), mathematically guaranteeing `length > height` ($13 > 12$) to prevent orientation flipping in the UI.
+    - Width calculation: `contentWidthPx = Math.max(1, maxX - minX)`, `rawContentMm = Math.ceil(pxToMm(contentWidthPx))`, `widthMm = Math.max(tapeWidthMm + 1, rawContentMm)`, `widthPx = mmToPx(widthMm)`.
+    - All elements are shifted as a single unified block to snap the leftmost element flush to `x = 0` (`shiftX = 0 - minX`, `el.x = Math.round(el.x + shiftX)`).
+  - **Konva-Level Cutter Margins (Ears) & Layered Masking**:
+    - Replaced disconnected HTML overlay `<div>` elements with a dedicated Konva `<CutterEars />` component inside `<Layer id="label-group">`.
+    - Left ear covers `[-leadPx .. 0]`, right ear covers `[widthPx .. widthPx + trailPx]` with opaque white backing, 45° diagonal hatching, dashed cut lines at `x = 0` and `x = widthPx`, and `listening={false}`.
+    - Layer stacking order: `LabelPaper` (bottom) -> `Elements` -> `CutterEars` (masks overflow elements) -> `Selection Transformer` (always on top via `moveToTop()`, ensuring selection handles remain grab-able even when elements slide into cutter margin zones).
+  - **Debounced Action-End Fitting**:
+    - Removed immediate/synchronous geometry recalculations from Zustand store mutations (`addElement`, `updateElement`, `updateElements`, `updateElementLive`, `removeSelected`, `duplicateSelected`), eliminating infinite re-render loops and font measurement feedback cycles.
+    - Added single-pass debounced fitting (`scheduleDynamicFit(600)`): during active dragging (`handleDragMove`), elements can be dragged anywhere (even under ears) without canvas jitter or jumping; 600 ms after user action ends (`handleDragEnd`, `onTransformEnd`, font measurement), canvas cleanly resizes, shifts elements to `x = 0`, and re-centers.
   - **Dynamic Ribbon Selector & Quick-Toggle Button `[ ▤ ]`**:
     - Activated the canvas pill `[ ▤ ]` button with design token styling (`bg-accent/15 border-accent/40 text-accent` when active; `bg-ink-850/95 border-white/8 text-ink-300` when inactive).
     - Activated the `Dynamic` option in the canvas label size dropdown, completely removing the disabled state and "Soon" tag.
     - Updated the label size button to render `Dynamic · {len} mm` when active, providing instant visual feedback on current cut length.
-  - **Responsive Inline Text Auto-Width**: Bound `refreshLayout` in `TextElement` to unwrapped text metrics via Konva `measureSize(displayText)`. Typing words smoothly expands element width and tape length in real-time, while manual width adjustments via Transformer side handles set `autoWidth: false` to preserve deliberate multi-line wrapping.
   - **Print Settings Flyout & Status Bar Synchronization**: Added a 2-column `[ Dynamic ] [ Custom... ]` control in `PrintSettingsFlyout` under continuous paper, updated media details in `PrintButton` (`continuous (dynamic)`), and added `CONT (DYN)` document tag in `StatusBar`.
 
 ### 🔌 Hardware & Protocol Discoveries
