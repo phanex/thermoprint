@@ -116,7 +116,9 @@ export function PrintSettingsFlyout({ onClose }: Props) {
     e.preventDefault();
     e.stopPropagation();
     const step = e.shiftKey ? 0.1 : 0.05;
-    const delta = e.deltaY < 0 ? step : -step;
+    const rawDelta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
+    if (rawDelta === 0) return;
+    const delta = rawDelta < 0 ? step : -step;
     const next = Math.min(1.4, Math.max(0.8, Number((uiScale + delta).toFixed(2))));
     setUiScale(next);
   };
@@ -125,9 +127,24 @@ export function PrintSettingsFlyout({ onClose }: Props) {
     e.preventDefault();
     e.stopPropagation();
     const step = e.shiftKey ? 10 : 1;
-    const delta = e.deltaY < 0 ? step : -step;
+    const rawDelta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
+    if (rawDelta === 0) return;
+    const delta = rawDelta < 0 ? step : -step;
     const next = Math.min(255, Math.max(0, printSettings.threshold + delta));
     updateSettings({ threshold: next });
+  };
+
+  const handleCustomLengthWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const step = e.shiftKey ? 5 : 1;
+    const rawDelta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
+    if (rawDelta === 0) return;
+    const delta = rawDelta < 0 ? step : -step;
+    const next = Math.max(10, Math.min(300, customLength + delta));
+    setCustomLength(next);
+    setCustomInputStr(String(next));
+    setLabelSize(next, currentTape, currentTape);
   };
 
   return (
@@ -406,7 +423,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                     key={`${s.widthMm}x${s.heightMm}`}
                     type="button"
                     onClick={() => setLabelSize(s.widthMm, s.heightMm, s.tapeWidthMm)}
-                    className={`h-7 px-1.5 rounded-md text-ui-xs font-mono border hover-fade flex items-center justify-center gap-1.5 cursor-pointer ${
+                    className={`h-7 px-1.5 rounded-md text-ui-xs font-mono border hover-fade flex items-center justify-center gap-1.5 cursor-pointer outline-none focus:outline-none focus-visible:outline-none ${
                       active
                         ? "bg-accent/10 text-accent border-accent/30"
                         : "bg-ink-800 text-ink-300 border-white/5 hover:text-ink-100 hover:bg-ink-750"
@@ -426,7 +443,8 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                   <button
                     type="button"
                     onClick={() => setCustomOpen((o) => !o)}
-                    className={`w-full h-7 rounded-md text-ui-xs font-mono border hover-fade cursor-pointer ${
+                    onWheel={handleCustomLengthWheel}
+                    className={`w-full h-7 rounded-md text-ui-xs font-mono border hover-fade cursor-pointer outline-none focus:outline-none focus-visible:outline-none ${
                       !isCurrentPreset
                         ? "bg-accent/10 text-accent border-accent/30"
                         : "bg-ink-800 text-ink-300 border-white/5 hover:text-ink-100 hover:bg-ink-750"
@@ -438,8 +456,9 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                   {/* Custom length popover */}
                   {customOpen && (
                     <div
-                      className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 bg-ink-850 border border-white/10 rounded-lg shadow-panel p-2.5 z-50 select-none"
+                      className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 bg-ink-850 border border-white/10 rounded-lg shadow-panel p-2.5 z-50 select-none outline-none"
                       onMouseDown={(e) => e.stopPropagation()}
+                      onWheel={handleCustomLengthWheel}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-ui-2xs font-mono uppercase tracking-wider text-ink-400">
@@ -448,7 +467,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                         <button
                           type="button"
                           onClick={() => setCustomOpen(false)}
-                          className="text-ink-400 hover:text-ink-100 p-0.5 cursor-pointer"
+                          className="text-ink-400 hover:text-ink-100 p-0.5 cursor-pointer outline-none"
                         >
                           <X size={13} />
                         </button>
@@ -460,6 +479,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                             type="text"
                             inputMode="numeric"
                             pattern="[0-9]*"
+                            autoFocus
                             value={customInputStr}
                             onChange={(e) => {
                               const text = e.target.value.replace(/[^0-9]/g, "");
@@ -482,15 +502,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                                 (e.target as HTMLInputElement).blur();
                               }
                             }}
-                            onWheel={(e) => {
-                              e.preventDefault();
-                              const step = e.shiftKey ? 5 : 1;
-                              const delta = e.deltaY < 0 ? step : -step;
-                              const next = Math.max(10, Math.min(300, customLength + delta));
-                              setCustomLength(next);
-                              setCustomInputStr(String(next));
-                              setLabelSize(next, currentTape, currentTape);
-                            }}
+                            onWheel={handleCustomLengthWheel}
                             className="w-full bg-transparent font-mono text-ui-sm text-right pr-1 outline-none text-ink-100"
                           />
                           <span className="text-ui-xs font-mono text-ink-400 shrink-0">mm</span>

@@ -312,8 +312,20 @@ function LabelSizeSelector({
         {/* Custom Length micro-dialog popover */}
         {customOpen && (
           <div
-            className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 bg-ink-850 border border-white/10 rounded-lg shadow-panel p-2.5 z-50 select-none"
+            className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 bg-ink-850 border border-white/10 rounded-lg shadow-panel p-2.5 z-50 select-none outline-none"
             onMouseDown={(e) => e.stopPropagation()}
+            onWheel={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const step = e.shiftKey ? 5 : 1;
+              const rawDelta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
+              if (rawDelta === 0) return;
+              const delta = rawDelta < 0 ? step : -step;
+              const next = Math.max(10, Math.min(300, customLength + delta));
+              setCustomLength(next);
+              setCustomInputStr(String(next));
+              setSize(next, currentTapeWidth, currentTapeWidth);
+            }}
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-ui-xs font-mono uppercase tracking-wider text-ink-400">
@@ -322,7 +334,7 @@ function LabelSizeSelector({
               <button
                 type="button"
                 onClick={() => setCustomOpen(false)}
-                className="text-ink-400 hover:text-ink-100 p-0.5 cursor-pointer"
+                className="text-ink-400 hover:text-ink-100 p-0.5 cursor-pointer outline-none"
               >
                 <X size={13} />
               </button>
@@ -334,6 +346,7 @@ function LabelSizeSelector({
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
+                  autoFocus
                   value={customInputStr}
                   onChange={(e) => {
                     const text = e.target.value.replace(/[^0-9]/g, "");
@@ -358,8 +371,11 @@ function LabelSizeSelector({
                   }}
                   onWheel={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     const step = e.shiftKey ? 5 : 1;
-                    const delta = e.deltaY < 0 ? step : -step;
+                    const rawDelta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
+                    if (rawDelta === 0) return;
+                    const delta = rawDelta < 0 ? step : -step;
                     const next = Math.max(10, Math.min(300, customLength + delta));
                     setCustomLength(next);
                     setCustomInputStr(String(next));

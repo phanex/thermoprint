@@ -135,6 +135,16 @@ a {
 
 /* --- Base resets --- */
 
+button,
+[role="button"] {
+  outline: none;
+}
+
+button:focus,
+button:focus-visible {
+  outline: none;
+}
+
 html {
   font-size: calc(16px * var(--ui-scale, 1));
 }

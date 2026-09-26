@@ -84,7 +84,9 @@ export function NumInput({
   const handleWheel = (e: React.WheelEvent<HTMLInputElement>) => {
     e.preventDefault();
     const mult = e.shiftKey ? 4 : 1;
-    const delta = (e.deltaY < 0 ? step : -step) * mult;
+    const rawDelta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
+    if (rawDelta === 0) return;
+    const delta = (rawDelta < 0 ? step : -step) * mult;
     let newVal = formatVal((value || 0) + delta);
     if (min !== undefined) newVal = Math.max(min, newVal);
     if (max !== undefined) newVal = Math.min(max, newVal);
