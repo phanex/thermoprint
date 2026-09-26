@@ -55,6 +55,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
   }, [label.widthMm, label.heightMm, currentTape]);
 
   const allTapeWidths = useMemo(() => getAvailableTapeWidths(null), []);
+  const supportedTapeWidths = useMemo(() => getAvailableTapeWidths(modelId), [modelId]);
 
   const availableSizes = useMemo(() => {
     if (selectedWidth === "all") {
@@ -362,19 +363,27 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                       <span>All widths</span>
                       {selectedWidth === "all" && <span className="text-accent">✓</span>}
                     </button>
-                    {allTapeWidths.map((w) => (
-                      <button
-                        key={w}
-                        type="button"
-                        onClick={() => { setSelectedWidth(w); setTapeFilterOpen(false); }}
-                        className={`w-full text-left px-2.5 h-6 text-ui-2xs font-mono flex items-center justify-between cursor-pointer ${
-                          selectedWidth === w ? "text-accent bg-accent/10" : "text-ink-300 hover:bg-white/5 hover:text-ink-100"
-                        }`}
-                      >
-                        <span>{w} mm</span>
-                        {selectedWidth === w && <span className="text-accent">✓</span>}
-                      </button>
-                    ))}
+                    {allTapeWidths.map((w) => {
+                      const isSupported = !modelId || supportedTapeWidths.includes(w);
+                      return (
+                        <button
+                          key={w}
+                          type="button"
+                          onClick={() => { setSelectedWidth(w); setTapeFilterOpen(false); }}
+                          className={`w-full text-left px-2.5 h-6 text-ui-2xs font-mono flex items-center justify-between cursor-pointer ${
+                            selectedWidth === w ? "text-accent bg-accent/10" : "text-ink-300 hover:bg-white/5 hover:text-ink-100"
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            {isSupported && Boolean(modelId) && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Supported by connected printer" />
+                            )}
+                            <span>{w} mm</span>
+                          </div>
+                          {selectedWidth === w && <span className="text-accent">✓</span>}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -382,7 +391,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
 
             {/* Sizes Grid */}
             <div
-              className="grid grid-cols-2 gap-1.5 flex-1 min-h-[220px] max-h-[270px] overflow-y-auto pr-1 custom-scrollbar"
+              className="grid grid-cols-2 gap-1.5 content-start max-h-[260px] overflow-y-auto pr-1 custom-scrollbar"
               onWheel={(e) => e.stopPropagation()}
             >
               {availableSizes.map((s) => {

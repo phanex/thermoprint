@@ -196,8 +196,8 @@ function LabelSizeSelector({
                       }`}
                     >
                       <div className="flex items-center gap-1.5">
-                        {!isSupported && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                        {isSupported && Boolean(modelId) && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Supported by connected printer" />
                         )}
                         <span>{w} mm</span>
                       </div>
@@ -243,6 +243,7 @@ function LabelSizeSelector({
               {sizes.map((s) => {
                 const active =
                   s.widthMm === label.widthMm && s.heightMm === label.heightMm;
+                const isSupported = !modelId || checkPrinterCompatibility(modelId, s, paperType).compatible;
                 return (
                   <button
                     key={`${s.widthMm}x${s.heightMm}`}
@@ -257,7 +258,12 @@ function LabelSizeSelector({
                         : "text-ink-300 hover:bg-white/5 hover:text-ink-100"
                     }`}
                   >
-                    <span>{s.name}</span>
+                    <div className="flex items-center gap-1.5">
+                      {isSupported && Boolean(modelId) && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Supported by connected printer" />
+                      )}
+                      <span>{s.name}</span>
+                    </div>
                     {active && <span className="text-accent text-ui-xs">✓</span>}
                   </button>
                 );

@@ -132,18 +132,18 @@ export function PrinterChip() {
           }}
           className="group flex items-center gap-2 px-2.5 h-8"
         >
-          <span className="relative flex items-center justify-center w-3 h-3 shrink-0">
+          <span className="relative flex h-2 w-2 shrink-0">
             {isConnecting ? (
               <>
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
               </>
             ) : isStandby ? (
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400" />
+              <span className="inline-flex rounded-full h-2 w-2 bg-amber-400" />
             ) : (
               <>
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </>
             )}
           </span>
