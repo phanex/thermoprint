@@ -72,12 +72,12 @@ export function getSizesForTapeWidth(
   return Array.from(lengths)
     .sort((a, b) => a - b)
     .map((len) => {
-      const widthMm = Math.max(len, tapeWidthMm);
-      const heightMm = Math.min(len, tapeWidthMm);
+      // For continuous tape: ribbon feeds along X (len), tape cartridge width is along Y (tapeWidthMm).
+      // Orientation is measured "with ears" (len + margins >= tapeWidthMm), keeping continuous labels horizontal.
       return {
-        name: `${widthMm} × ${heightMm} mm`,
-        widthMm,
-        heightMm,
+        name: `${len} × ${tapeWidthMm} mm`,
+        widthMm: len,
+        heightMm: tapeWidthMm,
         tapeWidthMm,
         labelLengthMm: len,
       };

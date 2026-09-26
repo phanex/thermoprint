@@ -12,7 +12,7 @@ import {
   isTapeWidthSupported,
 } from "../../label/label-sizes.ts";
 import { getDevice } from "@thermoprint/core";
-import { ChevronDown, Minus, Plus, X, PrinterX } from "lucide-react";
+import { ChevronDown, Minus, Plus, X, PrinterX, Scissors } from "lucide-react";
 import { LabelPaper } from "./label-paper.tsx";
 import { TextElement } from "./elements/text-element.tsx";
 import { RectElement } from "./elements/rect-element.tsx";
@@ -102,8 +102,12 @@ function LabelSizeSelector({
   }, [tapeWidthOpen, sizeOpen, customOpen]);
 
   const setSize = (wMm: number, hMm: number, tapeWidthMm?: number) => {
-    const widthMm = Math.max(wMm, hMm);
-    const heightMm = Math.min(wMm, hMm);
+    let widthMm = wMm;
+    let heightMm = hMm;
+    if (paperType !== "continuous") {
+      widthMm = Math.max(wMm, hMm);
+      heightMm = Math.min(wMm, hMm);
+    }
     const activeTape = tapeWidthMm ?? currentTapeWidth;
     useEditorV2Store.setState({
       label: {
@@ -112,6 +116,7 @@ function LabelSizeSelector({
         widthPx: mmToPx(widthMm),
         heightPx: mmToPx(heightMm),
         tapeWidthMm: activeTape,
+        labelLengthMm: widthMm,
       },
     });
   };
@@ -125,7 +130,11 @@ function LabelSizeSelector({
     if (selected) {
       setSize(selected.widthMm, selected.heightMm, w);
     } else {
-      setSize(Math.max(40, w), Math.min(40, w), w);
+      if (paperType === "continuous") {
+        setSize(40, w, w);
+      } else {
+        setSize(Math.max(40, w), Math.min(40, w), w);
+      }
     }
   };
 
@@ -491,6 +500,11 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
   const gridVisible = useEditorV2Store((s) => s.gridVisible);
   const rulersVisible = useEditorV2Store((s) => s.rulersVisible);
   const paperType = useEditorV2Store((s) => s.paperType);
+  const modelId = usePrinterStore((s) => s.modelId);
+  const profile = modelId ? getDevice(modelId) : null;
+  const cutterMargins = paperType === "continuous"
+    ? (profile?.cutterMargins ?? ((label.tapeWidthMm ?? 12) === 12 && !modelId ? getDevice("pho-p12")?.cutterMargins : undefined))
+    : undefined;
 
   const selectOnly = useEditorV2Store((s) => s.selectOnly);
   const setZoom = useEditorV2Store((s) => s.setZoom);
@@ -513,13 +527,16 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
     const padW = window.innerWidth < 768 ? 60 : 160;
     // Header (48px) + lowered dock/status (80px) + selector pills (36px) + comfortable breathing room
     const padH = window.innerWidth < 768 ? 140 : 210;
-    const fitW = (size.w - padW) / label.widthPx;
+    const leadMm = cutterMargins?.leadMm ?? 0;
+    const trailMm = cutterMargins?.trailMm ?? 0;
+    const totalW = label.widthPx + mmToPx(leadMm + trailMm);
+    const fitW = (size.w - padW) / totalW;
     const fitH = (size.h - padH) / label.heightPx;
     const fit = Math.max(0.5, Math.min(4, Math.min(fitW, fitH)));
     setZoom(fit);
     setPan(0, window.innerWidth < 768 ? 0 : -30);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentLabelId, label.widthPx, label.heightPx]);
+  }, [currentLabelId, label.widthPx, label.heightPx, Boolean(cutterMargins)]);
 
   // Space key tracking for pan mode
   useEffect(() => {
@@ -801,6 +818,83 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
           )}
         </Layer>
       </Stage>
+
+      {/* Continuous mode: Cutter Margins (ears) outside the white printable label */}
+      {paperType === "continuous" && cutterMargins && (() => {
+        const leadMm = cutterMargins.leadMm;
+        const trailMm = cutterMargins.trailMm;
+        const leadPx = mmToPx(leadMm) * zoom;
+        const trailPx = mmToPx(trailMm) * zoom;
+        const iconSize = Math.min(14, Math.max(10, Math.round(displayH * 0.45)));
+
+        return (
+          <>
+            {/* Left ear: Lead margin */}
+            <div
+              title={`Lead margin: ${leadMm} mm (hardware feed before printhead)`}
+              style={{
+                position: "absolute",
+                left: Math.round(originX - leadPx),
+                top: Math.round(originY),
+                width: Math.round(leadPx),
+                height: Math.round(displayH),
+                background: `repeating-linear-gradient(-45deg, transparent, transparent 5px, color-mix(in srgb, var(--color-accent) 15%, transparent) 5px, color-mix(in srgb, var(--color-accent) 15%, transparent) 9px)`,
+                borderTop: "1px dashed color-mix(in srgb, var(--color-accent) 30%, transparent)",
+                borderBottom: "1px dashed color-mix(in srgb, var(--color-accent) 30%, transparent)",
+                borderLeft: "1.5px dashed var(--color-accent)",
+                borderRight: "1px solid color-mix(in srgb, var(--color-accent) 35%, transparent)",
+                pointerEvents: "auto",
+                cursor: "default",
+                zIndex: 2,
+              }}
+              onMouseDown={(e) => {
+                if (!spaceDown.current && e.button !== 1) {
+                  selectOnly([]);
+                }
+              }}
+              className="flex items-center justify-center select-none"
+            >
+              {leadPx >= 14 && (
+                <div style={{ color: "var(--color-accent)", opacity: 0.65 }}>
+                  <Scissors size={iconSize} />
+                </div>
+              )}
+            </div>
+
+            {/* Right ear: Trail margin */}
+            <div
+              title={`Trail margin: ${trailMm} mm (hardware feed to cutter blade)`}
+              style={{
+                position: "absolute",
+                left: Math.round(originX + displayW),
+                top: Math.round(originY),
+                width: Math.round(trailPx),
+                height: Math.round(displayH),
+                background: `repeating-linear-gradient(-45deg, transparent, transparent 5px, color-mix(in srgb, var(--color-accent) 15%, transparent) 5px, color-mix(in srgb, var(--color-accent) 15%, transparent) 9px)`,
+                borderTop: "1px dashed color-mix(in srgb, var(--color-accent) 30%, transparent)",
+                borderBottom: "1px dashed color-mix(in srgb, var(--color-accent) 30%, transparent)",
+                borderRight: "1.5px dashed var(--color-accent)",
+                borderLeft: "1px solid color-mix(in srgb, var(--color-accent) 35%, transparent)",
+                pointerEvents: "auto",
+                cursor: "default",
+                zIndex: 2,
+              }}
+              onMouseDown={(e) => {
+                if (!spaceDown.current && e.button !== 1) {
+                  selectOnly([]);
+                }
+              }}
+              className="flex items-center justify-center select-none"
+            >
+              {trailPx >= 14 && (
+                <div style={{ color: "var(--color-accent)", opacity: 0.65 }}>
+                  <Scissors size={iconSize} />
+                </div>
+              )}
+            </div>
+          </>
+        );
+      })()}
 
       {/* Marquee selection rectangle (HTML overlay) */}
       {marquee && marquee.w > 2 && marquee.h > 2 && (

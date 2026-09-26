@@ -98,8 +98,12 @@ export function PrintSettingsFlyout({ onClose }: Props) {
   };
 
   const setLabelSize = (widthMm: number, heightMm: number, tapeWidthMm?: number) => {
-    const w = Math.max(widthMm, heightMm);
-    const h = Math.min(widthMm, heightMm);
+    let w = widthMm;
+    let h = heightMm;
+    if (paperType !== "continuous") {
+      w = Math.max(widthMm, heightMm);
+      h = Math.min(widthMm, heightMm);
+    }
     const tw = tapeWidthMm ?? (selectedWidth !== "all" ? selectedWidth : h);
     useEditorV2Store.setState({
       label: {
@@ -108,6 +112,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
         widthPx: mmToPx(w),
         heightPx: mmToPx(h),
         tapeWidthMm: tw,
+        labelLengthMm: w,
       },
     });
   };
