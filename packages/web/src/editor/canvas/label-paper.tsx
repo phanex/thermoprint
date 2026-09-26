@@ -11,7 +11,7 @@ export function LabelPaper() {
       width={label.widthPx}
       height={label.heightPx}
       fill="#ffffff"
-      cornerRadius={4}
+      cornerRadius={2}
       shadowColor="rgba(0,0,0,0.3)"
       shadowBlur={20}
       shadowOffsetY={4}
