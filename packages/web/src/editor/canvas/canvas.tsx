@@ -10,7 +10,8 @@ import {
   isContinuousSupported,
   checkPrinterCompatibility,
 } from "../../label/label-sizes.ts";
-import { ChevronDown, Minus, Plus, X } from "lucide-react";
+import { getDevice } from "@thermoprint/core";
+import { ChevronDown, Minus, Plus, X, PrinterX } from "lucide-react";
 import { LabelPaper } from "./label-paper.tsx";
 import { TextElement } from "./elements/text-element.tsx";
 import { RectElement } from "./elements/rect-element.tsx";
@@ -38,27 +39,6 @@ function TapeIcon({ size = 13 }: { size?: number }) {
   );
 }
 
-function PrinterOffIcon({ size = 24, className = "" }: { size?: number; className?: string }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-      <path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6" />
-      <rect x="6" y="14" width="12" height="8" rx="1" />
-      <line x1="2" y1="2" x2="22" y2="22" />
-    </svg>
-  );
-}
-
 function LabelSizeSelector({
   originX,
   originY,
@@ -80,6 +60,7 @@ function LabelSizeSelector({
   const label = useEditorV2Store((s) => s.label);
   const paperType = useEditorV2Store((s) => s.paperType);
   const modelId = usePrinterStore((s) => s.modelId);
+  const profile = useMemo(() => (modelId ? getDevice(modelId) : null), [modelId]);
   const compat = checkPrinterCompatibility(modelId, label, paperType);
 
   const modelWidths = useMemo(() => getAvailableTapeWidths(modelId), [modelId]);
@@ -155,15 +136,15 @@ function LabelSizeSelector({
     <div
       ref={ref}
       className="absolute select-none flex items-center justify-center gap-2 z-10 pointer-events-auto"
-      style={{ left: originX + displayW / 2, top: originY + displayH + 10, transform: "translateX(-50%)" }}
+      style={{ left: Math.round(originX + displayW / 2), top: Math.round(originY + displayH + 10), transform: "translateX(-50%)" }}
     >
       {/* 1. Incompatibility status indicator (left edge, pixel-perfect icon, not a button, no cursor-help) */}
       {!compat.compatible && Boolean(modelId) && (
         <div
-          className="flex items-center justify-center text-amber-400 opacity-60 hover:opacity-100 transition-opacity select-none pr-0.5 cursor-default"
-          title={compat.reason}
+          className="flex items-center justify-center text-amber-400/80 hover:text-amber-400 transition-colors select-none pr-0.5 cursor-default"
+          title={profile?.name ? `Not supported by ${profile.name}` : "Not supported by current printer"}
         >
-          <PrinterOffIcon size={18} />
+          <PrinterX size={18} strokeWidth={1.75} />
         </div>
       )}
 

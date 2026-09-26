@@ -298,7 +298,7 @@ export function IconsFlyout({
   }, [collectionsMap]);
 
   return (
-    <div className="fixed inset-x-2 bottom-20 max-h-[80vh] md:max-h-none md:inset-auto md:absolute md:bottom-28 md:left-1/2 md:-translate-x-1/2 md:w-[720px] md:h-[560px] bg-ink-850/95 backdrop-blur-sm border border-white/8 rounded-xl shadow-panel z-40 overflow-hidden flex flex-col">
+    <div className="fixed inset-x-2 bottom-20 max-h-[80vh] md:max-h-none md:inset-auto md:absolute md:bottom-[130px] md:left-1/2 md:-translate-x-1/2 md:w-[720px] md:h-[560px] bg-ink-850/95 backdrop-blur-sm border border-white/8 rounded-xl shadow-panel z-40 overflow-hidden flex flex-col">
       {/* Header */}
       <div className="px-3 py-2.5 border-b border-white/5 shrink-0 space-y-2">
         <div className="flex items-center justify-between">

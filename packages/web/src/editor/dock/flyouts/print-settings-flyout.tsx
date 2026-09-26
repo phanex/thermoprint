@@ -15,27 +15,6 @@ interface Props {
   onClose: () => void;
 }
 
-function PrinterOffIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-      <path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6" />
-      <rect x="6" y="14" width="12" height="8" rx="1" />
-      <line x1="2" y1="2" x2="22" y2="22" />
-    </svg>
-  );
-}
-
 export function PrintSettingsFlyout({ onClose }: Props) {
   const printSettings = useEditorV2Store((s) => s.printSettings);
   const paperType = useEditorV2Store((s) => s.paperType);
@@ -132,8 +111,26 @@ export function PrintSettingsFlyout({ onClose }: Props) {
     });
   };
 
+  const handleUiScaleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const step = e.shiftKey ? 0.1 : 0.05;
+    const delta = e.deltaY < 0 ? step : -step;
+    const next = Math.min(1.4, Math.max(0.8, Number((uiScale + delta).toFixed(2))));
+    setUiScale(next);
+  };
+
+  const handleThresholdWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const step = e.shiftKey ? 10 : 1;
+    const delta = e.deltaY < 0 ? step : -step;
+    const next = Math.min(255, Math.max(0, printSettings.threshold + delta));
+    updateSettings({ threshold: next });
+  };
+
   return (
-    <div className="fixed inset-x-2 bottom-20 max-h-[85vh] overflow-y-auto md:max-h-none md:inset-auto md:absolute md:bottom-28 md:left-1/2 md:-translate-x-1/2 md:w-[560px] bg-ink-850/95 backdrop-blur-sm border border-white/8 rounded-lg shadow-panel z-40 custom-scrollbar">
+    <div className="fixed inset-x-2 bottom-20 max-h-[85vh] overflow-y-auto md:max-h-none md:inset-auto md:absolute md:bottom-[130px] md:left-1/2 md:-translate-x-1/2 md:w-[560px] bg-ink-850/95 backdrop-blur-sm border border-white/8 rounded-lg shadow-panel z-40 custom-scrollbar">
       <div className="flex items-center justify-between px-3.5 h-9 border-b border-white/5">
         <div className="flex items-center gap-2">
           <Settings size={14} className="text-accent" />
@@ -150,7 +147,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
         {/* Left Column: System & Output Settings */}
         <div className="space-y-3">
           {/* Interface size */}
-          <div>
+          <div onWheel={handleUiScaleWheel}>
             <div className="flex items-center justify-between mb-1.5">
               <div className="text-ui-2xs font-mono uppercase tracking-wider text-ink-400">
                 Interface size
@@ -176,7 +173,8 @@ export function PrintSettingsFlyout({ onClose }: Props) {
               step={0.05}
               value={uiScale}
               onChange={(e) => setUiScale(parseFloat(e.target.value))}
-              className="w-full accent-accent"
+              onWheel={handleUiScaleWheel}
+              className="w-full accent-accent cursor-pointer"
             />
             <div className="flex justify-between text-ui-2xs font-mono text-ink-500 mt-0.5">
               <span>80%</span>
@@ -289,12 +287,12 @@ export function PrintSettingsFlyout({ onClose }: Props) {
           </div>
 
           {/* Threshold */}
-          <div>
+          <div onWheel={handleThresholdWheel}>
             <div className="flex items-center justify-between mb-1.5">
               <div className="text-ui-2xs font-mono uppercase tracking-wider text-ink-400">
                 Threshold
               </div>
-              <div className="text-ui-xs font-mono text-ink-100">
+              <div className="text-ui-xs font-mono text-ink-100 tabular-nums">
                 {printSettings.threshold}
               </div>
             </div>
@@ -304,7 +302,8 @@ export function PrintSettingsFlyout({ onClose }: Props) {
               max={255}
               value={printSettings.threshold}
               onChange={(e) => updateSettings({ threshold: Number(e.target.value) })}
-              className="w-full accent-accent"
+              onWheel={handleThresholdWheel}
+              className="w-full accent-accent cursor-pointer"
             />
           </div>
         </div>
@@ -523,22 +522,24 @@ export function PrintSettingsFlyout({ onClose }: Props) {
 
       {/* Footer summary row */}
       <div className="px-3.5 py-2 border-t border-white/5 flex items-center justify-between text-ui-2xs font-mono text-ink-400">
+        <div>
+          <span>Printer: </span>
+          <span className="text-ink-200">
+            {isConnected ? (profile?.name || modelId || "Connected") : "Not connected"}
+          </span>
+        </div>
         <div className="flex items-center gap-2">
           <span className="text-ink-200">
             {label.widthMm} × {label.heightMm} mm · {paperType === "gap" ? "Gap" : "Continuous"}
           </span>
           {!compat.compatible && Boolean(modelId) && (
-            <div className="flex items-center gap-1 text-amber-400/80" title={compat.reason}>
-              <PrinterOffIcon size={13} className="opacity-80" />
-              <span>Unsupported</span>
-            </div>
+            <span
+              className="text-amber-400/90 font-medium"
+              title={profile?.name ? `Not supported by ${profile.name}` : "Not supported by current printer"}
+            >
+              · Not supported by printer
+            </span>
           )}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span>Printer: </span>
-          <span className="text-ink-200">
-            {isConnected ? (profile?.name || modelId || "Connected") : "Not connected"}
-          </span>
         </div>
       </div>
     </div>
