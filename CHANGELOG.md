@@ -7,6 +7,14 @@ All notable changes and improvements in this fork of **Thermoprint**.
 ## [Unreleased]
 
 ### 🐛 Bug Fixes
+- **CI / GitHub Actions Build Fix (`@fontsource-variable` CSS imports & `bun.lock` synchronization)**:
+  - **Root Cause**:
+    1. In `packages/web/src/main.tsx`, `@fontsource-variable/jetbrains-mono` and `@fontsource-variable/nunito` were imported without the explicit `/index.css` extension (`import "@fontsource-variable/jetbrains-mono"`). Because `@fontsource-variable` packages specify `"main": "index.css"` without an `index.js` or `index.d.ts`, the TypeScript compiler under `"moduleResolution": "bundler"` looked for a JavaScript/TypeScript module declaration and failed with `error TS2307: Cannot find module '@fontsource-variable/jetbrains-mono' or its corresponding type declarations`, causing `tsc -b` to exit with error code 2.
+    2. Additionally, several newly added font packages (`@fontsource/anonymous-pro`, `@fontsource/lxgw-wenkai-mono-tc`, `@fontsource-variable/nunito`) were present in `packages/web/package.json` but had not been synced into `bun.lock`, causing Bun installations in clean CI runners to miss their definitions.
+  - **Resolution**:
+    - Changed imports in `packages/web/src/main.tsx` to explicit CSS entry points: `import "@fontsource-variable/jetbrains-mono/index.css"` and `import "@fontsource-variable/nunito/index.css"`.
+    - Regenerated and saved `bun.lock` with `bun install`, ensuring complete lockfile parity across all monorepo dependencies.
+    - Verified clean build (`tsc -b && vite build`) via Bun with 0 errors.
 - **Pixel-Perfect WYSIWYG Saved Label Previews (`SavedLabel.thumbnail`)**:
   - **Root Cause**: `LabelThumbnail` in `library-flyout.tsx` was manually reconstructing vector elements as an SVG DOM tree without element rotation transforms, missing `preserveAspectRatio="none"` on embedded image/icon data URLs, and risking `NaN` viewBox values when `label.widthPx`/`heightPx` were omitted. Consequently, `<image>` elements without `preserveAspectRatio="none"` aligned SVG icons with intrinsic 512x512 viewports according to default SVG `meet` rules, causing icons to slide down to the bottom border of the thumbnail card.
   - **Resolution**:
