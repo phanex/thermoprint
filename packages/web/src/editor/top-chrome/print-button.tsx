@@ -31,7 +31,9 @@ export function PrintButton({ onPrint }: PrintButtonProps) {
 
   const label = useEditorV2Store((s) => s.label);
   const paperType = useEditorV2Store((s) => s.paperType);
-  const printer = useEditorV2Store((s) => s.printer);
+  const isConnected = usePrinterStore((s) => s.isConnected);
+  const modelId = usePrinterStore((s) => s.modelId);
+  const peripheral = usePrinterStore((s) => s.peripheral);
 
   // Close on outside click
   useEffect(() => {
@@ -57,13 +59,13 @@ export function PrintButton({ onPrint }: PrintButtonProps) {
 
   const fire = useCallback(async () => {
     // If no printer is connected, initiate scan and connect
-    if (!printer.connected) {
+    if (!isConnected) {
       setOpen(false);
       scanAndConnect();
       return;
     }
 
-    const currentModel = usePrinterStore.getState().modelId ?? (printer.model || null);
+    const currentModel = modelId ?? null;
     const compat = checkPrinterCompatibility(currentModel, label, paperType);
     if (!compat.compatible) {
       const ok = confirm(`Warning: ${compat.reason}\n\nDo you want to send this print job anyway?`);
@@ -87,7 +89,7 @@ export function PrintButton({ onPrint }: PrintButtonProps) {
       console.error("Print failed:", err);
       useEditorV2Store.getState().endPrint();
     }
-  }, [copies, onPrint, printer.connected, printer.model, label, paperType]);
+  }, [copies, onPrint, isConnected, modelId, label, paperType]);
 
   return (
     <div className="relative ml-1" ref={ref}>
@@ -187,7 +189,7 @@ export function PrintButton({ onPrint }: PrintButtonProps) {
           <div className="space-y-1.5 text-ui-sm mb-3">
             <MiniRow
               label="Printer"
-              value={printer.connected ? printer.name : "Not connected"}
+              value={isConnected ? (peripheral?.name || "Printer") : "Not connected"}
             />
             <MiniRow
               label="Media"

@@ -1,6 +1,7 @@
 import { Group, Rect } from "react-konva";
 import { mmToPx } from "@thermoprint/core";
 import { useEditorV2Store } from "../../store/editor-store.ts";
+import { usePrinterStore } from "../../store/printer-store.ts";
 import { getActiveCutterMargins } from "../../label/dynamic-label.ts";
 
 /**
@@ -15,12 +16,12 @@ import { getActiveCutterMargins } from "../../label/dynamic-label.ts";
 export function CutterEars() {
   const label = useEditorV2Store((s) => s.label);
   const paperType = useEditorV2Store((s) => s.paperType);
-  const printer = useEditorV2Store((s) => s.printer);
+  const modelId = usePrinterStore((s) => s.modelId);
 
   if (paperType !== "continuous") return null;
 
   const margins = getActiveCutterMargins(
-    printer.model || null,
+    modelId,
     label.tapeWidthMm,
     "continuous",
   );

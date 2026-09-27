@@ -71,19 +71,6 @@ export interface EditorState {
   hoveredId: string | null;
   activeTool: "select" | ElementType;
 
-  // Hardware
-  printer: {
-    connected: boolean;
-    name: string;
-    battery: number;
-    model: string;
-  };
-  connectFlow: {
-    open: boolean;
-    step: "idle" | "scanning" | "pairing" | "connected" | "error";
-    devices: unknown[];
-    selectedId: string | null;
-  };
   printSettings: {
     density: number;
     ditherMode: string;
@@ -222,19 +209,6 @@ export const useEditorV2Store = create<EditorState>()(
       hoveredId: null,
       activeTool: "select",
 
-      // Hardware
-      printer: {
-        connected: false,
-        name: "",
-        battery: 0,
-        model: "",
-      },
-      connectFlow: {
-        open: false,
-        step: "idle",
-        devices: [],
-        selectedId: null,
-      },
       printSettings: {
         density: 2,
         ditherMode: "floyd-steinberg",

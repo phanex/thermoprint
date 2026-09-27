@@ -7,6 +7,12 @@ All notable changes and improvements in this fork of **Thermoprint**.
 ## [Unreleased]
 
 ### 🐛 Bug Fixes
+- **Cutter Margin Masking for Images and Icons (`Group id="canvas-elements"`)**:
+  - **Root Cause**: `ImageElement` (used for both user images and Iconify sticker icons) loads image bitmaps asynchronously via `new window.Image()`. It initially mounts a placeholder `<Group>`, which is later replaced by `<KonvaImage>` upon image load (`img.onload`). In React-Konva reconciliation, replacing a node of a different type destroys the old node and appends the new node to the end of the parent container's children. Because `<CutterEars>` was a direct sibling in `Layer id="label-group"`, the newly mounted `<KonvaImage>` was appended *after* `<CutterEars>`, granting it a higher z-index and causing images and icons to render above the white cutter margin masks rather than being clipped.
+  - **Resolution**:
+    - Encapsulated all canvas elements inside a dedicated `<Group id="canvas-elements">` in `Layer id="label-group"`, positioned strictly before `<CutterEars />`.
+    - Guaranteed that all element nodes, async image swaps, and z-order mutations are strictly confined to `canvas-elements`, making it structurally impossible for any element to render above `<CutterEars />`.
+    - Verified that dragging images, icons, QR codes, or barcodes into negative coordinates or past label width is cleanly masked by the white cut margins.
 - **Anchor-Preserving Text Font Size Scaling (Zero Coordinate Drift)**:
   - **Root Cause**: Resizing text font size via inspector numeric input or mouse wheel previously computed incremental deltas against `element.x` and `element.y` with `Math.round()`. Half-pixel deltas from odd widths/heights caused cumulative rounding bias on each tick, causing coordinates to visibly drift across the canvas when spinning the wheel up and down.
   - **Resolution**:
@@ -17,7 +23,19 @@ All notable changes and improvements in this fork of **Thermoprint**.
     - Computed new position directly from this locked anchor using exact coordinates with rotation transformation, rather than iterative relative deltas.
     - Verified that scaling font size up and down any number of ticks returns to the exact starting coordinates with 0.00 pixel drift across all alignments and rotation angles.
 
+### 🏗️ Architecture & Refactoring
+- **Step 6: Printer Store Unification & Dual-Store Decoupling**:
+  - Established `usePrinterStore` as the single authoritative source of truth for all hardware peripherals, Bluetooth state, connection lifecycle, battery telemetry, and print progress.
+  - Purged redundant `printer: { connected, name, battery, model }` and `connectFlow` state from `useEditorV2Store`.
+  - Replaced brittle substring model extraction (`peripheral.name?.split(" ")[1]`) in `cutter-ears.tsx` and `label-paper.tsx` with canonical declarative `modelId` from `usePrinterStore`.
+  - Updated keyboard shortcut handler (`⌘P`) and print button to read peripheral connection state directly from `usePrinterStore`.
+  - Verified protocol density command implementations across Phomemo P12 (`1F 11 02 DD`), Marklife L11 (`1F 70 02 DD` / `10 FF 10 00`), and Marklife X2 (`1F 70 02 [3, 8, 14]`).
+
 ### 🎨 UI & Theme Alignment
+- **Canvas Label Size Selector Dropdown Polish**:
+  - Removed icon from `Dynamic` row in continuous label size dropdown, preserving clean typographical alignment across all items.
+  - Standardized selection indication: eliminated accent dot from `Dynamic`, aligning with all preset sizes where active state is exclusively indicated by `text-accent bg-accent/10`.
+  - Added active highlight (`text-accent bg-accent/10`) to `Custom...` button when an unlisted custom length is active (`isCustomActive`).
 - **Horizontal Dynamic Tape Icon & Clean Tooltips**:
   - Re-oriented `TapeIcon` horizontally (3-segment strip along horizontal feed axis with progressive opacity) matching horizontal continuous tape layout.
   - Purged verbose/redundant tooltip text across canvas controls: simplified label size button to `Label size` and dynamic mode controls to concise `Dynamic length` (removing "active / click to disable" clutter).

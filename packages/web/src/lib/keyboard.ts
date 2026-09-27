@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useEditorV2Store, type BaseElement } from "../store/editor-store.ts";
+import { usePrinterStore } from "../store/printer-store.ts";
 import { scanAndConnect } from "../hooks/use-web-bluetooth.ts";
 
 // Module-level print callback, set by Editor when it mounts
@@ -299,7 +300,7 @@ export function useKeyboardShortcuts() {
       if (cmd && (key === "p" || code === "KeyP")) {
         e.preventDefault();
         // If no printer connected, trigger scan and connect
-        if (!store.printer.connected) {
+        if (!usePrinterStore.getState().isConnected) {
           scanAndConnect();
           return;
         }

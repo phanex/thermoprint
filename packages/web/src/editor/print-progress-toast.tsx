@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { useEditorV2Store } from "../store/editor-store.ts";
+import { usePrinterStore } from "../store/printer-store.ts";
 
 export function PrintProgressToast() {
   const printing = useEditorV2Store((s) => s.printing);
@@ -8,8 +9,8 @@ export function PrintProgressToast() {
   const startedAt = useEditorV2Store((s) => s.printingStartedAt);
   const duration = useEditorV2Store((s) => s.printingDuration);
   const progress = useEditorV2Store((s) => s.printProgress);
-  const printerName = useEditorV2Store((s) => s.printer.name);
-  const connected = useEditorV2Store((s) => s.printer.connected);
+  const printerName = usePrinterStore((s) => s.peripheral?.name || "Printer");
+  const connected = usePrinterStore((s) => s.isConnected);
 
   const [estimatedPct, setEstimatedPct] = useState(0);
   const [done, setDone] = useState(false);

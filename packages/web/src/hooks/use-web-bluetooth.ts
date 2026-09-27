@@ -22,9 +22,6 @@ export async function connectPeripheral(peripheral: BlePeripheral): Promise<void
 
     printer.on("disconnected", () => {
       store.getState().setConnected(false);
-      useEditorV2Store.setState((s) => ({
-        printer: { ...s.printer, connected: false },
-      }));
       printer = null;
     });
 
@@ -39,9 +36,6 @@ export async function connectPeripheral(peripheral: BlePeripheral): Promise<void
     printer.on("battery", (b) => {
       if (b.battery >= 0 && b.battery <= 100) {
         store.getState().setBattery(b.battery);
-        useEditorV2Store.setState((s) => ({
-          printer: { ...s.printer, battery: b.battery },
-        }));
       }
     });
 
@@ -55,23 +49,11 @@ export async function connectPeripheral(peripheral: BlePeripheral): Promise<void
       applyModelDefaults(profile.modelId);
     }
 
-    useEditorV2Store.setState({
-      printer: {
-        connected: true,
-        name: peripheral.name || "Printer",
-        battery: store.getState().battery >= 0 ? store.getState().battery : 0,
-        model: peripheral.name?.split(" ")[1] || "",
-      },
-    });
-
     if (profile?.hasBattery !== false) {
       try {
         const battery = await printer.getBattery();
         if (battery >= 0 && battery <= 100) {
           store.getState().setBattery(battery);
-          useEditorV2Store.setState((s) => ({
-            printer: { ...s.printer, battery },
-          }));
         } else {
           store.getState().setBattery(-1);
         }
@@ -135,7 +117,6 @@ export async function disconnectPrinter(): Promise<void> {
   store.getState().setPeripheral(null);
   store.getState().setError(null);
   useEditorV2Store.setState({
-    printer: { connected: false, name: "", battery: 0, model: "" },
     printFlyoutOpen: false,
   });
 }

@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback, useLayoutEffect, useMemo, forwardRef } from "react";
-import { Stage, Layer, Rect } from "react-konva";
+import { Stage, Layer, Rect, Group } from "react-konva";
 import type Konva from "konva";
 import { useEditorV2Store, type BaseElement } from "../../store/editor-store.ts";
 import { mmToPx } from "../../utils/px-mm.ts";
@@ -293,53 +293,61 @@ function LabelSizeSelector({
                 );
               })}
 
-              {paperType === "continuous" && (
-                <>
-                  <div className="my-1 border-t border-white/5" />
+              {paperType === "continuous" && (() => {
+                const isPresetActive =
+                  !label.isDynamic &&
+                  sizes.some(
+                    (s) => s.widthMm === label.widthMm && s.heightMm === label.heightMm,
+                  );
+                const isCustomActive = !label.isDynamic && !isPresetActive;
 
-                  {/* Dynamic option */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDynamic(true);
-                      setSizeOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-3 h-7 text-ui-sm font-mono hover-fade cursor-pointer ${
-                      label.isDynamic
-                        ? "text-accent bg-accent/10"
-                        : "text-ink-300 hover:bg-white/5 hover:text-ink-100"
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                          label.isDynamic ? "bg-accent" : "invisible"
-                        }`}
-                      />
-                      <TapeIcon size={12} />
-                      <span>Dynamic</span>
-                    </div>
-                  </button>
+                return (
+                  <>
+                    <div className="my-1 border-t border-white/5" />
 
-                  {/* Custom... option */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSizeOpen(false);
-                      const curLen = label.widthMm === currentTapeWidth ? label.heightMm : label.widthMm;
-                      setCustomLength(curLen);
-                      setCustomInputStr(String(curLen));
-                      setCustomOpen(true);
-                    }}
-                    className="w-full flex items-center px-3 h-7 text-ui-sm font-mono text-ink-300 hover:bg-white/5 hover:text-ink-100 hover-fade cursor-pointer outline-none"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full shrink-0 invisible" />
-                      <span>Custom...</span>
-                    </div>
-                  </button>
-                </>
-              )}
+                    {/* Dynamic option */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDynamic(true);
+                        setSizeOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 h-7 text-ui-sm font-mono hover-fade cursor-pointer ${
+                        label.isDynamic
+                          ? "text-accent bg-accent/10"
+                          : "text-ink-300 hover:bg-white/5 hover:text-ink-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0 invisible" />
+                        <span>Dynamic</span>
+                      </div>
+                    </button>
+
+                    {/* Custom... option */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSizeOpen(false);
+                        const curLen = label.widthMm === currentTapeWidth ? label.heightMm : label.widthMm;
+                        setCustomLength(curLen);
+                        setCustomInputStr(String(curLen));
+                        setCustomOpen(true);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 h-7 text-ui-sm font-mono hover-fade cursor-pointer outline-none ${
+                        isCustomActive
+                          ? "text-accent bg-accent/10"
+                          : "text-ink-300 hover:bg-white/5 hover:text-ink-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0 invisible" />
+                        <span>Custom...</span>
+                      </div>
+                    </button>
+                  </>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -836,9 +844,11 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
           scaleY={zoom}
         >
           <LabelPaper />
-          {elements.map((el) =>
-            renderElement(el, selectedIds.includes(el.id)),
-          )}
+          <Group id="canvas-elements">
+            {elements.map((el) =>
+              renderElement(el, selectedIds.includes(el.id)),
+            )}
+          </Group>
           <CutterEars />
         </Layer>
       </Stage>

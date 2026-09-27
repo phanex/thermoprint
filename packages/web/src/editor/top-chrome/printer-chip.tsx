@@ -65,7 +65,6 @@ function MiniRow({ label, value }: { label: string; value: string }) {
 }
 
 export function PrinterChip() {
-  const printer = useEditorV2Store((s) => s.printer);
   const printFlyoutOpen = useEditorV2Store((s) => s.printFlyoutOpen);
   const battery = usePrinterStore((s) => s.battery);
   const peripheral = usePrinterStore((s) => s.peripheral);
@@ -80,7 +79,7 @@ export function PrinterChip() {
   const [isManualOpen, setIsManualOpen] = useState(false);
 
   const profile = modelId ? getDevice(modelId) : null;
-  const fullName = profile ? profile.name : (peripheral?.name || printer.name || "Printer");
+  const fullName = profile ? profile.name : (peripheral?.name || "Printer");
 
   const ref = useRef<HTMLDivElement>(null);
 
