@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bluetooth, X } from "lucide-react";
+import { Bluetooth, X, Loader2 } from "lucide-react";
 import { useEditorV2Store } from "../../store/editor-store.ts";
 import { usePrinterStore } from "../../store/printer-store.ts";
 import { useWebBluetooth } from "../../hooks/use-web-bluetooth.ts";
@@ -104,13 +104,17 @@ export function PrinterChip() {
         disabled={isScanning}
         className={`flex items-center gap-2 h-8 px-2 md:px-3 rounded-md border text-ui-sm font-semibold transition-colors ${
           isScanning
-            ? "border-accent/40 bg-accent/15 text-accent animate-pulse cursor-wait"
+            ? "border-accent/40 bg-accent/15 text-accent cursor-wait"
             : "border-accent/30 bg-accent/10 text-accent hover:bg-accent/15 hover-fade"
         }`}
       >
-        <Bluetooth size={15} className={isScanning ? "animate-pulse" : ""} />
+        {isScanning ? (
+          <Loader2 size={15} className="animate-spin text-accent" />
+        ) : (
+          <Bluetooth size={15} />
+        )}
         <span className="hidden md:inline">
-          {isScanning ? "Select printer..." : "Connect printer"}
+          {isScanning ? "Scanning..." : "Connect printer"}
         </span>
       </button>
     );
@@ -131,12 +135,9 @@ export function PrinterChip() {
           }}
           className="group flex items-center gap-2 px-2.5 h-8"
         >
-          <span className="relative flex h-2 w-2 shrink-0">
+          <span className="relative flex items-center justify-center h-3 w-3 shrink-0">
             {isConnecting ? (
-              <>
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
-              </>
+              <Loader2 size={13} className="animate-spin text-accent" />
             ) : isStandby ? (
               <span className="inline-flex rounded-full h-2 w-2 bg-amber-400" />
             ) : (
@@ -155,7 +156,7 @@ export function PrinterChip() {
             <span
               className={`text-[10px] font-mono uppercase tracking-wider ${
                 isConnecting
-                  ? "text-accent animate-pulse"
+                  ? "text-accent font-semibold"
                   : isStandby
                   ? "text-amber-400/70"
                   : "text-ink-400"
@@ -229,9 +230,9 @@ export function PrinterChip() {
               <span className="truncate">{error}</span>
             </div>
           ) : isConnecting ? (
-            <div className="flex items-center mb-3 px-2.5 py-1.5 rounded-md border text-ui-sm font-medium bg-accent/10 border-accent/20 text-accent animate-pulse">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent mr-2 shrink-0" />
-              Connecting to printer...
+            <div className="flex items-center mb-3 px-2.5 py-1.5 rounded-md border text-ui-sm font-medium bg-accent/10 border-accent/20 text-accent">
+              <Loader2 size={14} className="animate-spin text-accent mr-2 shrink-0" />
+              <span>Connecting to printer...</span>
             </div>
           ) : isStandby ? (
             <div className="flex items-center mb-3 px-2.5 py-1.5 rounded-md border text-ui-sm font-medium bg-amber-400/10 border-amber-400/20 text-amber-400">

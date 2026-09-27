@@ -8,7 +8,7 @@ import { Dock } from "./dock/dock.tsx";
 import { PrintProgressToast } from "./print-progress-toast.tsx";
 import { Palette } from "./palette/palette.tsx";
 import { useKeyboardShortcuts, setPrintFn } from "../lib/keyboard.ts";
-import { useEditorV2Store } from "../store/editor-store.ts";
+import { useEditorV2Store, registerThumbnailGetter } from "../store/editor-store.ts";
 import { usePrinterStore } from "../store/printer-store.ts";
 import { getPrinter, useWebBluetooth } from "../hooks/use-web-bluetooth.ts";
 import type { RawImageData } from "@thermoprint/core";
@@ -58,10 +58,49 @@ function rotateCanvas90CW(src: HTMLCanvasElement): HTMLCanvasElement {
   return dst;
 }
 
+export function captureThumbnail(
+  stage: Konva.Stage,
+  widthPx: number,
+  heightPx: number,
+): string {
+  try {
+    const raw = captureLabel(stage, widthPx, heightPx);
+    const maxW = 320;
+    const maxH = 160;
+    const scale = Math.min(1, maxW / raw.width, maxH / raw.height);
+    if (scale < 1) {
+      const thumb = document.createElement("canvas");
+      thumb.width = Math.max(1, Math.round(raw.width * scale));
+      thumb.height = Math.max(1, Math.round(raw.height * scale));
+      const ctx = thumb.getContext("2d")!;
+      ctx.drawImage(raw, 0, 0, thumb.width, thumb.height);
+      return thumb.toDataURL("image/png");
+    }
+    return raw.toDataURL("image/png");
+  } catch {
+    return "";
+  }
+}
+
 export function Editor() {
   const stageRef = useRef<Konva.Stage>(null);
 
   useKeyboardShortcuts();
+
+  // Register thumbnail generator for library saves
+  useEffect(() => {
+    registerThumbnailGetter(() => {
+      const stage = stageRef.current;
+      if (!stage) return undefined;
+      const { label } = useEditorV2Store.getState();
+      const widthPx = label.widthPx || 320;
+      const heightPx = label.heightPx || 96;
+      return captureThumbnail(stage, widthPx, heightPx);
+    });
+    return () => {
+      registerThumbnailGetter(null);
+    };
+  }, []);
 
   // Warn on close with unsaved changes
   useEffect(() => {

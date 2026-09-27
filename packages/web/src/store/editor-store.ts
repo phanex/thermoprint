@@ -160,6 +160,12 @@ export function cancelDynamicFit() {
   }
 }
 
+let _thumbnailGetter: (() => string | undefined) | null = null;
+
+export function registerThumbnailGetter(fn: (() => string | undefined) | null) {
+  _thumbnailGetter = fn;
+}
+
 const DEFAULT_LABEL: LabelSize = {
   widthMm: 40,
   heightMm: 12,
@@ -245,10 +251,12 @@ export const useEditorV2Store = create<EditorState>()(
           get().saveLabelAs(currentLabelName || "Untitled");
           return;
         }
+        const thumb = _thumbnailGetter ? _thumbnailGetter() : undefined;
         const updated: SavedLabel = {
           ...library.labels[idx],
           label: { ...label },
           elements: structuredClone(elements),
+          thumbnail: thumb || library.labels[idx].thumbnail,
           updatedAt: Date.now(),
         };
         const nextLib: Library = {
@@ -262,11 +270,13 @@ export const useEditorV2Store = create<EditorState>()(
 
       saveLabelAs: (name) => {
         const { library, elements, label } = get();
+        const thumb = _thumbnailGetter ? _thumbnailGetter() : undefined;
         const nl: SavedLabel = {
           id: uid(),
           name: name || "Untitled",
           label: { ...label },
           elements: structuredClone(elements),
+          thumbnail: thumb,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };

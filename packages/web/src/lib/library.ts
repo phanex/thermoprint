@@ -10,6 +10,7 @@ export interface SavedLabel {
   elements: BaseElement[];
   createdAt: number;
   updatedAt: number;
+  thumbnail?: string;
 }
 
 export interface Library {

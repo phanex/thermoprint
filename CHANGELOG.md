@@ -7,6 +7,14 @@ All notable changes and improvements in this fork of **Thermoprint**.
 ## [Unreleased]
 
 ### 🐛 Bug Fixes
+- **Pixel-Perfect WYSIWYG Saved Label Previews (`SavedLabel.thumbnail`)**:
+  - **Root Cause**: `LabelThumbnail` in `library-flyout.tsx` was manually reconstructing vector elements as an SVG DOM tree without element rotation transforms, missing `preserveAspectRatio="none"` on embedded image/icon data URLs, and risking `NaN` viewBox values when `label.widthPx`/`heightPx` were omitted. Consequently, `<image>` elements without `preserveAspectRatio="none"` aligned SVG icons with intrinsic 512x512 viewports according to default SVG `meet` rules, causing icons to slide down to the bottom border of the thumbnail card.
+  - **Resolution**:
+    - Added an optional `thumbnail` field to `SavedLabel`. When saving labels (`saveLabel`, `saveLabelAs`), the Konva stage captures a real 100% WYSIWYG PNG thumbnail (`captureThumbnail`), rendering exact typography, icons, and alignments with zero drift and instant library flyout performance.
+    - Hardened the fallback SVG `LabelThumbnail`: added fallback to `mmToPx` if pixel dimensions are omitted, added `preserveAspectRatio="none"` and `xlinkHref` to `<image>`, and applied rotation transforms across all elements.
+- **Connection Progress Spinner Indicator (`Loader2` with `animate-spin`)**:
+  - **Root Cause**: Printer chip displayed blinking `animate-pulse` text and an `animate-ping` dot during Bluetooth scanning and GATT connection, which felt unpolished and jittery compared to a standard rotating spinner.
+  - **Resolution**: Replaced pulsing text and ping dots with a clean Lucide `Loader2` rotating spinner across the connect button, top-bar chip, and status flyout banner.
 - **Die-Cut Rounded Corner Radius Restoration (`cornerRadius={10}`)**:
   - **Root Cause**: An earlier adjustment accidentally flattened all label paper corner radii to 2px, ruining the realistic rounded sticker appearance of standard die-cut / gap labels.
   - **Resolution**: Restored `cornerRadius={10}` for gap mode (die-cut thermal sticker labels) in `label-paper.tsx`, while strictly maintaining `cornerRadius={0}` for continuous tape rolls.

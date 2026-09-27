@@ -14,6 +14,7 @@ import {
 import QRCode from "qrcode";
 import JsBarcode from "jsbarcode";
 import { normalizeBarcodeContent } from "../../../lib/barcode-utils.ts";
+import { mmToPx } from "../../../utils/px-mm.ts";
 import { useEditorV2Store, type BaseElement } from "../../../store/editor-store.ts";
 import {
   downloadLabelAsJson,
@@ -95,20 +96,40 @@ function LabelThumbnail({
   maxW = 200,
   maxH = 92,
 }: {
-  doc: Pick<SavedLabel, "label" | "elements">;
+  doc: Pick<SavedLabel, "label" | "elements"> & { thumbnail?: string };
   maxW?: number;
   maxH?: number;
 }) {
+  if (doc.thumbnail) {
+    return (
+      <img
+        src={doc.thumbnail}
+        alt="Label preview"
+        style={{
+          maxWidth: maxW,
+          maxHeight: maxH,
+          width: "auto",
+          height: "auto",
+          objectFit: "contain",
+          borderRadius: 2,
+          boxShadow: "0 1px 2px rgba(0,0,0,0.4)",
+        }}
+      />
+    );
+  }
+
   const { label, elements } = doc;
-  const s = Math.min(maxW / label.widthPx, maxH / label.heightPx);
-  const w = label.widthPx * s;
-  const h = label.heightPx * s;
+  const widthPx = label.widthPx || mmToPx(label.widthMm || 40);
+  const heightPx = label.heightPx || mmToPx(label.heightMm || 12);
+  const s = Math.min(maxW / widthPx, maxH / heightPx);
+  const w = widthPx * s;
+  const h = heightPx * s;
 
   return (
     <svg
       width={w}
       height={h}
-      viewBox={`0 0 ${label.widthPx} ${label.heightPx}`}
+      viewBox={`0 0 ${widthPx} ${heightPx}`}
       style={{
         background: "#f5f6f8",
         borderRadius: 2,
@@ -116,6 +137,11 @@ function LabelThumbnail({
       }}
     >
       {elements.map((el: BaseElement) => {
+        const rot = el.rotation || 0;
+        const transform = rot
+          ? `rotate(${rot} ${el.x + el.width / 2} ${el.y + el.height / 2})`
+          : undefined;
+
         switch (el.type) {
           case "text": {
             const p = el.props as Record<string, unknown>;
@@ -148,15 +174,24 @@ function LabelThumbnail({
                 fill={(p.fill as string) ?? "#000"}
                 textAnchor={anchor}
                 dominantBaseline="auto"
+                transform={transform}
               >
                 {p.text as string}
               </text>
             );
           }
           case "qrcode":
-            return <QrThumbnail key={el.id} el={el} />;
+            return (
+              <g key={el.id} transform={transform}>
+                <QrThumbnail el={el} />
+              </g>
+            );
           case "barcode":
-            return <BarcodeThumbnail key={el.id} el={el} />;
+            return (
+              <g key={el.id} transform={transform}>
+                <BarcodeThumbnail el={el} />
+              </g>
+            );
           case "line":
             return (
               <line
@@ -167,6 +202,7 @@ function LabelThumbnail({
                 y2={el.y + el.height}
                 stroke={(el.props.stroke as string) ?? "#000"}
                 strokeWidth={(el.props.strokeWidth as number) ?? 1}
+                transform={transform}
               />
             );
           case "rect":
@@ -180,14 +216,33 @@ function LabelThumbnail({
                 fill={(el.props.fill as string) || "transparent"}
                 stroke={(el.props.stroke as string) ?? "#000"}
                 strokeWidth={(el.props.strokeWidth as number) ?? 1}
+                transform={transform}
               />
             );
           case "image": {
             const src = el.props.src as string;
             return src ? (
-              <image key={el.id} href={src} x={el.x} y={el.y} width={el.width} height={el.height} />
+              <image
+                key={el.id}
+                href={src}
+                xlinkHref={src}
+                x={el.x}
+                y={el.y}
+                width={el.width}
+                height={el.height}
+                preserveAspectRatio="none"
+                transform={transform}
+              />
             ) : (
-              <rect key={el.id} x={el.x} y={el.y} width={el.width} height={el.height} fill="#ddd" />
+              <rect
+                key={el.id}
+                x={el.x}
+                y={el.y}
+                width={el.width}
+                height={el.height}
+                fill="#ddd"
+                transform={transform}
+              />
             );
           }
           default:

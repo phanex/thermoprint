@@ -1,35 +1,36 @@
 <h1 align="center">🖨️ thermoprint</h1>
 
 <p align="center">
-  <strong>Design and print labels on Marklife P15, P12, P7 and other Bluetooth thermal printers</strong>
+  <strong>Modern, open-source label designer and printing engine for Phomemo, Marklife, and Bluetooth thermal printers</strong>
 </p>
 
 <p align="center">
-  Visual label editor in the browser, powerful CLI for automation and AI agents, and a platform-agnostic TypeScript core.<br/>
-  No server required — everything runs locally via Web Bluetooth or Noble.
+  Visual WYSIWYG label editor in the browser, powerful CLI for automation and AI agents, and a platform-agnostic TypeScript core.<br/>
+  No server or drivers required — everything runs 100% locally via Web Bluetooth (browser) or Noble (Node/Bun).
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/Phomemo_P12-supported-blue.svg" alt="Phomemo P12">
   <img src="https://img.shields.io/badge/Marklife_P15-supported-009688.svg" alt="Marklife P15">
   <img src="https://img.shields.io/badge/Marklife_P12-supported-009688.svg" alt="Marklife P12">
-  <img src="https://img.shields.io/badge/Marklife_P7-supported-009688.svg" alt="Marklife P7">
-  <img src="https://img.shields.io/badge/L11_protocol-compatible-lightgrey.svg" alt="L11 Compatible">
+  <img src="https://img.shields.io/badge/Marklife_X2-supported-orange.svg" alt="Marklife X2">
+  <img src="https://img.shields.io/badge/Marklife_M60-supported-orange.svg" alt="Marklife M60">
+  <img src="https://img.shields.io/badge/L11_/_X2_/_P12-protocols-lightgrey.svg" alt="Multi-protocol">
 </p>
 
 <p align="center">
   <a href="https://tomladder.github.io/thermoprint/">🌐 Web Editor</a> •
   <a href="#features">Features</a> •
+  <a href="#supported-printers">Printers</a> •
   <a href="#packages">Packages</a> •
   <a href="#quick-start">Quick Start</a> •
-  <a href="#supported-printers">Printers</a> •
   <a href="#architecture">Architecture</a> •
-  <a href="#support-the-project">Sponsor</a>
+  <a href="#tech-stack">Tech Stack</a>
 </p>
 
 <p align="center">
   <a href="https://github.com/sponsors/tomLadder"><img src="https://img.shields.io/badge/sponsor-%E2%9D%A4-ff69b4.svg" alt="Sponsor"></a>
-  <a href="https://tomladder.github.io/thermoprint/"><img src="https://img.shields.io/badge/web_editor-online-005F59.svg" alt="Web Editor"></a>
-  <img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/version-0.2.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   <img src="https://img.shields.io/badge/bun-%3E%3D1.0-black.svg" alt="Bun">
   <img src="https://img.shields.io/badge/TypeScript-5.9-blue.svg" alt="TypeScript">
@@ -40,25 +41,62 @@
 
 ## Features
 
-**Web Editor** — [try it now](https://tomladder.github.io/thermoprint/)
-- Drag & drop label designer with text, images, icons, QR codes, barcodes, and shapes
-- Iconify icon browser (`C` shortcut) supporting 200+ sets (>200,000 vector icons)
-- Resize, rotate, and align elements visually on a Konva.js canvas
-- Live-preview with gap/continuous paper simulation and ghost labels
-- Print directly from the browser via Web Bluetooth (Chrome/Edge)
-- Save & load templates, dark mode, responsive layout
+### 🌐 Web Editor — [Open Live Editor](https://tomladder.github.io/thermoprint/)
 
-**CLI**
-- Discover nearby printers over Bluetooth
-- Print images and labels from the terminal
-- Check battery and printer status
-- Configure label size, density, dithering
+* **Zero-Driver Web Bluetooth**: Direct connection from Chrome or Edge on macOS, Linux, Windows, ChromeOS, and Android.
+* **Dynamic Continuous Tape Mode (`isDynamic`)**:
+  * **Content-Aware Auto-Length**: Canvas dynamically expands and contracts to snuggly fit your elements.
+  * **Cutter Margin Simulation ("Ears")**: Real-world lead and trail cut margins (`[-leadPx .. 0]`, `[widthPx .. widthPx + trailPx]`) visualized with physical hatching and cut lines.
+* **Realistic Die-Cut Labels**: Subtle rounded corner radius (`cornerRadius=10`) simulating thermal die-cut sticker rolls.
+* **Vector Icon Browser (`C` shortcut)**:
+  * Full integration with **Iconify** providing 200+ icon collections with over 200,000 vector icons (Lucide, Material Symbols, Tabler, Carbon, Phosphor, Font Awesome, etc.).
+  * Instant vector search and real-time black rasterization optimized for high-contrast thermal heads.
+* **Advanced Typography Engine**:
+  * **Cyrillic & Latin Support**: Built-in Google Fonts (Inter, Roboto, JetBrains Mono, Caveat, Neucha, Unbounded, Merriweather, Montserrat, Pacifico, Lobster) + local system font access.
+  * **Live Dynamic Date & Time Variables**: Tokens like `[[DD.MM.YYYY]]`, `[[HH:mm]]`, `[[MMMM YYYY]]`, and smart relative offsets (`[[DD.MM.YYYY +7d]]`, `+1m`, `+1y`) re-evaluated at print time.
+  * **Zero-Drift Anchor Scaling**: Numeric `[ S ]` size input and mouse wheel scrubbing scale anchored to text alignment (`center`, `left`, `right`) and rotation with 100.00% reversible coordinates.
+  * **Opposite-Handle Scaling**: Vertical transformer handles scale font size proportionally pinned from the opposite edge.
+  * **Typographical Controls**: Uppercase TT toggle, bold, italic, line height, letter spacing, and word wrap.
+* **Barcodes & QR Codes**: EAN-13, CODE-128, UPC, and QR codes with configurable error correction levels.
+* **Shapes & Line Tools**: Rectangles, circles, triangles, stars, and dividers with custom stroke widths and dash patterns.
+* **Library & Template Management**:
+  * Instant WYSIWYG PNG previews captured directly from the canvas engine.
+  * Export/import templates as JSON or backup entire libraries as ZIP archives.
+* **Hardware Connection & Feedback**:
+  * Rotating connection spinner (`Loader2`) during BLE handshake and GATT discovery.
+  * Live battery level indicator with pixel-art battery gauges.
 
-**Core Library**
-- Platform-agnostic — inject any `BleTransport` (Noble, Web Bluetooth, etc.)
-- Full image pipeline: RGBA → grayscale → Floyd-Steinberg dither → 1-bit raster
-- Credit-based flow control prevents printer buffer overflow
-- Device profiles for easy printer support
+---
+
+### 💻 CLI & Automation
+
+* **Discover & Connect**: Scan and inspect nearby Bluetooth printers with detailed telemetry.
+* **Headless Rendering & Printing**: Print images, labels, and vector templates straight from scripts or AI agents.
+* **Configuration**: Set default printer, darkness density, dithering algorithm, and label size.
+
+---
+
+### ⚙️ Core Engine (`@thermoprint/core`)
+
+* **Platform-Agnostic**: Injectable `BleTransport` (Noble for Node/Bun, Web Bluetooth for browser, or custom).
+* **High-Quality Image Pipeline**: RGBA → Grayscale → Floyd-Steinberg Dithering / Thresholding → 1-bit raster bit packing.
+* **Credit-Based Backpressure**: Hardware flow control prevents printer buffer overflow during high-speed printing.
+* **Declarative Device Profiles**: Standardized `DeviceIdentification` with regex name matching and GATT presence detection.
+
+---
+
+## Supported Printers
+
+| Vendor | Model | Protocol ID | Print Width | Paper Types | Status |
+|--------|-------|-------------|-------------|-------------|--------|
+| **Phomemo** | **P12 / P12-Pro** | `pho-p12` | 96 px (12 mm) | Continuous tape | ✅ Fully Supported |
+| **Phomemo** | **D30** | `pho-p12` | 96 px (12 mm) | Gap & Continuous | ✅ Fully Supported |
+| **Marklife** | **P15** | `mark-l11` | 384 px (48 mm) | Gap & Continuous | ✅ Fully Supported |
+| **Marklife** | **P12** | `mark-l11` | 384 px (48 mm) | Gap & Continuous | ✅ Fully Supported |
+| **Marklife** | **P7** | `mark-l11` | 384 px (48 mm) | Gap & Continuous | ✅ Fully Supported |
+| **Marklife** | **X2** | `mark-x2` | 384 px (48 mm) | Gap & Continuous | ✅ Fully Supported |
+| **Marklife** | **M60** | `mark-x2` | 384 px (48 mm) | Gap & Continuous | ✅ Fully Supported |
+| **Generic** | Other L11 / X2 / P12 | Auto-detected | Varies | Gap & Continuous | ✅ Compatible |
 
 ---
 
@@ -67,88 +105,41 @@
 ```
 thermoprint/
   packages/
-    core/     @thermoprint/core  — protocol, image pipeline, device profiles
-    cli/      @thermoprint/cli   — command-line interface (Noble + sharp)
-    web/      @thermoprint/web   — visual label editor (React + Konva.js)
+    core/     @thermoprint/core  — protocols, imaging pipeline, device profiles
+    cli/      @thermoprint/cli   — terminal CLI (Noble + sharp)
+    web/      @thermoprint/web   — browser WYSIWYG editor (React 19 + Konva.js)
 ```
 
 | Package | Description | Transport |
 |---------|-------------|-----------|
-| `@thermoprint/core` | Shared library — protocol, imaging, profiles | Any `BleTransport` |
-| `@thermoprint/cli` | Terminal interface | Noble (Node/Bun) |
-| `@thermoprint/web` | Browser label editor | Web Bluetooth API |
+| `@thermoprint/core` | Shared protocols, image processing, device profiles | Injectable `BleTransport` |
+| `@thermoprint/cli` | Terminal interface and automation engine | `@stoprocent/noble` (Node / Bun) |
+| `@thermoprint/web` | Browser label editor with canvas and template engine | Web Bluetooth API |
 
 ---
 
 ## Quick Start
 
-### Web Editor (no install needed)
+### 🌐 Web Editor (No Install Needed)
 
-Open **[tomladder.github.io/thermoprint](https://tomladder.github.io/thermoprint/)** in Chrome or Edge, connect your printer via Bluetooth, design a label, and print.
+Open **[tomladder.github.io/thermoprint](https://tomladder.github.io/thermoprint/)** in Google Chrome or Microsoft Edge, connect your printer via Web Bluetooth, design your label, and click **Print**.
 
-### CLI
+### 💻 CLI
 
 ```bash
-# Clone & install
-git clone https://github.com/tomLadder/thermoprint.git && cd thermoprint
+# Clone repository
+git clone https://github.com/tomLadder/thermoprint.git
+cd thermoprint
+
+# Install dependencies
 bun install
 
-# Discover printers (requires Bluetooth)
+# Discover nearby printers (requires Bluetooth enabled)
 bun run packages/cli/src/index.ts discover
 
-# Print an image
-bun run packages/cli/src/index.ts print my-label.png
+# Print an image file
+bun run packages/cli/src/index.ts print label.png --density 2
 ```
-
-### From Release Binaries
-
-Pre-built binaries for macOS, Linux, and Windows are available on the [Releases page](https://github.com/tomLadder/thermoprint/releases).
-
-```bash
-# macOS / Linux
-thermoprint discover
-thermoprint print label.png
-
-# Check status
-thermoprint status
-```
-
----
-
-## CLI Commands
-
-| Command | Description |
-|---------|-------------|
-| `thermoprint discover` | Find nearby Bluetooth printers |
-| `thermoprint print <image>` | Print an image file |
-| `thermoprint status` | Show battery level and printer status |
-| `thermoprint config get` | Show current configuration |
-| `thermoprint config set <key> <value>` | Update a setting |
-
-### Print Options
-
-| Option | Description |
-|--------|-------------|
-| `--density <1\|2\|3>` | Print darkness (1=light, 2=normal, 3=dark) |
-| `--paper <gap\|continuous>` | Paper type |
-| `--dither <floyd-steinberg\|threshold\|none>` | Dithering algorithm |
-| `--threshold <0-255>` | Black/white cutoff for threshold mode |
-| `--width <px>` | Print head width (default: 384) |
-
----
-
-## Supported Printers
-
-> **Works out of the box** with these Bluetooth thermal label printers:
-
-| Model | Protocol | Print Width | Status |
-|-------|----------|-------------|--------|
-| **Marklife P15** | L11 | 384 px (48 mm) | ✅ Fully supported |
-| **Marklife P12** | L11 | 384 px (48 mm) | ✅ Fully supported |
-| **Marklife P7** | L11 | 384 px (48 mm) | ✅ Fully supported |
-| Other L11-compatible | L11 | Varies | Should work |
-
-**Have a different printer?** Any label printer using the L11 protocol should work. Adding a new printer is just a [device profile](docs/adding-a-printer.md) — a plain object with BLE service/characteristic UUIDs and settings.
 
 ---
 
@@ -156,125 +147,35 @@ thermoprint status
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│            Web Editor (React + Konva.js)                │
-│   Toolbar → Canvas → Export → Print via Web Bluetooth   │
+│            Web Editor (React 19 + Konva.js)             │
+│   Toolbar → Canvas → Dynamic Fit → Print via Web BLE    │
 ├─────────────────────────────────────────────────────────┤
-│              CLI (Commander + Chalk + Ora)               │
+│              CLI (Commander + Chalk + Ora)              │
 ├─────────────────────────────────────────────────────────┤
-│              Printer Orchestrator (Core)                 │
-│         connect · print · events · discovery            │
-├──────────┬──────────────┬───────────────────────────────┤
-│  Image   │   Protocol   │         Device                │
-│ Pipeline │    (L11)     │        Registry               │
-├──────────┴──────────────┴───────────────────────────────┤
+│              Printer Orchestrator (Core)                │
+│         connect · print · telemetry · discovery         │
+├──────────┬───────────────────────┬──────────────────────┤
+│  Image   │       Protocols       │        Device        │
+│ Pipeline │ (pho-p12 / mark-l11)  │       Registry       │
+├──────────┴───────────────────────┴──────────────────────┤
 │              FlowController                             │
-│         Credit-based BLE chunking                       │
+│         Credit-based BLE packet chunking                │
 ├─────────────────────────────────────────────────────────┤
 │         BleTransport (injected)                         │
 │     Noble · Web Bluetooth · custom                      │
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Image pipeline:** RGBA → grayscale → Floyd-Steinberg dither → 1-bit pack → raster commands
-
-**Flow control:** Credit-based backpressure prevents buffer overflow. The host waits for credit grants before sending each chunk.
-
-**Protocol:** L11 is a binary raster protocol. The printer has no built-in fonts — all content is rendered to a bitmap before sending.
-
----
-
-## Using the Core Library
-
-```typescript
-import { Printer, discover } from "@thermoprint/core";
-
-const transport = new MyBleTransport();
-const peripheral = await discover(transport, { timeoutMs: 5000 });
-const printer = await Printer.connect(transport, peripheral);
-
-await printer.print(myImageData, {
-  density: 2,
-  paperType: "gap",
-  dither: "floyd-steinberg",
-});
-
-await printer.disconnect();
-```
-
----
-
-## Development
-
-```bash
-# Clone
-git clone https://github.com/tomLadder/thermoprint.git && cd thermoprint
-
-# Install dependencies
-bun install
-
-# Run the web editor locally
-bun run --cwd packages/web dev
-
-# Run CLI commands
-bun run packages/cli/src/index.ts --help
-```
-
----
-
-## Documentation
-
-- [Architecture](docs/architecture.md) — design decisions, layer diagram, data flow
-- [Transport](docs/transport.md) — BleTransport interface and flow control
-- [Image Pipeline](docs/image-pipeline.md) — grayscale, dithering, bit packing
-- [Adding a Printer](docs/adding-a-printer.md) — how to add a new device profile
-- [Reverse Engineering](REVERSE_ENGINEERING.md) — protocol analysis from the Android app
-
----
-
-## FAQ
-
-<details>
-<summary><strong>Which browsers support Web Bluetooth?</strong></summary>
-
-Chrome and Edge on desktop (macOS, Windows, Linux, ChromeOS). Safari and Firefox do not support Web Bluetooth. On mobile, Chrome on Android works.
-</details>
-
-<details>
-<summary><strong>Why does the printer need to be "discovered" each time?</strong></summary>
-
-Web Bluetooth requires a user gesture (click) to initiate device pairing via the browser's device picker. This is a security requirement — there's no background scanning in browsers.
-</details>
-
-<details>
-<summary><strong>Can I add support for my printer?</strong></summary>
-
-If your printer uses the L11 protocol (common for small Bluetooth label printers), it likely works already. Otherwise, create a [device profile](docs/adding-a-printer.md) with your printer's BLE service/characteristic UUIDs and settings.
-</details>
-
-<details>
-<summary><strong>Why are printed images rotated?</strong></summary>
-
-The printer feeds paper lengthwise, so the image is rotated 90° before printing. The editor handles this automatically — what you see is what you get.
-</details>
-
 ---
 
 ## Tech Stack
 
-- **Runtime:** [Bun](https://bun.sh)
-- **Language:** TypeScript (strict, ESNext)
-- **Web:** [React 19](https://react.dev) + [Konva.js](https://konvajs.org) + [Zustand](https://zustand.docs.pmnd.rs) + [Tailwind CSS 4](https://tailwindcss.com)
-- **BLE:** [@stoprocent/noble](https://github.com/nicedoc/noble) (CLI), [Web Bluetooth API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API) (Web)
-- **Image:** [sharp](https://sharp.pixelplumbing.com) (CLI), Canvas API (Web)
-- **CLI:** [Commander.js](https://github.com/tj/commander.js) + [Chalk](https://github.com/chalk/chalk) + [Ora](https://github.com/sindresorhus/ora)
-
----
-
-## Support the Project
-
-All sponsorship money goes directly toward buying more thermal printers so they can be reverse-engineered and supported in thermoprint. Every new printer means broader compatibility for everyone.
-
-If you find thermoprint useful, consider [sponsoring the project](https://github.com/sponsors/tomLadder) — your contribution helps grow the list of supported printers.
+* **Runtime:** [Bun](https://bun.sh)
+* **Language:** TypeScript 5.9 (strict mode, modern ESNext)
+* **Web UI:** [React 19](https://react.dev) + [Konva.js](https://konvajs.org) + [Zustand](https://zustand.docs.pmnd.rs) + [Tailwind CSS 4](https://tailwindcss.com) + [Lucide Icons](https://lucide.dev)
+* **Vector Graphics:** [Iconify API](https://iconify.design) (200+ collections)
+* **BLE Transports:** [Web Bluetooth API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API) (Web), [@stoprocent/noble](https://github.com/nicedoc/noble) (CLI)
+* **Image Processing:** HTML5 Canvas (Web), [sharp](https://sharp.pixelplumbing.com) (CLI)
 
 ---
 
@@ -282,8 +183,6 @@ If you find thermoprint useful, consider [sponsoring the project](https://github
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
----
-
 <p align="center">
-  <sub>Made with 🖨️ and TypeScript</sub>
+  <sub>Forked & supercharged with 🖨️ and TypeScript</sub>
 </p>
