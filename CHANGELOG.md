@@ -12,9 +12,11 @@ All notable changes and improvements in this fork of **Thermoprint**.
   - **Resolution**:
     - Added an optional `thumbnail` field to `SavedLabel`. When saving labels (`saveLabel`, `saveLabelAs`), the Konva stage captures a real 100% WYSIWYG PNG thumbnail (`captureThumbnail`), rendering exact typography, icons, and alignments with zero drift and instant library flyout performance.
     - Hardened the fallback SVG `LabelThumbnail`: added fallback to `mmToPx` if pixel dimensions are omitted, added `preserveAspectRatio="none"` and `xlinkHref` to `<image>`, and applied rotation transforms across all elements.
-- **Connection Progress Spinner Indicator (`Loader2` with `animate-spin`)**:
-  - **Root Cause**: Printer chip displayed blinking `animate-pulse` text and an `animate-ping` dot during Bluetooth scanning and GATT connection, which felt unpolished and jittery compared to a standard rotating spinner.
-  - **Resolution**: Replaced pulsing text and ping dots with a clean Lucide `Loader2` rotating spinner across the connect button, top-bar chip, and status flyout banner.
+- **Connection Progress Spinner Polish & Deduplication (`Loader2`)**:
+  - **Root Cause**: Printer chip displayed blinking `animate-pulse` text and an `animate-ping` dot during Bluetooth scanning and connection. Initial spinner replacement introduced two simultaneous rotating spinners when the status flyout was open (one in header chip, one in flyout banner).
+  - **Resolution**: Refined the UX: header chip displays a calm accent dot (`bg-accent`) during connection without visual noise, while the rotating Lucide `Loader2 animate-spin` indicator is prominently featured inside the status flyout banner and the scanning button.
+- **Workflow & Git Rule Clarification**:
+  - Clarified project rule 4 in `GEMINI.md` and `code-modification` skill: `git push` is prohibited autonomously to avoid premature image rebuilds, but fully permitted when explicitly commanded and authorized by the user.
 - **Die-Cut Rounded Corner Radius Restoration (`cornerRadius={10}`)**:
   - **Root Cause**: An earlier adjustment accidentally flattened all label paper corner radii to 2px, ruining the realistic rounded sticker appearance of standard die-cut / gap labels.
   - **Resolution**: Restored `cornerRadius={10}` for gap mode (die-cut thermal sticker labels) in `label-paper.tsx`, while strictly maintaining `cornerRadius={0}` for continuous tape rolls.

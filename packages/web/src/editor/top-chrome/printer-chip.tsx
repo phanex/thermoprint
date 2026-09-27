@@ -135,9 +135,9 @@ export function PrinterChip() {
           }}
           className="group flex items-center gap-2 px-2.5 h-8"
         >
-          <span className="relative flex items-center justify-center h-3 w-3 shrink-0">
+          <span className="relative flex items-center justify-center h-2.5 w-2.5 shrink-0">
             {isConnecting ? (
-              <Loader2 size={13} className="animate-spin text-accent" />
+              <span className="inline-flex rounded-full h-2 w-2 bg-accent" />
             ) : isStandby ? (
               <span className="inline-flex rounded-full h-2 w-2 bg-amber-400" />
             ) : (
