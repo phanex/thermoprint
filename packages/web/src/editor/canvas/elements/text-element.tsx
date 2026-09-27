@@ -68,39 +68,6 @@ export function TextElement({ element, isSelected }: Props) {
       .filter(Boolean)
       .join(" ") || "normal";
 
-  const prevFontSizeRef = useRef(p.fontSize);
-  const anchorRef = useRef<{ x: number; y: number } | null>(null);
-  const lastKnownPosRef = useRef({ x: element.x, y: element.y });
-  const prevAlignRef = useRef(p.align);
-  const prevTextRef = useRef(displayText);
-  const prevRotRef = useRef(element.rotation);
-  const prevFontFamilyRef = useRef(p.fontFamily);
-  const prevFontWeightRef = useRef(p.fontWeight);
-  const prevElementIdRef = useRef(element.id);
-
-  // Invalidate cached anchor if element was moved externally (drag/inspector) or props changed
-  const externalMove =
-    Math.abs(element.x - lastKnownPosRef.current.x) > 0.05 ||
-    Math.abs(element.y - lastKnownPosRef.current.y) > 0.05;
-  const stateChanged =
-    prevElementIdRef.current !== element.id ||
-    prevAlignRef.current !== p.align ||
-    prevTextRef.current !== displayText ||
-    prevRotRef.current !== element.rotation ||
-    prevFontFamilyRef.current !== p.fontFamily ||
-    prevFontWeightRef.current !== p.fontWeight;
-
-  if (externalMove || stateChanged) {
-    anchorRef.current = null;
-    lastKnownPosRef.current = { x: element.x, y: element.y };
-    prevElementIdRef.current = element.id;
-    prevAlignRef.current = p.align;
-    prevTextRef.current = displayText;
-    prevRotRef.current = element.rotation;
-    prevFontFamilyRef.current = p.fontFamily;
-    prevFontWeightRef.current = p.fontWeight;
-  }
-
   // Auto-measure width & height and re-calculate Konva text metrics on font load
   useEffect(() => {
     const node = ref.current;
@@ -125,58 +92,7 @@ export function TextElement({ element, isSelected }: Props) {
       }
       const wChanged = Math.abs(nextW - widthRef.current) > 0.5;
       const hChanged = Math.abs(nextH - heightRef.current) > 0.5;
-
-      const prevFontSize = prevFontSizeRef.current;
-      const fontSizeChanged = prevFontSize !== undefined && prevFontSize !== p.fontSize;
-      prevFontSizeRef.current = p.fontSize;
-
-      if (fontSizeChanged) {
-        const align = (p.align as "left" | "center" | "right") || "left";
-        const rot = element.rotation || 0;
-        const rad = (rot * Math.PI) / 180;
-        const cos = Math.cos(rad);
-        const sin = Math.sin(rad);
-
-        // Lock anchor from the element's geometry before font size changes begin
-        if (!anchorRef.current) {
-          const u =
-            align === "center"
-              ? element.width / 2
-              : align === "right"
-              ? element.width
-              : 0;
-          const v = element.height / 2;
-          anchorRef.current = {
-            x: element.x + u * cos - v * sin,
-            y: element.y + u * sin + v * cos,
-          };
-        }
-
-        if (wChanged || hChanged) {
-          const anchor = anchorRef.current;
-          const uNext =
-            align === "center"
-              ? nextW / 2
-              : align === "right"
-              ? nextW
-              : 0;
-          const vNext = nextH / 2;
-
-          const nextX = Number((anchor.x - (uNext * cos - vNext * sin)).toFixed(2));
-          const nextY = Number((anchor.y - (uNext * sin + vNext * cos)).toFixed(2));
-
-          widthRef.current = nextW;
-          heightRef.current = nextH;
-          lastKnownPosRef.current = { x: nextX, y: nextY };
-          n.position({ x: nextX, y: nextY });
-          updateElement(element.id, {
-            x: nextX,
-            y: nextY,
-            width: nextW,
-            height: nextH,
-          });
-        }
-      } else if (wChanged || hChanged) {
+      if (wChanged || hChanged) {
         widthRef.current = nextW;
         heightRef.current = nextH;
         updateElement(element.id, { width: nextW, height: nextH });
@@ -222,18 +138,14 @@ export function TextElement({ element, isSelected }: Props) {
     };
   }, [
     displayText,
+    p.autoWidth,
     p.fontSize,
     p.fontFamily,
     p.fontWeight,
     p.italic,
     p.letterSpacing,
     p.lineHeight,
-    p.align,
     element.width,
-    element.height,
-    element.x,
-    element.y,
-    element.rotation,
     element.id,
     updateElement,
   ]);
@@ -335,7 +247,6 @@ export function TextElement({ element, isSelected }: Props) {
   // 1. Side handles (middle-left, middle-right): change text wrap width live (Figma style), scale stays 1.0.
   // 2. Vertical handles (top-center, bottom-center): scale font size & dimensions proportionally from opposite edge (Phomemo style), scaleX = scaleY.
   const handleTransform = useCallback(() => {
-    anchorRef.current = null;
     const node = ref.current;
     const tr = trRef.current;
     if (!node || !tr) return;
@@ -382,7 +293,6 @@ export function TextElement({ element, isSelected }: Props) {
   }, [element.height, element.rotation, element.width, element.x, element.y, p.align]);
 
   const handleTransformEnd = useCallback(() => {
-    anchorRef.current = null;
     const node = ref.current;
     if (!node) return;
 
@@ -420,14 +330,6 @@ export function TextElement({ element, isSelected }: Props) {
     }
   }, [element.id, element.props, p.fontSize, updateElement]);
 
-  const onDragStart = useCallback(
-    (e: Konva.KonvaEventObject<DragEvent>) => {
-      anchorRef.current = null;
-      handleDragStart(e);
-    },
-    [handleDragStart],
-  );
-
   return (
     <>
       <Text
@@ -449,7 +351,7 @@ export function TextElement({ element, isSelected }: Props) {
         draggable={!isEditing}
         onClick={handleClick}
         onTap={handleTap}
-        onDragStart={onDragStart}
+        onDragStart={handleDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
         onDblClick={startEditing}

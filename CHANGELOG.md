@@ -7,21 +7,20 @@ All notable changes and improvements in this fork of **Thermoprint**.
 ## [Unreleased]
 
 ### 🐛 Bug Fixes
+- **Die-Cut Rounded Corner Radius Restoration (`cornerRadius={10}`)**:
+  - **Root Cause**: An earlier adjustment accidentally flattened all label paper corner radii to 2px, ruining the realistic rounded sticker appearance of standard die-cut / gap labels.
+  - **Resolution**: Restored `cornerRadius={10}` for gap mode (die-cut thermal sticker labels) in `label-paper.tsx`, while strictly maintaining `cornerRadius={0}` for continuous tape rolls.
+- **Decoupled Text Transform Handles & Zero-Drift Inspector Scaling**:
+  - **Root Cause**: Text scaling logic intended for the inspector numeric input and mouse wheel was previously placed inside `TextElement`'s `useEffect`. When releasing transformer handles on the canvas (`handleTransformEnd`), the store received an updated `fontSize`, triggering the `useEffect` to recalculate position and re-center vertical coordinates around `v = h/2`, causing the text element to jump vertically by half its height and overriding the transformer's opposite-handle pinning.
+  - **Resolution**:
+    - Completely reverted `TextElement` (`text-element.tsx`) to its clean, decoupled state where `handleTransform` and `handleTransformEnd` independently control handle transforms and opposite-edge anchoring without lifecycle position mutations.
+    - Implemented autonomous anchor-preserving `handleFontSizeChange` directly inside `TextSection` (`text-section.tsx`). When scaling via the `[ S ]` inspector field (typing, arrows, or mouse wheel), the element dynamically calculates its canvas anchor based on text alignment (`center`, `left`, `right`) and rotation, ensuring zero coordinate drift and 100.00% reversible position return without interfering with canvas handles.
 - **Cutter Margin Masking for Images and Icons (`Group id="canvas-elements"`)**:
   - **Root Cause**: `ImageElement` (used for both user images and Iconify sticker icons) loads image bitmaps asynchronously via `new window.Image()`. It initially mounts a placeholder `<Group>`, which is later replaced by `<KonvaImage>` upon image load (`img.onload`). In React-Konva reconciliation, replacing a node of a different type destroys the old node and appends the new node to the end of the parent container's children. Because `<CutterEars>` was a direct sibling in `Layer id="label-group"`, the newly mounted `<KonvaImage>` was appended *after* `<CutterEars>`, granting it a higher z-index and causing images and icons to render above the white cutter margin masks rather than being clipped.
   - **Resolution**:
     - Encapsulated all canvas elements inside a dedicated `<Group id="canvas-elements">` in `Layer id="label-group"`, positioned strictly before `<CutterEars />`.
     - Guaranteed that all element nodes, async image swaps, and z-order mutations are strictly confined to `canvas-elements`, making it structurally impossible for any element to render above `<CutterEars />`.
     - Verified that dragging images, icons, QR codes, or barcodes into negative coordinates or past label width is cleanly masked by the white cut margins.
-- **Anchor-Preserving Text Font Size Scaling (Zero Coordinate Drift)**:
-  - **Root Cause**: Resizing text font size via inspector numeric input or mouse wheel previously computed incremental deltas against `element.x` and `element.y` with `Math.round()`. Half-pixel deltas from odd widths/heights caused cumulative rounding bias on each tick, causing coordinates to visibly drift across the canvas when spinning the wheel up and down.
-  - **Resolution**:
-    - Anchored text resizing to an invariant geometric reference point:
-      - `align: "center"`: anchored to the exact geometric center `(x + w/2, y + h/2)`.
-      - `align: "left"`: anchored to the middle of the left edge `(x, y + h/2)`.
-      - `align: "right"`: anchored to the middle of the right edge `(x + w, y + h/2)`.
-    - Computed new position directly from this locked anchor using exact coordinates with rotation transformation, rather than iterative relative deltas.
-    - Verified that scaling font size up and down any number of ticks returns to the exact starting coordinates with 0.00 pixel drift across all alignments and rotation angles.
 
 ### 🏗️ Architecture & Refactoring
 - **Step 6: Printer Store Unification & Dual-Store Decoupling**:

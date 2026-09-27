@@ -459,6 +459,94 @@ export function TextSection({ element }: Props) {
     update({ italic: nextItalic });
   };
 
+  const fontBaseRef = useRef<{
+    id: string;
+    align: string;
+    rotation: number;
+    text: string;
+    baseFontSize: number;
+    baseWidth: number;
+    baseHeight: number;
+    anchor: { x: number; y: number };
+    lastX: number;
+    lastY: number;
+  } | null>(null);
+
+  const handleFontSizeChange = (newFontSize: number) => {
+    const curAlign = (p.align as "left" | "center" | "right") || "left";
+    const curRot = element.rotation || 0;
+    const curText = p.text || "";
+    const curFontSize = Math.max(1, p.fontSize || 18);
+
+    const rad = (curRot * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+
+    const isValidBase =
+      fontBaseRef.current &&
+      fontBaseRef.current.id === element.id &&
+      fontBaseRef.current.align === curAlign &&
+      fontBaseRef.current.rotation === curRot &&
+      fontBaseRef.current.text === curText &&
+      Math.abs(fontBaseRef.current.lastX - element.x) < 0.5 &&
+      Math.abs(fontBaseRef.current.lastY - element.y) < 0.5;
+
+    if (!isValidBase) {
+      const u =
+        curAlign === "center"
+          ? element.width / 2
+          : curAlign === "right"
+          ? element.width
+          : 0;
+      const v = element.height / 2;
+      const anchorX = element.x + u * cos - v * sin;
+      const anchorY = element.y + u * sin + v * cos;
+
+      fontBaseRef.current = {
+        id: element.id,
+        align: curAlign,
+        rotation: curRot,
+        text: curText,
+        baseFontSize: curFontSize,
+        baseWidth: element.width,
+        baseHeight: element.height,
+        anchor: { x: anchorX, y: anchorY },
+        lastX: element.x,
+        lastY: element.y,
+      };
+    }
+
+    const base = fontBaseRef.current!;
+    const scale = newFontSize / base.baseFontSize;
+    const autoWidth = (p as any).autoWidth !== false;
+    const newWidth = autoWidth
+      ? Math.max(20, Math.round(base.baseWidth * scale))
+      : element.width;
+    const newHeight = Math.max(10, Math.round(base.baseHeight * scale));
+
+    const uNew =
+      curAlign === "center"
+        ? newWidth / 2
+        : curAlign === "right"
+        ? newWidth
+        : 0;
+    const vNew = newHeight / 2;
+
+    const nextX = Number((base.anchor.x - (uNew * cos - vNew * sin)).toFixed(2));
+    const nextY = Number((base.anchor.y - (uNew * sin + vNew * cos)).toFixed(2));
+
+    base.lastX = nextX;
+    base.lastY = nextY;
+
+    updateElement(element.id, {
+      x: nextX,
+      y: nextY,
+      width: newWidth,
+      height: newHeight,
+      props: { fontSize: newFontSize },
+    });
+  };
+
   return (
     <>
       <Section
@@ -633,7 +721,7 @@ export function TextSection({ element }: Props) {
           <Field label="S" mono title="Font size">
             <NumInput
               value={p.fontSize || 18}
-              onChange={(v) => update({ fontSize: v })}
+              onChange={handleFontSizeChange}
               suffix="px"
               min={4}
               max={999}
