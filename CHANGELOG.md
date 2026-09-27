@@ -6,7 +6,21 @@ All notable changes and improvements in this fork of **Thermoprint**.
 
 ## [Unreleased]
 
+### 🐛 Bug Fixes
+- **Anchor-Preserving Text Font Size Scaling (Zero Coordinate Drift)**:
+  - **Root Cause**: Resizing text font size via inspector numeric input or mouse wheel previously computed incremental deltas against `element.x` and `element.y` with `Math.round()`. Half-pixel deltas from odd widths/heights caused cumulative rounding bias on each tick, causing coordinates to visibly drift across the canvas when spinning the wheel up and down.
+  - **Resolution**:
+    - Anchored text resizing to an invariant geometric reference point:
+      - `align: "center"`: anchored to the exact geometric center `(x + w/2, y + h/2)`.
+      - `align: "left"`: anchored to the middle of the left edge `(x, y + h/2)`.
+      - `align: "right"`: anchored to the middle of the right edge `(x + w, y + h/2)`.
+    - Computed new position directly from this locked anchor using exact coordinates with rotation transformation, rather than iterative relative deltas.
+    - Verified that scaling font size up and down any number of ticks returns to the exact starting coordinates with 0.00 pixel drift across all alignments and rotation angles.
+
 ### 🎨 UI & Theme Alignment
+- **Horizontal Dynamic Tape Icon & Clean Tooltips**:
+  - Re-oriented `TapeIcon` horizontally (3-segment strip along horizontal feed axis with progressive opacity) matching horizontal continuous tape layout.
+  - Purged verbose/redundant tooltip text across canvas controls: simplified label size button to `Label size` and dynamic mode controls to concise `Dynamic length` (removing "active / click to disable" clutter).
 - **Step 5: Dynamic Tape Mode (`isDynamic`) & Content-Fitting Canvas**:
   - **Pure Printable Canvas (`[0 .. widthPx]`) & Bounding-Box Fitting**:
     - The printable canvas strictly represents the printable dots from `x = 0` to `x = widthPx`. Point `(0, 0)` is the first printable dot, ensuring 1:1 raster alignment for Bluetooth printing without requiring virtual margin offsets or raster slicing.

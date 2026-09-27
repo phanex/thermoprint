@@ -466,7 +466,7 @@ export function PrintSettingsFlyout({ onClose }: Props) {
                         ? "bg-accent/10 text-accent border-accent/30 font-semibold"
                         : "bg-ink-800 text-ink-300 border-white/5 hover:text-ink-100 hover:bg-ink-750"
                     }`}
-                    title="Dynamic length adjusts automatically to content"
+                    title="Dynamic length"
                   >
                     <span>Dynamic</span>
                   </button>

@@ -12,9 +12,10 @@ import {
   isTapeWidthSupported,
 } from "../../label/label-sizes.ts";
 import { getDevice } from "@thermoprint/core";
-import { ChevronDown, Minus, Plus, X, PrinterX } from "lucide-react";
+import { ChevronDown, Minus, Plus, X, PrinterX, Scissors } from "lucide-react";
 import { LabelPaper } from "./label-paper.tsx";
 import { CutterEars } from "./cutter-ears.tsx";
+import { getActiveCutterMargins } from "../../label/dynamic-label.ts";
 import { TextElement } from "./elements/text-element.tsx";
 import { RectElement } from "./elements/rect-element.tsx";
 import { LineElement } from "./elements/line-element.tsx";
@@ -34,9 +35,9 @@ function TapeIcon({ size = 13 }: { size?: number }) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <rect x="7" y="3" width="10" height="5" rx="1" />
-      <rect x="7" y="10" width="10" height="5" rx="1" opacity="0.55" />
-      <rect x="7" y="17" width="10" height="4" rx="1" opacity="0.3" />
+      <rect x="3" y="7" width="4" height="10" rx="1" opacity="0.3" />
+      <rect x="9" y="7" width="5" height="10" rx="1" opacity="0.55" />
+      <rect x="16" y="7" width="5" height="10" rx="1" />
     </svg>
   );
 }
@@ -240,7 +241,7 @@ function LabelSizeSelector({
               ? "bg-accent/15 border-accent/40 text-accent"
               : "bg-ink-850/95 border-white/8 text-ink-200 hover:border-accent/30 hover:text-accent shadow-panel"
           }`}
-          title={label.isDynamic ? "Label size: Dynamic length (auto-fits content)" : "Label size"}
+          title="Label size"
         >
           <span>
             {label.isDynamic
@@ -308,7 +309,6 @@ function LabelSizeSelector({
                         ? "text-accent bg-accent/10"
                         : "text-ink-300 hover:bg-white/5 hover:text-ink-100"
                     }`}
-                    title="Dynamic length adjusts automatically to content"
                   >
                     <div className="flex items-center gap-1.5">
                       <span
@@ -458,11 +458,7 @@ function LabelSizeSelector({
         <button
           type="button"
           onClick={() => setDynamic(!label.isDynamic)}
-          title={
-            label.isDynamic
-              ? "Dynamic length (Active) — click to disable"
-              : "Toggle dynamic length (auto-fits content)"
-          }
+          title="Dynamic length"
           className={`inline-flex items-center justify-center w-7 h-7 rounded-md border hover-fade shadow-panel cursor-pointer transition-colors ${
             label.isDynamic
               ? "bg-accent/15 border-accent/40 text-accent hover:bg-accent/20"
@@ -527,6 +523,7 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
   const gridVisible = useEditorV2Store((s) => s.gridVisible);
   const rulersVisible = useEditorV2Store((s) => s.rulersVisible);
   const paperType = useEditorV2Store((s) => s.paperType);
+  const modelId = usePrinterStore((s) => s.modelId);
   const selectOnly = useEditorV2Store((s) => s.selectOnly);
   const setZoom = useEditorV2Store((s) => s.setZoom);
   const setPan = useEditorV2Store((s) => s.setPan);
@@ -845,6 +842,125 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
           <CutterEars />
         </Layer>
       </Stage>
+
+      {/* Continuous mode: Cutter Margins tabs (штриховка) above and below the printable label */}
+      {paperType === "continuous" && (() => {
+        const margins = getActiveCutterMargins(
+          modelId || null,
+          label.tapeWidthMm,
+          "continuous",
+        );
+        if (!margins) return null;
+
+        const leadMm = margins.leadMm;
+        const trailMm = margins.trailMm;
+        const leadPx = mmToPx(leadMm) * zoom;
+        const trailPx = mmToPx(trailMm) * zoom;
+        const earH = 28;
+        const gapY = 6;
+        const hatchBg = `repeating-linear-gradient(-45deg, transparent, transparent 4px, color-mix(in srgb, var(--color-accent) 20%, transparent) 4px, color-mix(in srgb, var(--color-accent) 20%, transparent) 7px)`;
+
+        // Strictly relative to the white rectangles:
+        // Left ear sits at [originX - leadPx .. originX]
+        const leftX = Math.round(originX - leadPx);
+        const leftW = Math.round(leadPx);
+        // Right ear sits at [originX + displayW .. originX + displayW + trailPx]
+        const rightX = Math.round(originX + displayW);
+        const rightW = Math.round(trailPx);
+
+        const topY = Math.round(originY - earH - gapY);
+        const bottomY = Math.round(originY + displayH + gapY);
+
+        return (
+          <>
+            {/* Top-Left tab (lead margin) */}
+            <div
+              style={{
+                position: "absolute",
+                left: leftX,
+                top: topY,
+                width: leftW,
+                height: earH,
+                background: hatchBg,
+                borderTop: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
+                borderBottom: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
+                borderLeft: "1.5px dashed var(--color-accent)",
+                borderRight: "1px solid color-mix(in srgb, var(--color-accent) 35%, transparent)",
+                pointerEvents: "none",
+                zIndex: 1,
+              }}
+              className="flex items-center justify-center select-none"
+            >
+              {leftW >= 18 && (
+                <div style={{ color: "var(--color-accent)", opacity: 0.6 }}>
+                  <Scissors size={11} />
+                </div>
+              )}
+            </div>
+
+            {/* Bottom-Left tab (lead margin) */}
+            <div
+              style={{
+                position: "absolute",
+                left: leftX,
+                top: bottomY,
+                width: leftW,
+                height: earH,
+                background: hatchBg,
+                borderTop: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
+                borderBottom: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
+                borderLeft: "1.5px dashed var(--color-accent)",
+                borderRight: "1px solid color-mix(in srgb, var(--color-accent) 35%, transparent)",
+                pointerEvents: "none",
+                zIndex: 1,
+              }}
+            />
+
+            {/* Top-Right tab (trail margin) */}
+            <div
+              style={{
+                position: "absolute",
+                left: rightX,
+                top: topY,
+                width: rightW,
+                height: earH,
+                background: hatchBg,
+                borderTop: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
+                borderBottom: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
+                borderLeft: "1px solid color-mix(in srgb, var(--color-accent) 35%, transparent)",
+                borderRight: "1.5px dashed var(--color-accent)",
+                pointerEvents: "none",
+                zIndex: 1,
+              }}
+              className="flex items-center justify-center select-none"
+            >
+              {rightW >= 18 && (
+                <div style={{ color: "var(--color-accent)", opacity: 0.6 }}>
+                  <Scissors size={11} />
+                </div>
+              )}
+            </div>
+
+            {/* Bottom-Right tab (trail margin) */}
+            <div
+              style={{
+                position: "absolute",
+                left: rightX,
+                top: bottomY,
+                width: rightW,
+                height: earH,
+                background: hatchBg,
+                borderTop: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
+                borderBottom: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
+                borderLeft: "1px solid color-mix(in srgb, var(--color-accent) 35%, transparent)",
+                borderRight: "1.5px dashed var(--color-accent)",
+                pointerEvents: "none",
+                zIndex: 1,
+              }}
+            />
+          </>
+        );
+      })()}
 
       {/* Marquee selection rectangle (HTML overlay) */}
       {marquee && marquee.w > 2 && marquee.h > 2 && (

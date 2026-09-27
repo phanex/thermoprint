@@ -128,13 +128,51 @@ export function fitDynamicLabel(
     maxX = mmToPx(minLenMm);
   }
 
-  // 3. Content width in pixels and rounded up in millimeters
+  const minLenPx = mmToPx(minLenMm);
   const contentWidthPx = Math.max(1, maxX - minX);
+
+  // CASE 1: Content fits within the minimum tape length (contentWidthPx <= minLenPx)
+  if (contentWidthPx <= minLenPx) {
+    let shiftX = 0;
+
+    if (minX < 0) {
+      // Pushed into left ear: snug against left edge (minX becomes 0)
+      shiftX = Math.round(0 - minX);
+    } else if (maxX > minLenPx) {
+      // Pushed into right ear: snug against right edge (maxX becomes minLenPx)
+      shiftX = Math.round(minLenPx - maxX);
+    } else {
+      // Inside [0 .. minLenPx]: keep exact user positioning (e.g. centered)!
+      shiftX = 0;
+    }
+
+    const nextElements =
+      shiftX === 0
+        ? elements
+        : elements.map((el) => ({ ...el, x: Math.round(el.x + shiftX) }));
+
+    return {
+      label: {
+        ...currentLabel,
+        widthMm: minLenMm,
+        heightMm: tapeWidthMm,
+        widthPx: minLenPx,
+        heightPx: mmToPx(tapeWidthMm),
+        labelLengthMm: minLenMm,
+        tapeWidthMm,
+        isDynamic: true,
+      },
+      elements: nextElements,
+      shiftX,
+    };
+  }
+
+  // CASE 2: Content is longer than minimum tape length (contentWidthPx > minLenPx)
+  // Dynamic expansion: canvas expands to fit content, snaps flush between both ears
   const rawContentMm = Math.ceil(pxToMm(contentWidthPx));
   const newWidthMm = Math.max(minLenMm, rawContentMm);
   const newWidthPx = mmToPx(newWidthMm);
 
-  // 4. Shift elements so leftmost edge aligns to x = 0
   const shiftX = Math.round(0 - minX);
 
   const nextElements =
