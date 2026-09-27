@@ -14,6 +14,7 @@ All notable changes and improvements in this fork of **Thermoprint**.
   - **Resolution**:
     - Changed imports in `packages/web/src/main.tsx` to explicit CSS entry points: `import "@fontsource-variable/jetbrains-mono/index.css"` and `import "@fontsource-variable/nunito/index.css"`.
     - Regenerated and saved `bun.lock` with `bun install`, ensuring complete lockfile parity across all monorepo dependencies.
+    - Added `--frozen-lockfile` to `deploy-web.yml` to make CI installations deterministic and catch lockfile drift early.
     - Verified clean build (`tsc -b && vite build`) via Bun with 0 errors.
 - **Pixel-Perfect WYSIWYG Saved Label Previews (`SavedLabel.thumbnail`)**:
   - **Root Cause**: `LabelThumbnail` in `library-flyout.tsx` was manually reconstructing vector elements as an SVG DOM tree without element rotation transforms, missing `preserveAspectRatio="none"` on embedded image/icon data URLs, and risking `NaN` viewBox values when `label.widthPx`/`heightPx` were omitted. Consequently, `<image>` elements without `preserveAspectRatio="none"` aligned SVG icons with intrinsic 512x512 viewports according to default SVG `meet` rules, causing icons to slide down to the bottom border of the thumbnail card.
