@@ -209,14 +209,14 @@ export function DateDropdown({ triggerRef, onClose, onSelect }: Props) {
               Offsets
             </div>
             <div className="text-ink-400 mb-1.5">
-              General shift:
+              Shorthand & explicit shift:
             </div>
             <div className="space-y-1">
               <div>
                 <span className="whitespace-nowrap">
                   <button
                     type="button"
-                    onClick={() => handlePick("[[DD.MM.YYYY +7d]]")}
+                    onClick={() => handlePick("[[+7d]]")}
                     className="font-mono text-accent hover:underline cursor-pointer mr-1"
                   >
                     +7d
@@ -227,7 +227,7 @@ export function DateDropdown({ triggerRef, onClose, onSelect }: Props) {
                 <span className="whitespace-nowrap">
                   <button
                     type="button"
-                    onClick={() => handlePick("[[DD.MM.YYYY +1m]]")}
+                    onClick={() => handlePick("[[+1m]]")}
                     className="font-mono text-accent hover:underline cursor-pointer mr-1"
                   >
                     +1m
@@ -238,7 +238,7 @@ export function DateDropdown({ triggerRef, onClose, onSelect }: Props) {
                 <span className="whitespace-nowrap">
                   <button
                     type="button"
-                    onClick={() => handlePick("[[DD.MM.YYYY +1y]]")}
+                    onClick={() => handlePick("[[+1y]]")}
                     className="font-mono text-accent hover:underline cursor-pointer mr-1"
                   >
                     +1y
@@ -246,14 +246,26 @@ export function DateDropdown({ triggerRef, onClose, onSelect }: Props) {
                   <span className="text-ink-400">years</span>
                 </span>
               </div>
-              <div className="mt-1">
+              <div>
+                <span className="whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => handlePick("[[+12h]]")}
+                    className="font-mono text-accent hover:underline cursor-pointer mr-1"
+                  >
+                    +12h
+                  </button>
+                  <span className="text-ink-400">hours (HH:mm)</span>
+                </span>
+              </div>
+              <div className="mt-1 pt-1 border-t border-white/5">
                 <span className="whitespace-nowrap">
                   <button
                     type="button"
                     onClick={() => handlePick("[[DD+5.MM+2.YYYY+1]]")}
                     className="font-mono text-accent hover:underline cursor-pointer mr-1"
                   >
-                    [[DD+5.MM+2.YYYY+1]]
+                    [[DD+5.MM+2]]
                   </button>
                   <span className="text-ink-400">per component</span>
                 </span>

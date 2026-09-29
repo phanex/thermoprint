@@ -9,15 +9,15 @@
 </p>
 
 <p align="center">
-  <a href="https://tomladder.github.io/thermoprint/">🌐 Open Editor</a> •
+  <a href="https://phanex.github.io/thermoprint/">🌐 Open Editor</a> •
   <a href="#features">Features</a> •
   <a href="#getting-started">Getting Started</a> •
   <a href="#tech-stack">Tech Stack</a>
 </p>
 
 <p align="center">
-  <a href="https://tomladder.github.io/thermoprint/"><img src="https://img.shields.io/badge/editor-live-005F59.svg" alt="Live Editor"></a>
-  <a href="https://github.com/tomLadder/thermoprint/actions/workflows/deploy-web.yml"><img src="https://github.com/tomLadder/thermoprint/actions/workflows/deploy-web.yml/badge.svg" alt="Deploy Status"></a>
+  <a href="https://phanex.github.io/thermoprint/"><img src="https://img.shields.io/badge/editor-live-005F59.svg" alt="Live Editor"></a>
+  <a href="https://github.com/phanex/thermoprint/actions/workflows/deploy-web.yml"><img src="https://github.com/phanex/thermoprint/actions/workflows/deploy-web.yml/badge.svg" alt="Deploy Status"></a>
   <img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/react-19-61DAFB.svg" alt="React 19">
   <img src="https://img.shields.io/badge/tailwind-4-38BDF8.svg" alt="Tailwind 4">
@@ -65,7 +65,7 @@
 
 ### Use Online
 
-Open **[tomladder.github.io/thermoprint](https://tomladder.github.io/thermoprint/)** in Chrome or Edge.
+Open **[phanex.github.io/thermoprint](https://phanex.github.io/thermoprint/)** in Chrome or Edge.
 
 ### Run Locally
 
@@ -166,5 +166,5 @@ MIT — see the root [LICENSE](../../LICENSE) file.
 ---
 
 <p align="center">
-  <sub>Part of the <a href="https://github.com/tomLadder/thermoprint">thermoprint</a> monorepo</sub>
+  <sub>Part of the <a href="https://github.com/phanex/thermoprint">thermoprint</a> monorepo</sub>
 </p>

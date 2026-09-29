@@ -19,6 +19,27 @@ In thermal label printing and asset tagging, **floating-point decimal fractions 
 - `1.01` or `1/01` → Skeleton `_.__`, digits `101` become `102` (`1.02`), and after `1.99` naturally roll over to `2.00`!
 - Arbitrary starting values: start from `1`, `100`, `050`, or `0001` — the exact expression entered prints on the 1st label (WYSIWYG).
 
+```mermaid
+flowchart LR
+    subgraph Stencil["1. Positional Stencil"]
+        P["Input: 'SN-0001+1'"] --> S["Skeleton: 'SN-____'"]
+        P --> D["Digits: 0001 (Width: 4)"]
+    end
+
+    subgraph Step["2. Integer Stepping"]
+        D --> INC["Step: +1 per label"]
+        INC --> N1["Step 1: 0001"]
+        INC --> N2["Step 2: 0002"]
+        INC --> N3["Step 3: 0003"]
+    end
+
+    subgraph Output["3. Formatted Labels"]
+        S & N1 --> L1["Label 1: SN-0001"]
+        S & N2 --> L2["Label 2: SN-0002"]
+        S & N3 --> L3["Label 3: SN-0003"]
+    end
+```
+
 ---
 
 ## 2. Binary Syntax Separation
@@ -113,3 +134,33 @@ Price: {{Price}} EUR
 ```
 
 Use the status bar `<` / `>` pagination controls to preview actual interpolated values live on canvas before printing.
+
+---
+
+## 7. Batch Printing Architecture
+
+```mermaid
+flowchart TD
+    subgraph Data["1. Data Layer"]
+        CSV["Spreadsheet (CSV/TSV)"]
+        CTR["Autonomous Counter ({{#:...}})"]
+        TPL["Canvas Template (WYSIWYG)"]
+    end
+
+    subgraph Batch["2. Batch Processing"]
+        RNG["Range Filter (e.g. 1-50, 99)"]
+        SAN["Sanity Check Confirmation Table"]
+        DYN["Dynamic Tape Length Re-fit (Continuous Mode)"]
+    end
+
+    subgraph Hardware["3. Print Execution"]
+        GATT["BLE Transport (Credit-Based Flow Control)"]
+        PRN["Thermal Printer (Phomemo / Marklife)"]
+    end
+
+    CSV & CTR & TPL --> RNG
+    RNG --> SAN
+    SAN --> DYN
+    DYN --> GATT
+    GATT --> PRN
+```

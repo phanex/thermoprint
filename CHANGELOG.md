@@ -125,6 +125,11 @@ All notable changes and improvements in this fork of **Thermoprint**.
     - Encapsulated all canvas elements inside a dedicated `<Group id="canvas-elements">` in `Layer id="label-group"`, positioned strictly before `<CutterEars />`.
     - Guaranteed that all element nodes, async image swaps, and z-order mutations are strictly confined to `canvas-elements`, making it structurally impossible for any element to render above `<CutterEars />`.
     - Verified that dragging images, icons, QR codes, or barcodes into negative coordinates or past label width is cleanly masked by the white cut margins.
+- **Standalone Relative Date Offset Fallback (`[[+7d]]`, `[[+1m]]`)**:
+  - `evaluateFormatTemplate` previously required an explicit format token like `DD.MM.YYYY` and would ignore standalone offsets like `[[+7d]]`. Now defaults to standard date format `DD.MM.YYYY` when only an offset is specified.
+- **Upstream URLs & Sponsor Cleanup**:
+  - Replaced all outdated `tomLadder` GitHub repository and GitHub Pages URLs across `README.md` and `packages/web/README.md` with active fork addresses (`https://phanex.github.io/thermoprint/`).
+  - Removed third-party sponsor heart links from top chrome desktop and mobile headers.
 
 ### 🏗️ Architecture & Refactoring
 - **Step 6: Printer Store Unification & Dual-Store Decoupling**:

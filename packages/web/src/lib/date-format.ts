@@ -74,11 +74,12 @@ function applyUnitOffset(date: Date, value: number, unit: OffsetUnit): void {
  * Parses suffix offsets like "+7d", "+1m", "+1y", "+12h", "+30min", or compound "+7d +12h".
  * Returns shifted date and template with all suffix offsets stripped.
  */
-function parseSuffixOffset(template: string, base: Date): { template: string; date: Date } {
+function parseSuffixOffset(template: string, base: Date): { template: string; date: Date; lastUnit?: OffsetUnit } {
   const d = new Date(base);
   let cur = template.trim();
   const suffixRegex = /(?:^|\s+)([+-]\d+)([a-zA-Z]*)\s*$/;
   let match: RegExpExecArray | null;
+  let lastUnit: OffsetUnit | undefined;
 
   while ((match = suffixRegex.exec(cur)) !== null) {
     const amount = parseInt(match[1], 10);
@@ -96,11 +97,12 @@ function parseSuffixOffset(template: string, base: Date): { template: string; da
       unit = "day";
     }
 
+    lastUnit = unit;
     applyUnitOffset(d, amount, unit);
     cur = cur.slice(0, match.index).trim();
   }
 
-  return { template: cur, date: d };
+  return { template: cur, date: d, lastUnit };
 }
 
 /**
@@ -165,7 +167,15 @@ export function evaluateFormatTemplate(
   cleanTemplate = embeddedRes.template;
   shiftedDate = embeddedRes.date;
 
-  // 4. Verify that template contains at least one recognized date token
+  // 4. Shorthand standalone offset fallback:
+  // If user entered only an offset without format:
+  // - Hours: defaults to "HH:mm"
+  // - Days, months, years (or raw +N): defaults to "DD.MM.YYYY"
+  if (!cleanTemplate && suffixRes.template !== template.trim()) {
+    cleanTemplate = suffixRes.lastUnit === "hour" ? "HH:mm" : "DD.MM.YYYY";
+  }
+
+  // 5. Verify that template contains at least one recognized date token
   const hasTokens = /(MMMM|MMM|dddd|ddd|YYYY|YY|DD|MM|HH|hh|mm|ss|[Aa])/.test(cleanTemplate);
   if (!hasTokens) {
     // Not a date template — return original content
