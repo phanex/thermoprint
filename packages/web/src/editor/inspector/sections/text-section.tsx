@@ -1,11 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { createPortal } from "react-dom";
 import {
   RefreshCw,
   Laptop,
   CalendarClock,
-  HelpCircle,
-  X,
+  Hash,
 } from "lucide-react";
 import type { BaseElement } from "../../../store/editor-store.ts";
 import { useEditorV2Store } from "../../../store/editor-store.ts";
@@ -26,342 +24,8 @@ import {
   preloadFontVariants,
   ensureFontLoaded,
 } from "../../../lib/fonts.ts";
-
-const DATE_PRESETS = [
-  "[[DD.MM.YYYY]]",
-  "[[HH:mm]]",
-  "[[DD.MM.YYYY HH:mm]]",
-  "[[MMMM YYYY]]",
-];
-
-const OFFSET_PRESETS = [
-  "[[DD.MM.YYYY +7d]]",
-  "[[DD.MM.YYYY +1m]]",
-  "[[DD.MM.YYYY +1y]]",
-];
-
-function usePortalPosition(
-  triggerRef: React.RefObject<HTMLElement | null>,
-  isOpen: boolean,
-) {
-  const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
-
-  useEffect(() => {
-    if (!isOpen || !triggerRef.current) return;
-    const update = () => {
-      if (!triggerRef.current) return;
-      const rect = triggerRef.current.getBoundingClientRect();
-      setPos({
-        top: Math.round(rect.bottom + 4),
-        right: Math.round(window.innerWidth - rect.right),
-      });
-    };
-    update();
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update, true);
-    return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update, true);
-    };
-  }, [isOpen, triggerRef]);
-
-  return pos;
-}
-
-function DatePresetsDropdown({
-  triggerRef,
-  onClose,
-  onSelect,
-}: {
-  triggerRef: React.RefObject<HTMLElement | null>;
-  onClose: () => void;
-  onSelect: (token: string) => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const pos = usePortalPosition(triggerRef, true);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (
-        ref.current &&
-        !ref.current.contains(e.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target as Node)
-      ) {
-        onClose();
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [onClose, triggerRef]);
-
-  return createPortal(
-    <div
-      ref={ref}
-      style={{ top: `${pos.top}px`, right: `${pos.right}px` }}
-      className="fixed w-44 bg-ink-900 border border-white/10 rounded-lg shadow-2xl py-1 z-[9999] overflow-hidden select-none"
-    >
-      {DATE_PRESETS.map((expr) => (
-        <button
-          key={expr}
-          type="button"
-          onClick={() => {
-            onSelect(expr);
-            onClose();
-          }}
-          className="w-full px-3 py-1.5 text-left font-mono text-ui-xs text-ink-200 hover:text-accent hover:bg-white/5 transition-colors cursor-pointer"
-        >
-          {expr}
-        </button>
-      ))}
-
-      <div className="my-1 border-t border-white/5" />
-
-      {OFFSET_PRESETS.map((expr) => (
-        <button
-          key={expr}
-          type="button"
-          onClick={() => {
-            onSelect(expr);
-            onClose();
-          }}
-          className="w-full px-3 py-1.5 text-left font-mono text-ui-xs text-ink-200 hover:text-accent hover:bg-white/5 transition-colors cursor-pointer"
-        >
-          {expr}
-        </button>
-      ))}
-    </div>,
-    document.body,
-  );
-}
-
-function DateHelpPopover({
-  triggerRef,
-  onClose,
-  onSelect,
-}: {
-  triggerRef: React.RefObject<HTMLElement | null>;
-  onClose: () => void;
-  onSelect: (token: string) => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const pos = usePortalPosition(triggerRef, true);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (
-        ref.current &&
-        !ref.current.contains(e.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target as Node)
-      ) {
-        onClose();
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [onClose, triggerRef]);
-
-  return createPortal(
-    <div
-      ref={ref}
-      style={{ top: `${pos.top}px`, right: `${pos.right}px` }}
-      className="fixed w-80 bg-ink-900 border border-white/10 rounded-lg shadow-2xl p-3.5 z-[9999] text-ui-xs text-ink-300 font-sans leading-relaxed select-none"
-    >
-      <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-white/10">
-        <span className="font-semibold text-ink-100 text-ui-sm">Syntax</span>
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => onSelect("[[]]")}
-            className="font-mono text-accent text-ui-xs hover:underline cursor-pointer"
-            title="Insert empty [[]]"
-          >
-            [[]]
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-ink-400 hover:text-ink-100 p-0.5 cursor-pointer"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      </div>
-
-      {/* Date & Time */}
-      <div className="mb-3">
-        <div className="font-mono uppercase tracking-wider text-ink-300 font-semibold mb-0.5">
-          Date & Time
-        </div>
-        <div className="text-ink-400 mb-1.5">
-          Standard system format:
-        </div>
-        <div className="space-y-1">
-          <div>
-            <button type="button" onClick={() => onSelect("[[DD]]")} className="font-mono text-accent hover:underline cursor-pointer">DD</button>
-            <span className="text-ink-400 mx-1">01</span> &middot;{" "}
-            <button type="button" onClick={() => onSelect("[[ddd]]")} className="font-mono text-accent hover:underline cursor-pointer">ddd</button>
-            <span className="text-ink-400 mx-1">Mon</span> &middot;{" "}
-            <button type="button" onClick={() => onSelect("[[dddd]]")} className="font-mono text-accent hover:underline cursor-pointer">dddd</button>
-            <span className="text-ink-400 ml-1">Monday</span>
-          </div>
-          <div>
-            <button type="button" onClick={() => onSelect("[[MM]]")} className="font-mono text-accent hover:underline cursor-pointer">MM</button>
-            <span className="text-ink-400 mx-1">09</span> &middot;{" "}
-            <button type="button" onClick={() => onSelect("[[MMM]]")} className="font-mono text-accent hover:underline cursor-pointer">MMM</button>
-            <span className="text-ink-400 mx-1">Sep</span> &middot;{" "}
-            <button type="button" onClick={() => onSelect("[[MMMM]]")} className="font-mono text-accent hover:underline cursor-pointer">MMMM</button>
-            <span className="text-ink-400 ml-1">September</span>
-          </div>
-          <div>
-            <button type="button" onClick={() => onSelect("[[YYYY]]")} className="font-mono text-accent hover:underline cursor-pointer">YYYY</button>
-            <span className="text-ink-400 mx-1">2026</span> &middot;{" "}
-            <button type="button" onClick={() => onSelect("[[YY]]")} className="font-mono text-accent hover:underline cursor-pointer">YY</button>
-            <span className="text-ink-400 ml-1">26</span>
-          </div>
-          <div>
-            <button type="button" onClick={() => onSelect("[[HH]]")} className="font-mono text-accent hover:underline cursor-pointer">HH</button>
-            <span className="text-ink-400 mx-1">24h</span> &middot;{" "}
-            <button type="button" onClick={() => onSelect("[[mm]]")} className="font-mono text-accent hover:underline cursor-pointer">mm</button>
-            <span className="text-ink-400 mx-1">min</span> &middot;{" "}
-            <button type="button" onClick={() => onSelect("[[ss]]")} className="font-mono text-accent hover:underline cursor-pointer">ss</button>
-            <span className="text-ink-400 ml-1">sec</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Locale */}
-      <div className="mb-3 pt-2.5 border-t border-white/10">
-        <div className="font-mono uppercase tracking-wider text-ink-300 font-semibold mb-0.5">
-          Locale
-        </div>
-        <div className="text-ink-400 mb-1.5">
-          Language codes (affects months and days):
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => onSelect("[[uk:ddd]]")}
-            className="font-mono text-accent hover:underline cursor-pointer"
-            title="Insert [[uk:ddd]]"
-          >
-            uk:
-          </button>
-          <span className="text-ink-400">&middot;</span>
-          <button
-            type="button"
-            onClick={() => onSelect("[[en:ddd]]")}
-            className="font-mono text-accent hover:underline cursor-pointer"
-            title="Insert [[en:ddd]]"
-          >
-            en:
-          </button>
-          <span className="text-ink-400">&middot;</span>
-          <button
-            type="button"
-            onClick={() => onSelect("[[de:ddd]]")}
-            className="font-mono text-accent hover:underline cursor-pointer"
-            title="Insert [[de:ddd]]"
-          >
-            de:
-          </button>
-          <span className="text-ink-400 ml-1">etc.</span>
-        </div>
-        <div className="mt-1.5 flex items-center gap-1.5">
-          <span className="text-ink-400">e.g.</span>
-          <button
-            type="button"
-            onClick={() => onSelect("[[uk:dddd, DD MMMM]]")}
-            className="font-mono text-accent hover:underline cursor-pointer text-left"
-          >
-            [[uk:dddd, DD MMMM]]
-          </button>
-        </div>
-      </div>
-
-      {/* Offsets */}
-      <div className="pt-2.5 border-t border-white/10">
-        <div className="font-mono uppercase tracking-wider text-ink-300 font-semibold mb-0.5">
-          Offsets
-        </div>
-        <div className="text-ink-400 mb-1.5">
-          General shift:
-        </div>
-        <div className="space-y-1">
-          <div>
-            <span className="whitespace-nowrap">
-              <button
-                type="button"
-                onClick={() => onSelect("[[DD.MM.YYYY +7d]]")}
-                className="font-mono text-accent hover:underline cursor-pointer mr-1"
-              >
-                +7d
-              </button>
-              <span className="text-ink-400">days</span>
-            </span>
-            <span className="text-ink-400 mx-1.5">&middot;</span>
-            <span className="whitespace-nowrap">
-              <button
-                type="button"
-                onClick={() => onSelect("[[DD.MM.YYYY +1m]]")}
-                className="font-mono text-accent hover:underline cursor-pointer mr-1"
-              >
-                +1m
-              </button>
-              <span className="text-ink-400">months</span>
-            </span>
-            <span className="text-ink-400 mx-1.5">&middot;</span>
-            <span className="whitespace-nowrap">
-              <button
-                type="button"
-                onClick={() => onSelect("[[DD.MM.YYYY +1y]]")}
-                className="font-mono text-accent hover:underline cursor-pointer mr-1"
-              >
-                +1y
-              </button>
-              <span className="text-ink-400">years</span>
-            </span>
-          </div>
-          <div>
-            <span className="whitespace-nowrap">
-              <button
-                type="button"
-                onClick={() => onSelect("[[HH:mm +12h]]")}
-                className="font-mono text-accent hover:underline cursor-pointer mr-1"
-              >
-                +12h
-              </button>
-              <span className="text-ink-400">hours</span>
-            </span>
-          </div>
-        </div>
-
-        <div className="text-ink-400 mt-2 mb-1">
-          Individual shift:
-        </div>
-        <div>
-          <button
-            type="button"
-            onClick={() => onSelect("[[DD+5.MM+2.YYYY+1]]")}
-            className="font-mono text-accent hover:underline cursor-pointer"
-          >
-            [[DD+5.MM+2.YYYY+1]]
-          </button>
-          <span className="text-ink-400 mx-1.5">&middot;</span>
-          <button
-            type="button"
-            onClick={() => onSelect("[[HH+12:mm+30]]")}
-            className="font-mono text-accent hover:underline cursor-pointer"
-          >
-            [[HH+12:mm+30]]
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body,
-  );
-}
+import { DateDropdown } from "../dropdowns/date-dropdown.tsx";
+import { FieldsDropdown } from "../dropdowns/fields-dropdown.tsx";
 
 interface Props {
   element: BaseElement;
@@ -371,9 +35,9 @@ export function TextSection({ element }: Props) {
   const updateElement = useEditorV2Store((s) => s.updateElement);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dateBtnRef = useRef<HTMLButtonElement>(null);
-  const helpBtnRef = useRef<HTMLButtonElement>(null);
+  const fieldsBtnRef = useRef<HTMLButtonElement>(null);
   const [dateMenuOpen, setDateMenuOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
+  const [fieldsMenuOpen, setFieldsMenuOpen] = useState(false);
   const fontRowRef = useRef<HTMLDivElement>(null);
 
   const [systemFonts, setSystemFonts] = useState<string[]>(() =>
@@ -553,33 +217,34 @@ export function TextSection({ element }: Props) {
         title="Text"
         action={
           <div className="flex items-center gap-2">
-            {/* [[Date/Time]] link button */}
+            {/* Date dropdown button */}
             <button
               ref={dateBtnRef}
               type="button"
               onClick={() => {
                 setDateMenuOpen((o) => !o);
-                setHelpOpen(false);
+                setFieldsMenuOpen(false);
               }}
               className="text-[11px] font-mono text-accent hover:text-accent-400 flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Insert date/time variable"
+              title="Date presets & syntax"
             >
-              <CalendarClock size={14} />
-              <span>[[Date/Time]]</span>
+              <CalendarClock size={13} />
+              <span>Date</span>
             </button>
 
-            {/* (?) Help icon */}
+            {/* Fields dropdown button */}
             <button
-              ref={helpBtnRef}
+              ref={fieldsBtnRef}
               type="button"
               onClick={() => {
-                setHelpOpen((o) => !o);
+                setFieldsMenuOpen((o) => !o);
                 setDateMenuOpen(false);
               }}
-              className="text-ink-400 hover:text-ink-200 transition-colors cursor-pointer flex items-center"
-              title="Date syntax & examples"
+              className="text-[11px] font-mono text-accent hover:text-accent-400 flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Counters & CSV fields"
             >
-              <HelpCircle size={14} />
+              <Hash size={13} />
+              <span>Fields</span>
             </button>
           </div>
         }
@@ -597,17 +262,17 @@ export function TextSection({ element }: Props) {
         </div>
 
         {dateMenuOpen && (
-          <DatePresetsDropdown
+          <DateDropdown
             triggerRef={dateBtnRef}
             onClose={() => setDateMenuOpen(false)}
             onSelect={insertToken}
           />
         )}
 
-        {helpOpen && (
-          <DateHelpPopover
-            triggerRef={helpBtnRef}
-            onClose={() => setHelpOpen(false)}
+        {fieldsMenuOpen && (
+          <FieldsDropdown
+            triggerRef={fieldsBtnRef}
+            onClose={() => setFieldsMenuOpen(false)}
             onSelect={insertToken}
           />
         )}

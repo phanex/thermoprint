@@ -4,6 +4,7 @@ import type Konva from "konva";
 import type { BaseElement } from "../../../store/editor-store.ts";
 import { useEditorV2Store } from "../../../store/editor-store.ts";
 import { ElementWrapper } from "./element-wrapper.tsx";
+import { evaluateTemplate } from "@thermoprint/core";
 import { getDisplayText } from "../../../lib/date-format.ts";
 import {
   getPrimaryFontFamily,
@@ -60,8 +61,19 @@ export function TextElement({ element, isSelected }: Props) {
     autoWidth?: boolean;
   };
 
-  const evaluated = getDisplayText(p.text ?? "", p.datePreset as any, p.dateLocale);
-  const displayText = p.uppercase ? evaluated.toUpperCase() : evaluated;
+  const csvData = useEditorV2Store((s) => s.csvData);
+  const csvPreviewRowIndex = useEditorV2Store((s) => s.csvPreviewRowIndex);
+  const currentCsvRow =
+    csvData && csvData.length > 0
+      ? csvData[csvPreviewRowIndex] ?? csvData[0]
+      : {};
+
+  const dateEvaluated = getDisplayText(p.text ?? "", p.datePreset as any, p.dateLocale);
+  const templateEvaluated = evaluateTemplate(dateEvaluated, {
+    index: csvPreviewRowIndex,
+    csvRow: currentCsvRow,
+  }).text;
+  const displayText = p.uppercase ? templateEvaluated.toUpperCase() : templateEvaluated;
 
   const fontStyle =
     [p.italic ? "italic" : "", (p.fontWeight || 400) >= 600 ? "bold" : ""]

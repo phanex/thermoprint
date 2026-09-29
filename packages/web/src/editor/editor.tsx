@@ -11,7 +11,11 @@ import { useKeyboardShortcuts, setPrintFn } from "../lib/keyboard.ts";
 import { useEditorV2Store, registerThumbnailGetter } from "../store/editor-store.ts";
 import { usePrinterStore } from "../store/printer-store.ts";
 import { getPrinter, useWebBluetooth } from "../hooks/use-web-bluetooth.ts";
-import type { RawImageData } from "@thermoprint/core";
+import { type RawImageData, extractPlaceholders } from "@thermoprint/core";
+import { fitBatchElements } from "../label/dynamic-label.ts";
+import { checkPrinterCompatibility } from "../label/label-sizes.ts";
+import { type BatchItem } from "./top-chrome/print-button.tsx";
+import { loadCsvFile } from "../lib/csv-loader.ts";
 
 function captureLabel(
   stage: Konva.Stage,
@@ -115,7 +119,7 @@ export function Editor() {
 
   const { connect } = useWebBluetooth();
 
-  const print = useCallback(async (copies: number): Promise<boolean> => {
+  const printBatch = useCallback(async (items: BatchItem[]): Promise<boolean> => {
     let printer = getPrinter();
 
     // Silent background reconnect if GATT dropped but we still have a peripheral
@@ -133,8 +137,165 @@ export function Editor() {
     }
 
     const stage = stageRef.current;
+    if (!printer || !stage) return false;
 
-    // Need both a connected printer and a stage to print for real
+    const total = items.length;
+    const { label: baseLabel, printSettings, paperType, elements: originalElements } = useEditorV2Store.getState();
+
+    // Validate that required CSV fields exist and are loaded before sending to printer
+    const allCsv = new Set<string>();
+    for (const el of originalElements) {
+      if (el.type === "text" && typeof el.props.text === "string") {
+        extractPlaceholders(el.props.text).fields.forEach((f) => allCsv.add(f));
+      }
+      if ((el.type === "barcode" || el.type === "qrcode") && typeof el.props.content === "string") {
+        extractPlaceholders(el.props.content).fields.forEach((f) => allCsv.add(f));
+      }
+    }
+
+    if (allCsv.size > 0) {
+      const csvData = useEditorV2Store.getState().csvData;
+      if (!csvData || csvData.length === 0) {
+        alert("This template requires a CSV file. Please import CSV data to print.");
+        return false;
+      }
+      const headers = new Set(Object.keys(csvData[0] || {}));
+      const missing = Array.from(allCsv).filter((f) => !headers.has(f));
+      if (missing.length > 0) {
+        alert(`Missing required CSV column(s): ${missing.join(", ")}`);
+        return false;
+      }
+    }
+
+    const currentModel = usePrinterStore.getState().modelId ?? null;
+    const compat = checkPrinterCompatibility(currentModel, baseLabel, paperType);
+    if (!compat.compatible) {
+      const ok = confirm(`Warning: ${compat.reason}\n\nDo you want to send this batch anyway?`);
+      if (!ok) return false;
+    }
+
+    useEditorV2Store.getState().clearSelection();
+    const duration = Math.min(15000, 1500 + total * 450);
+    useEditorV2Store.getState().startPrint(total, duration);
+
+    const temporal = (useEditorV2Store as any).temporal;
+    temporal?.getState()?.pause();
+
+    try {
+      for (let i = 0; i < total; i++) {
+        const item = items[i];
+        const fitted = fitBatchElements(originalElements, baseLabel, {
+          index: item.index,
+          csvRow: item.csvRow,
+        });
+
+        if (fitted.shouldStop) {
+          console.warn(`Batch print stopped early at item ${i + 1} due to counter stop condition.`);
+          break;
+        }
+
+        useEditorV2Store.setState({
+          elements: fitted.elements,
+          label: fitted.label,
+        });
+
+        // Wait 1 animation frame for Konva to draw
+        await new Promise((r) => requestAnimationFrame(r));
+
+        const raw = captureLabel(stage, fitted.label.widthPx, fitted.label.heightPx);
+        const activeTapeWidth = fitted.label.tapeWidthMm ?? (fitted.label.heightMm <= fitted.label.widthMm ? fitted.label.heightMm : fitted.label.widthMm);
+        const needsRotation = Math.abs(fitted.label.heightMm - activeTapeWidth) < 0.1 && Math.abs(fitted.label.widthMm - activeTapeWidth) >= 0.1;
+        const canvas = needsRotation ? rotateCanvas90CW(raw) : raw;
+        const ctx = canvas.getContext("2d")!;
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const imageData: RawImageData = { data: imgData.data, width: canvas.width, height: canvas.height };
+
+        useEditorV2Store.setState({
+          printProgress: { bytesSent: i + 1, totalBytes: total },
+        });
+
+        await printer.print(imageData, {
+          density: printSettings.density,
+          paperType,
+          copies: 1,
+          dither: printSettings.ditherMode as any,
+          threshold: printSettings.threshold,
+        });
+
+        if (i < total - 1) {
+          await new Promise((r) => setTimeout(r, 150));
+        }
+      }
+
+      setTimeout(() => useEditorV2Store.getState().endPrint(), 400);
+      return true;
+    } catch (err) {
+      console.error("Batch print failed:", err);
+      useEditorV2Store.getState().endPrint();
+      return false;
+    } finally {
+      useEditorV2Store.setState({
+        elements: originalElements,
+        label: baseLabel,
+      });
+      temporal?.getState()?.resume();
+    }
+  }, [connect]);
+
+  const print = useCallback(async (copies: number): Promise<boolean> => {
+    const currentElements = useEditorV2Store.getState().elements;
+    const allCounters = new Set<string>();
+    const allCsv = new Set<string>();
+
+    for (const el of currentElements) {
+      if (el.type === "text" && typeof el.props.text === "string") {
+        const p = extractPlaceholders(el.props.text);
+        p.counters.forEach((c) => allCounters.add(c));
+        p.fields.forEach((f) => allCsv.add(f));
+      }
+      if ((el.type === "barcode" || el.type === "qrcode") && typeof el.props.content === "string") {
+        const p = extractPlaceholders(el.props.content);
+        p.counters.forEach((c) => allCounters.add(c));
+        p.fields.forEach((f) => allCsv.add(f));
+      }
+    }
+
+    if (allCsv.size > 0) {
+      const csvData = useEditorV2Store.getState().csvData;
+      if (!csvData || csvData.length === 0) {
+        alert("This template requires a CSV file. Please import CSV data to print.");
+        return false;
+      }
+      const headers = new Set(Object.keys(csvData[0] || {}));
+      const missing = Array.from(allCsv).filter((f) => !headers.has(f));
+      if (missing.length > 0) {
+        alert(`Missing required CSV column(s): ${missing.join(", ")}`);
+        return false;
+      }
+      return printBatch(csvData.map((row, idx) => ({ index: idx, csvRow: row, rowNumber: idx + 1 })));
+    }
+
+    if (allCounters.size > 0) {
+      return printBatch(Array.from({ length: copies }, (_, i) => ({ index: i, csvRow: {} })));
+    }
+
+    let printer = getPrinter();
+
+    // Silent background reconnect if GATT dropped but we still have a peripheral
+    if (!printer) {
+      const peripheral = usePrinterStore.getState().peripheral;
+      if (peripheral) {
+        try {
+          await connect(peripheral);
+          printer = getPrinter();
+        } catch (err) {
+          console.error("Silent reconnect failed:", err);
+          return false;
+        }
+      }
+    }
+
+    const stage = stageRef.current;
     if (!printer || !stage) return false;
 
     const { label, printSettings, paperType, elements } = useEditorV2Store.getState();
@@ -159,19 +320,13 @@ export function Editor() {
     // Capture the label region at 1:1 pixel resolution
     const raw = captureLabel(stage, label.widthPx, label.heightPx);
 
-    // Determine whether 90° CW rotation is needed:
-    // If the thermal print head width matches heightMm (e.g. 12mm tape on a 40x12 label),
-    // we rotate 90° CW so height becomes line width (96 dots) and width becomes feed length.
-    // If the print head width already matches widthMm (e.g. 50mm tape on a 50x30 label),
-    // line width is already along X, so direct print (no rotation) is used.
+    // Determine whether 90° CW rotation is needed
     const activeTapeWidth = label.tapeWidthMm ?? (label.heightMm <= label.widthMm ? label.heightMm : label.widthMm);
     const needsRotation = Math.abs(label.heightMm - activeTapeWidth) < 0.1 && Math.abs(label.widthMm - activeTapeWidth) >= 0.1;
     const canvas = needsRotation ? rotateCanvas90CW(raw) : raw;
     const rotatedW = canvas.width;
     const rotatedH = canvas.height;
 
-    // Send at the label's natural pixel size — no padding to print head width.
-    // The printer handles positioning; padding would 4x the data for narrow labels.
     const ctx = canvas.getContext("2d")!;
     const imgData = ctx.getImageData(0, 0, rotatedW, rotatedH);
     const imageData: RawImageData = { data: imgData.data, width: rotatedW, height: rotatedH };
@@ -183,7 +338,6 @@ export function Editor() {
     printer.on("progress", offProgress);
 
     try {
-      // Send to the real printer
       await printer.print(imageData, {
         density: printSettings.density,
         paperType,
@@ -196,7 +350,7 @@ export function Editor() {
     }
 
     return true;
-  }, []);
+  }, [connect, printBatch]);
 
   // Register print fn for keyboard shortcut
   useEffect(() => {
@@ -204,9 +358,36 @@ export function Editor() {
     return () => setPrintFn(null);
   }, [print]);
 
+  // Global drag-and-drop for CSV/TSV data files
+  useEffect(() => {
+    const onDragOver = (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes("Files")) {
+        e.preventDefault();
+      }
+    };
+    const onDrop = async (e: DragEvent) => {
+      const file = e.dataTransfer?.files?.[0];
+      if (!file) return;
+      const name = file.name.toLowerCase();
+      if (name.endsWith(".csv") || name.endsWith(".tsv")) {
+        e.preventDefault();
+        const res = await loadCsvFile(file);
+        if (!res.success) {
+          alert(res.error || "Failed to load CSV");
+        }
+      }
+    };
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, []);
+
   return (
     <div className="w-screen h-screen flex flex-col overflow-hidden bg-ink-950 text-ink-100">
-      <TopChrome onPrint={print} />
+      <TopChrome onPrint={print} onPrintBatch={printBatch} />
       <div className="relative flex-1 min-h-0 flex flex-col">
         <Canvas ref={stageRef} />
         <Inspector />

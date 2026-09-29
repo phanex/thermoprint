@@ -93,6 +93,14 @@ export interface EditorState {
   printFlyoutOpen: boolean;
   editingTextId: string | null;
 
+  // CSV Data & Batch
+  csvData: Record<string, string>[] | null;
+  csvFileName: string | null;
+  csvPreviewRowIndex: number;
+  setCsvData: (data: Record<string, string>[] | null, fileName: string | null) => void;
+  setCsvPreviewRowIndex: (index: number) => void;
+  clearCsv: () => void;
+
   // Actions — library
   saveLabel: () => void;
   saveLabelAs: (name: string) => void;
@@ -236,6 +244,11 @@ export const useEditorV2Store = create<EditorState>()(
       paletteOpen: false,
       printFlyoutOpen: false,
       editingTextId: null,
+
+      // CSV Data & Batch
+      csvData: null,
+      csvFileName: null,
+      csvPreviewRowIndex: 0,
 
       // ---- Actions — library ----
 
@@ -590,6 +603,26 @@ export const useEditorV2Store = create<EditorState>()(
         }),
 
       endPrint: () => set({ printing: false, printProgress: null }),
+
+      setCsvData: (data, fileName) => {
+        set({ csvData: data, csvFileName: fileName, csvPreviewRowIndex: 0 });
+        scheduleDynamicFit();
+      },
+
+      setCsvPreviewRowIndex: (index) => {
+        set((s) => ({
+          csvPreviewRowIndex: Math.max(
+            0,
+            s.csvData && s.csvData.length > 0 ? Math.min(s.csvData.length - 1, index) : index,
+          ),
+        }));
+        scheduleDynamicFit();
+      },
+
+      clearCsv: () => {
+        set({ csvData: null, csvFileName: null, csvPreviewRowIndex: 0 });
+        scheduleDynamicFit();
+      },
     }),
     {
       // Only track document state for undo/redo, not view/selection/UI

@@ -79,3 +79,21 @@ export type { DebugEntry } from "./debug-log.js";
 
 // Unit conversion
 export { PX_PER_MM, mmToPx, pxToMm } from "./utils/px-mm.js";
+
+// Template engine (counters and CSV fields)
+export {
+  evaluateCounter,
+  getMaxCountdownCopies,
+  evaluateTemplate,
+  hasDynamicTokens,
+  hasBatchTokens,
+  extractPlaceholders,
+} from "./template/template-engine.js";
+export type {
+  EvaluationContext,
+  EvaluationResult,
+  CounterEvaluation,
+} from "./template/template-engine.js";
+export { parseCsv } from "./template/csv-parser.js";
+export type { CsvParseResult } from "./template/csv-parser.js";
+

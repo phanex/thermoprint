@@ -1,12 +1,9 @@
 import { useEffect } from "react";
 import { useEditorV2Store, type BaseElement } from "../store/editor-store.ts";
-import { usePrinterStore } from "../store/printer-store.ts";
-import { scanAndConnect } from "../hooks/use-web-bluetooth.ts";
 
-// Module-level print callback, set by Editor when it mounts
-let _printFn: ((copies: number) => Promise<boolean>) | null = null;
-export function setPrintFn(fn: ((copies: number) => Promise<boolean>) | null) {
-  _printFn = fn;
+// Module-level print callback, maintained for backwards compatibility
+export function setPrintFn(_fn: ((copies: number) => Promise<boolean>) | null) {
+  // Print flow is now managed via PrintButton and thermoprint:open-print event
 }
 
 function uid(): string {
@@ -296,30 +293,10 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // Print
+      // Print current label (matching primary Print button)
       if (cmd && (key === "p" || code === "KeyP")) {
         e.preventDefault();
-        // If no printer connected, trigger scan and connect
-        if (!usePrinterStore.getState().isConnected) {
-          scanAndConnect();
-          return;
-        }
-        let copies = 1;
-        try {
-          copies = parseInt(localStorage.getItem("tp.copies") || "1", 10) || 1;
-        } catch { /* noop */ }
-        const duration = Math.min(4500, 1200 + copies * 220);
-        useEditorV2Store.getState().startPrint(copies, duration);
-        if (_printFn) {
-          _printFn(copies)
-            .then((sent) => {
-              if (sent) setTimeout(() => useEditorV2Store.getState().endPrint(), 400);
-              else setTimeout(() => useEditorV2Store.getState().endPrint(), duration + 400);
-            })
-            .catch(() => useEditorV2Store.getState().endPrint());
-        } else {
-          setTimeout(() => useEditorV2Store.getState().endPrint(), duration + 400);
-        }
+        window.dispatchEvent(new CustomEvent("thermoprint:print-current"));
         return;
       }
 

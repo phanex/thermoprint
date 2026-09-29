@@ -10,7 +10,7 @@ import {
   Heart,
 } from "lucide-react";
 import { useEditorV2Store } from "../../store/editor-store.ts";
-import { PrintButton } from "./print-button.tsx";
+import { PrintButton, type BatchItem } from "./print-button.tsx";
 import { PrinterChip } from "./printer-chip.tsx";
 import { FileChip } from "./file-chip.tsx";
 import { ThemePicker } from "./theme-picker.tsx";
@@ -18,9 +18,10 @@ import logoSvg from "../../assets/logo.svg";
 
 interface TopChromeProps {
   onPrint: (copies: number) => Promise<boolean>;
+  onPrintBatch: (items: BatchItem[]) => Promise<boolean>;
 }
 
-export function TopChrome({ onPrint }: TopChromeProps) {
+export function TopChrome({ onPrint, onPrintBatch }: TopChromeProps) {
   const zoom = useEditorV2Store((s) => s.zoom);
   const label = useEditorV2Store((s) => s.label);
   const gridVisible = useEditorV2Store((s) => s.gridVisible);
@@ -81,7 +82,7 @@ export function TopChrome({ onPrint }: TopChromeProps) {
         <a href="https://github.com/sponsors/tomLadder" target="_blank" rel="noopener noreferrer" className="w-8 h-8 flex items-center justify-center rounded-md text-pink-400 hover:bg-pink-500/10 hover:text-pink-300 hover-fade" title="Sponsor this project">
           <Heart size={16} />
         </a>
-        <PrintButton onPrint={onPrint} />
+        <PrintButton onPrint={onPrint} onPrintBatch={onPrintBatch} />
       </div>
 
       {/* Mobile: two rows */}
@@ -92,7 +93,7 @@ export function TopChrome({ onPrint }: TopChromeProps) {
           <FileChip />
           <div className="flex-1" />
           <PrinterChip />
-          <PrintButton onPrint={onPrint} />
+          <PrintButton onPrint={onPrint} onPrintBatch={onPrintBatch} />
         </div>
         {/* Row 2: undo, redo, zoom, search, grid, theme */}
         <div className="flex items-center gap-1 h-9 px-2 border-t border-white/5">

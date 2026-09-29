@@ -1,5 +1,7 @@
-import { mmToPx, pxToMm, getDevice } from "@thermoprint/core";
+import { mmToPx, pxToMm, getDevice, evaluateTemplate } from "@thermoprint/core";
 import type { BaseElement, LabelSize } from "../store/editor-store.ts";
+import { getDisplayText } from "../lib/date-format.ts";
+import { getPrimaryFontFamily } from "../lib/fonts.ts";
 
 export interface ElementBounds {
   minX: number;
@@ -205,3 +207,150 @@ export function computeDynamicLabel(
 ): LabelSize {
   return fitDynamicLabel(elements, currentLabel).label;
 }
+
+let _measureCanvas: HTMLCanvasElement | null = null;
+let _measureCtx: CanvasRenderingContext2D | null = null;
+
+export function measureTextMetrics(
+  text: string,
+  fontSize: number,
+  fontFamily: string,
+  fontWeight = 400,
+  italic = false,
+  letterSpacing = 0,
+  lineHeight = 1,
+): { width: number; height: number } {
+  if (typeof document === "undefined") {
+    return { width: 100, height: 24 };
+  }
+  if (!_measureCanvas) {
+    _measureCanvas = document.createElement("canvas");
+    _measureCtx = _measureCanvas.getContext("2d");
+  }
+  if (!_measureCtx) {
+    return { width: 100, height: 24 };
+  }
+
+  const style = italic ? "italic" : "normal";
+  const weight = fontWeight >= 600 ? "700" : "400";
+  const primaryFamily = getPrimaryFontFamily(fontFamily);
+  const fontSpec = `${style} ${weight} ${fontSize}px "${primaryFamily}", sans-serif`;
+  _measureCtx.font = fontSpec;
+
+  const lines = text.split("\n");
+  let maxW = 0;
+  for (const line of lines) {
+    const metrics = _measureCtx.measureText(line);
+    let w = metrics.width;
+    if (letterSpacing && line.length > 1) {
+      w += (line.length - 1) * letterSpacing;
+    }
+    if (w > maxW) maxW = w;
+  }
+
+  const lineH = Math.ceil(fontSize * lineHeight);
+  const totalH = Math.max(lineH, lines.length * lineH);
+
+  return {
+    width: Math.max(20, Math.ceil(maxW)),
+    height: totalH,
+  };
+}
+
+/**
+ * Evaluates elements for a specific batch item and re-fits dynamic dimensions if continuous.
+ */
+export function fitBatchElements(
+  elements: BaseElement[],
+  currentLabel: LabelSize,
+  context: { index: number; csvRow?: Record<string, string> },
+): {
+  elements: BaseElement[];
+  label: LabelSize;
+  shouldStop: boolean;
+} {
+  let shouldStop = false;
+
+  const evaluatedElements = elements.map((el) => {
+    if (el.type === "text") {
+      const p = el.props as {
+        text?: string;
+        fontSize?: number;
+        fontFamily?: string;
+        fontWeight?: number;
+        italic?: boolean;
+        letterSpacing?: number;
+        lineHeight?: number;
+        uppercase?: boolean;
+        datePreset?: string;
+        dateLocale?: string;
+        autoWidth?: boolean;
+      };
+
+      const dateEvaluated = getDisplayText(p.text ?? "", p.datePreset as any, p.dateLocale);
+      const res = evaluateTemplate(dateEvaluated, context);
+      if (res.stopPrint) shouldStop = true;
+
+      const finalText = p.uppercase ? res.text.toUpperCase() : res.text;
+
+      let nextW = el.width;
+      let nextH = el.height;
+      if (p.autoWidth !== false) {
+        const metrics = measureTextMetrics(
+          finalText,
+          p.fontSize || 18,
+          p.fontFamily || "Inter",
+          p.fontWeight || 400,
+          !!p.italic,
+          p.letterSpacing || 0,
+          p.lineHeight || 1,
+        );
+        nextW = metrics.width;
+        nextH = metrics.height;
+      }
+
+      return {
+        ...el,
+        width: nextW,
+        height: nextH,
+        props: {
+          ...el.props,
+          text: finalText,
+        },
+      };
+    }
+
+    if (el.type === "barcode" || el.type === "qrcode") {
+      const p = el.props as { content?: string };
+      const dateEvaluated = getDisplayText(p.content ?? "");
+      const res = evaluateTemplate(dateEvaluated, context);
+      if (res.stopPrint) shouldStop = true;
+
+      return {
+        ...el,
+        props: {
+          ...el.props,
+          content: res.text,
+        },
+      };
+    }
+
+    return el;
+  });
+
+  if (currentLabel.isDynamic) {
+    const fit = fitDynamicLabel(evaluatedElements, currentLabel);
+    return {
+      elements: fit.elements,
+      label: fit.label,
+      shouldStop,
+    };
+  }
+
+  return {
+    elements: evaluatedElements,
+    label: currentLabel,
+    shouldStop,
+  };
+}
+

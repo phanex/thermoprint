@@ -6,7 +6,92 @@ All notable changes and improvements in this fork of **Thermoprint**.
 
 ## [Unreleased]
 
+### 🏗️ Architecture & Refactoring
+- **1-Based Ordinal Range Parser & Validator (`packages/web/src/lib/range-parser.ts`)**:
+  - Implemented `parsePrintRanges` supporting Windows/standard print syntax (`1-50`, `2, 10-15, 99`, `14`), clamped to total items or counter bounds, deduplicated, returning empty array on malformed input (`abc`, `5-2`).
+  - Implemented clean `formatMediaDescription` adhering to user specification: dynamic continuous (`${tapeWidth} mm · dynamic`), fixed continuous with cutter margins (`${width} (+${lead+trail}) × ${height} mm` / portrait aware), and fixed gap (`${width} × ${height} mm`).
+- **Two-Tier Print Confirmation Workflow**:
+  - Direct execution: single-label jobs (`totalLabels === 1`) fire immediately with 0 delay and zero dialogs.
+  - Batch confirmation: multi-label jobs (`totalLabels > 1`) invoke `ConfirmPrintModal` with Enter/Escape keybindings.
+- **Unified CSV Loader & Validator Pipeline (`packages/web/src/lib/csv-loader.ts`)**:
+  - Implemented single standardized CSV/TSV loading procedure across the entire application (Status Bar, Fields Dropdown, Print Flyout, and global drag-and-drop).
+  - Validates file integrity, parses rows and headers, verifies against existing template placeholders `{{Field}}` on the canvas, and reports missing columns.
+- **Countdown Copy Limit Calculation (`getMaxCountdownCopies` in `@thermoprint/core`)**:
+  - Added mathematical copy limit computation for decrement counters (`+-step`). Automatically calculates exact maximum safe prints before underflow halting (`< 0`), e.g. `0100+-2` -> 51 labels (`Math.floor(start / step) + 1`).
+- **Complete Elimination of `BatchPrintModal`**:
+  - Deleted standalone 520px modal dialog (`batch-print-modal.tsx`) and unified all static, pure counter, and CSV batch print operations natively into the top-right `PrintButton` flyout.
+
+- **Confirmation Sanity Check Modal (`ConfirmPrintModal`)**:
+  - Portaled dialog to `document.body` via `createPortal`, preventing `TopChrome`'s `backdrop-blur-sm` from creating an ancestor containing block that clipped the modal off the top edge of the browser viewport.
+  - Implemented `max-h-[85vh]` with fixed header and footer (`shrink-0`) and vertically scrollable content (`flex-1 overflow-y-auto`).
+  - Standard scannable OS-style prompt: `Print: N copies / Are you sure?` (static) or `Print: N labels (items × copies) / Are you sure?` (batch), without conversational filler.
+  - Dynamic Sanity Table: orientation arranged with fields/counters as columns and sequential labels 1..N as rows, guaranteeing that values align vertically without horizontal scrolling. Unified header and data cell colors across counters and CSV fields (`text-ink-300` / `text-ink-200`), eliminating arbitrary accent cyan styling.
+  - Standard action buttons: Cancel and `Print N labels` with `<Printer />` icon and Enter-key default focus.
+- **WYSIWYG Quick-Print & Split Print Button**:
+  - Restored split button in top chrome:
+    - **Primary button (`Print ⌘P`)**: prints exactly 1 copy of the currently previewed label on the canvas (instant, zero delay, no modal), fulfilling true WYSIWYG expectations whether viewing static labels, CSV rows, or sequential counter steps.
+    - **Dropdown chevron**: opens the batch flyout with range configuration, copies, printer and media info, and batch print action.
+  - Contextual range defaulting: when browsing counter steps (e.g. at step 50), the range input placeholder and empty default automatically target the current step (`50`).
+  - Theme-compliant warning styling: invalid range inputs highlight in amber (`border-amber-400/60 text-amber-200 focus:border-amber-400`), matching the document unsaved indicator instead of arbitrary red or disabled styling.
+- **Status Bar Live Counter Paging & CSV Refinements**:
+  - Added live counter stepping widget in the bottom status bar (`# < 1/N >` for countdowns or `# < 1 >` for increment counters) when CSV is not loaded. Clicking `<` and `>` updates canvas elements and recalculates dynamic continuous tape length live.
+  - When CSV is loaded, displays cyan `📄 < 8/100 >` with micro-flyout.
+  - Dynamically elevated `status-bar` to `z-40` when `csvMenuOpen` is active, preventing the Dock toolbar (`z-30`) from rendering above and clipping the CSV options menu.
+  - Purged redundant "rows loaded" message from tooltip; tooltip strictly shows filename (`title={csvFileName || "CSV"}`).
+  - Simplified action labels to "Open CSV..." and "Remove CSV" (removed clumsy "from document" wording and rose hover accent).
+- **Unified `PrintButton` Flyout**:
+  - **Purged `Est. time`**: Removed Martian weather calculation from all flyout views.
+  - **Pure Counters (`{{#:...}}` without CSV)**: Uses the standard "Copies" stepper without redundant forms. Automatically clamps stepper `max` and quick-pick presets to countdown limit when `+-` step is active. Displays subtle sequence preview (`Start → End`).
+  - **CSV-backed Jobs**: Missing CSV state prompts with "Select CSV file..."; loaded CSV state provides row range picker (`All` vs `From [ ] to [ ]`) and `Copies per row` stepper (removed irrelevant `5, 10, 25, 50` quick-pick presets).
+- **Dynamic Template Engine (`@thermoprint/core`)**:
+  - Implemented zero-dependency template engine supporting sequential counters `{{#:start+step}}` (with decimal arithmetic, zero-padding `0001`, overflow expansion, negative step countdown `{{#:100+-1}}` with stop-print underflow guard `< 0`, multi-plus fallback taking the first step `{{#:0000+5+7}}` -> `+5`, and prefix/suffix preservation e.g. `SN-0001`, `00#01`).
+  - Added CSV row substitution `{{ColumnName}}` supporting RFC 4180 quoting and arbitrary column names.
+  - 100/100 comprehensive unit tests passing across all counter and CSV expressions.
+- **Auto-Detecting CSV/TSV Parser (`@thermoprint/core`)**:
+  - Built lightweight parser with automatic delimiter sniffing (`,`, `;`, `\t`), UTF-8 BOM stripping, escaped quote handling, multiline cells, and CRLF normalization.
+- **Dynamic Tape Batch Measurement (`fitBatchElements` in `dynamic-label.ts`)**:
+  - Added canvas-based font measurement (`measureTextMetrics`) and dynamic re-fitting for batch printing. On continuous paper rolls, each label dynamically recalculates its length and cutter margins based on the evaluated text of the current row/counter ("Сало" vs "Рододендрон").
+
+### 🎨 UI & Theme Alignment
+- **Inspector Dropdowns (`Date` & `Fields`)**:
+  - Simplified section-header action buttons to clean `Date` and `Fields` without bracket markers (`[[ ]]` and `{{ }}`), removing visual clutter.
+  - Added dedicated top-right `(?)` (`HelpCircle`) button inside each dropdown header to replace the view in-place with the syntax guide, without «Back» or «✕» buttons.
+  - Grouped all field tools directly under the `Fields` header: custom field name input at the top (`Field name...` + `+`/Enter), followed by loaded CSV columns, and a persistent `Import / Change CSV...` button at the bottom.
+  - Overhauled counter & fields syntax guide: replaced confusing ad-hoc examples with the positional stencil (mask) philosophy, intuitive `{{Назва поля}}`, and direct in-palette link to `docs/TEMPLATES.md`.
+  - Added comprehensive `docs/TEMPLATES.md` specification covering the stencil model, integer-only counter slots, padding, multi-level separators, overflow expansion, step directions, and CSV column binding.
+  - Purged redundant right-hand labels ("Date", "Time", "+7 days", "4-digit (+1)") and CSV sample values from lists, preventing multi-line wrapping and visual noise.
+  - Unified item colors (`text-ink-200 hover:text-accent font-mono whitespace-nowrap`) across counters, dates, and CSV fields to ensure consistent, elegant dropdown rendering.
+- **Streamlined Status Bar Mode Indicator (`packages/web/src/editor/status-bar.tsx`)**:
+  - Eliminated cluttered simultaneous display of `# ‹ 1 ›` and `CSV` when fields and counters coexist.
+  - Implemented 3 clean mutually exclusive indicator states:
+    1. **CSV Loaded**: Cyan `FileSpreadsheet` icon with `< 1/N >` pagination and click-to-open management menu.
+    2. **Fields Unloaded**: Gray `FileSpreadsheet` icon (clickable to open file picker); if counters are also present in the template, preserves live `< 1/N >` counter stepping so the user can preview counter values on the canvas.
+    3. **No Fields**: Slate `#` icon with `< 1/N >` counter paging when `{{#:...}}` is present, or static `#` indicator.
+- **Status Bar CSV Badge & Live Preview**:
+  - Refined into a seamless inline widget: `📄 X/Y < >` without outer box borders or sunken appearance, removed brackets, removed `✕` close button next to navigation controls, and moved full filename to tooltip.
+- **Editor Window Drag-and-Drop**:
+  - Added window-level drag-and-drop support for `.csv` and `.tsv` files.
+- **Dynamic Job Classification (`hasBatchTokens`)**:
+  - Decoupled single-label Date evaluation (`[[...]]`) from batch sequences (`{{...}}`). Standard labels with current dates now use the standard Print flow instead of prematurely triggering the batch pipeline.
+
 ### 🐛 Bug Fixes
+- **Split Button UX & Clean CTA Action Verbs (`print-button.tsx`, `editor.tsx`)**:
+  - Main split button (`Print ⌘P`) remains fully active and clickable (`bg-accent`); clicking it (or pressing `⌘P`) when CSV data is missing smoothly opens the batch flyout (`setOpen(true)`), immediately guiding the user to the file picker.
+  - The flyout CTA button remains a clean action verb (`Print N labels` / `Print N copies`), simply disabled (`disabled:opacity-40 disabled:cursor-not-allowed`) when prerequisites are not met, avoiding anti-pattern transformation into a verbose status display.
+  - The "Select CSV file..." upload box, missing required columns, and invalid ranges highlight with theme-compliant amber tokens (`border-amber-400/50 bg-amber-500/5 text-amber-200`).
+  - Low-level `printBatch` and `print` in `editor.tsx` validate required template fields against loaded CSV data and safely abort prior to canvas rendering or GATT packet transmission.
+- **Robust Multi-Script CSV Parser & Delimiter Sniffing (`csv-parser.ts`, `csv-loader.ts`)**:
+  - Gated all file inputs and window drag-and-drop strictly to `.csv` and `.tsv`.
+  - Added line-consistent delimiter detection across sample lines outside quoted blocks, correctly resolving `;` in European files with comma decimals (`1,50`) and `\t` in TSV files with commas in text fields.
+  - State machine tolerance: unquoted quotes (e.g. `12" monitor`, `3'5"`) no longer trigger quote-capture state or swallow subsequent delimiters.
+  - Preserves significant whitespace inside RFC 4180 quotes while trimming unquoted fields.
+  - Collision-proof header deduplication preventing key collisions even when imported files already contain numbered headers (e.g. `Tag`, `Tag (2)`, `Tag` -> `Tag`, `Tag (2)`, `Tag (3)`).
+  - Concise UTF-8 encoding verification detecting replacement character `\uFFFD` with minimal error message: `"Wrong encoding, UTF-8 required"`.
+- **Counter Canvas Preview Synchronized with CSV Paging**:
+  - **Root Cause**: `evaluateTemplate` in `TextElement` (`text-element.tsx`), `BarcodeElement` (`barcode-element.tsx`), and `QrElement` (`qr-element.tsx`) was hardcoded to `index: 0`. While paging through CSV records updated `csvRow`, counters remained frozen at the initial 0th value (e.g. row 30 still rendered `1` instead of `30`).
+  - **Resolution**: Passed `csvPreviewRowIndex` into `evaluateTemplate({ index: csvPreviewRowIndex, csvRow: currentCsvRow })` across all canvas elements. Advancing or reversing CSV preview rows now synchronously updates both CSV columns and sequential counter values in real time, triggering text auto-width re-measurement and dynamic tape re-fitting.
+- **Zundo Undo History Isolation during Batch Printing**:
+  - Batch print iterations now pause temporal undo tracking (`useEditorV2Store.temporal.getState().pause()`) and resume it in the `finally` block, preventing temporary batch element states from corrupting the user's undo/redo history.
 - **CI / GitHub Actions Build Fix (`@fontsource-variable` CSS imports & `bun.lock` synchronization)**:
   - **Root Cause**:
     1. In `packages/web/src/main.tsx`, `@fontsource-variable/jetbrains-mono` and `@fontsource-variable/nunito` were imported without the explicit `/index.css` extension (`import "@fontsource-variable/jetbrains-mono"`). Because `@fontsource-variable` packages specify `"main": "index.css"` without an `index.js` or `index.d.ts`, the TypeScript compiler under `"moduleResolution": "bundler"` looked for a JavaScript/TypeScript module declaration and failed with `error TS2307: Cannot find module '@fontsource-variable/jetbrains-mono' or its corresponding type declarations`, causing `tsc -b` to exit with error code 2.

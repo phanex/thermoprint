@@ -8,6 +8,8 @@ import { ElementWrapper } from "./element-wrapper.tsx";
 
 import { useElementDrag } from "../use-element-drag.ts";
 import { normalizeBarcodeContent } from "../../../lib/barcode-utils.ts";
+import { evaluateTemplate } from "@thermoprint/core";
+import { getDisplayText } from "../../../lib/date-format.ts";
 
 interface Props {
   element: BaseElement;
@@ -27,8 +29,19 @@ export function BarcodeElement({ element, isSelected }: Props) {
     pixelPerfect?: boolean;
   };
 
+  const csvData = useEditorV2Store((s) => s.csvData);
+  const csvPreviewRowIndex = useEditorV2Store((s) => s.csvPreviewRowIndex);
+  const currentCsvRow =
+    csvData && csvData.length > 0
+      ? csvData[csvPreviewRowIndex] ?? csvData[0]
+      : {};
+
   const format = p.format || "CODE128";
-  const rawContent = p.content ?? "1234567890";
+  const dateEvaluated = getDisplayText(p.content ?? "1234567890");
+  const rawContent = evaluateTemplate(dateEvaluated, {
+    index: csvPreviewRowIndex,
+    csvRow: currentCsvRow,
+  }).text;
   const showVal = p.displayValue ?? true;
   const isPixelPerfect = !!p.pixelPerfect;
 

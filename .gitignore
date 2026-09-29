@@ -18,8 +18,11 @@ Thumbs.db
 # Decompiled APK
 com.feioou.deliprint.yxq.apk/
 
-# Test artifacts
+# Test artifacts & debug dumps
 test-label.png
+*.log
+thermoprint-debug*.txt
+*-debug-*.txt
 
 # Config
 .env

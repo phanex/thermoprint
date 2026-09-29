@@ -5,6 +5,8 @@ import QRCode from "qrcode";
 import type { BaseElement } from "../../../store/editor-store.ts";
 import { useEditorV2Store } from "../../../store/editor-store.ts";
 import { ElementWrapper } from "./element-wrapper.tsx";
+import { evaluateTemplate } from "@thermoprint/core";
+import { getDisplayText } from "../../../lib/date-format.ts";
 
 import { useElementDrag } from "../use-element-drag.ts";
 
@@ -24,9 +26,22 @@ export function QrElement({ element, isSelected }: Props) {
     errorCorrectionLevel?: string;
   };
 
+  const csvData = useEditorV2Store((s) => s.csvData);
+  const csvPreviewRowIndex = useEditorV2Store((s) => s.csvPreviewRowIndex);
+  const currentCsvRow =
+    csvData && csvData.length > 0
+      ? csvData[csvPreviewRowIndex] ?? csvData[0]
+      : {};
+
+  const dateEvaluated = getDisplayText(p.content || "");
+  const evaluatedContent = evaluateTemplate(dateEvaluated, {
+    index: csvPreviewRowIndex,
+    csvRow: currentCsvRow,
+  }).text;
+
   const cacheKey = useMemo(
-    () => `${p.content || ""}|${p.errorCorrectionLevel || "M"}`,
-    [p.content, p.errorCorrectionLevel],
+    () => `${evaluatedContent}|${p.errorCorrectionLevel || "M"}`,
+    [evaluatedContent, p.errorCorrectionLevel],
   );
 
   const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -35,7 +50,7 @@ export function QrElement({ element, isSelected }: Props) {
     const canvas = document.createElement("canvas");
     QRCode.toCanvas(
       canvas,
-      p.content || " ",
+      evaluatedContent || " ",
       {
         errorCorrectionLevel:
           (p.errorCorrectionLevel as "L" | "M" | "Q" | "H") || "M",
