@@ -7,6 +7,11 @@ All notable changes and improvements in this fork of **Thermoprint**.
 ## [Unreleased]
 
 ### 🏗️ Architecture & Refactoring
+- **Conductor SDD (Spec-Driven Development) Setup**:
+  - Initialized Conductor project infrastructure (`conductor/`) with single-source-of-truth index (`conductor/index.md`).
+  - Formalized product vision (`product.md`), UX/UI guidelines enforcing strict `GEMINI.md` theme tokens (`product-guidelines.md`), and monorepo tech stack (`tech-stack.md`).
+  - Tailored operational workflow (`workflow.md`) to Bun/Yarn monorepo commands, >80% coverage target, per-task atomic commits, git notes summary attachments, and strict safety rules (no automatic `git push`, live validation before commit).
+  - Linked standard code style guides for TypeScript, HTML/CSS, and General development (`conductor/code_styleguides/`).
 - **1-Based Ordinal Range Parser & Validator (`packages/web/src/lib/range-parser.ts`)**:
   - Implemented `parsePrintRanges` supporting Windows/standard print syntax (`1-50`, `2, 10-15, 99`, `14`), clamped to total items or counter bounds, deduplicated, returning empty array on malformed input (`abc`, `5-2`).
   - Implemented clean `formatMediaDescription` adhering to user specification: dynamic continuous (`${tapeWidth} mm · dynamic`), fixed continuous with cutter margins (`${width} (+${lead+trail}) × ${height} mm` / portrait aware), and fixed gap (`${width} × ${height} mm`).
