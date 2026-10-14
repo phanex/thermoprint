@@ -1,62 +1,11 @@
-import { Group, Rect } from "react-konva";
-import { mmToPx } from "@thermoprint/core";
-import { useEditorV2Store } from "../../store/editor-store.ts";
-import { usePrinterStore } from "../../store/printer-store.ts";
-import { getActiveCutterMargins } from "../../label/dynamic-label.ts";
-
 /**
- * Pure white tape ear masks:
- * - Left ear: [-leadPx .. 0]
- * - Right ear: [widthPx .. widthPx + trailPx]
+ * Cutter ears visual masks:
+ * Previously rendered unshadowed pure white Rects over the tape margins [-leadPx..0] and [w..w+trailPx].
+ * Under fractional canvas zoom, those overlay Rects caused subpixel height anti-aliasing seams.
  *
- * Sits directly on the tape level above elements to cleanly mask
- * any element content sliding into the unprintable cut margins.
- * Completely pure white (#ffffff), no shadows, no borders, no corner radius.
+ * Content clipping is now handled natively on <Group id="canvas-elements">, so elements
+ * never bleed into the margins, and LabelPaper renders as one single seamless shaded ribbon.
  */
 export function CutterEars() {
-  const label = useEditorV2Store((s) => s.label);
-  const paperType = useEditorV2Store((s) => s.paperType);
-  const modelId = usePrinterStore((s) => s.modelId);
-
-  if (paperType !== "continuous") return null;
-
-  const margins = getActiveCutterMargins(
-    modelId,
-    label.tapeWidthMm,
-    "continuous",
-  );
-  if (!margins) return null;
-
-  const leadPx = mmToPx(margins.leadMm);
-  const trailPx = mmToPx(margins.trailMm);
-  const w = label.widthPx;
-  const h = label.heightPx;
-
-  return (
-    <Group listening={false}>
-      {/* Pure white left ear mask (straight 90-degree cut) */}
-      {leadPx > 0 && (
-        <Rect
-          x={-leadPx}
-          y={0}
-          width={leadPx}
-          height={h}
-          fill="#ffffff"
-          cornerRadius={0}
-        />
-      )}
-
-      {/* Pure white right ear mask (straight 90-degree cut) */}
-      {trailPx > 0 && (
-        <Rect
-          x={w}
-          y={0}
-          width={trailPx}
-          height={h}
-          fill="#ffffff"
-          cornerRadius={0}
-        />
-      )}
-    </Group>
-  );
+  return null;
 }

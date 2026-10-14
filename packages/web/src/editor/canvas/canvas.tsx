@@ -16,6 +16,7 @@ import { ChevronDown, Minus, Plus, X, PrinterX, Scissors } from "lucide-react";
 import { LabelPaper } from "./label-paper.tsx";
 import { CutterEars } from "./cutter-ears.tsx";
 import { getActiveCutterMargins } from "../../label/dynamic-label.ts";
+import { ElementWrapper } from "./elements/element-wrapper.tsx";
 import { TextElement } from "./elements/text-element.tsx";
 import { RectElement } from "./elements/rect-element.tsx";
 import { LineElement } from "./elements/line-element.tsx";
@@ -499,6 +500,100 @@ function renderElement(el: BaseElement, isSelected: boolean) {
   }
 }
 
+function renderElementTransformer(el: BaseElement) {
+  const editingTextId = useEditorV2Store.getState().editingTextId;
+  if (el.type === "text" && editingTextId === el.id) return null;
+
+  switch (el.type) {
+    case "text":
+      return (
+        <ElementWrapper
+          key={`tr-${el.id}`}
+          targetNodeId={el.id}
+          isSelected={true}
+          enabledAnchors={[
+            "top-left",
+            "top-right",
+            "bottom-left",
+            "bottom-right",
+            "middle-left",
+            "middle-right",
+            "top-center",
+            "bottom-center",
+          ]}
+          keepRatio={true}
+          boundBoxFunc={(oldBox, newBox) => {
+            if (Math.abs(newBox.width) < 20 || Math.abs(newBox.height) < 10) {
+              return oldBox;
+            }
+            return newBox;
+          }}
+          deps={[el.x, el.y, el.width, el.height, el.rotation]}
+        />
+      );
+    case "line":
+      return (
+        <ElementWrapper
+          key={`tr-${el.id}`}
+          targetNodeId={el.id}
+          isSelected={true}
+          enabledAnchors={["middle-left", "middle-right"]}
+          keepRatio={false}
+          deps={[el.x, el.y, el.width, el.height, el.rotation]}
+        />
+      );
+    case "qrcode":
+      return (
+        <ElementWrapper
+          key={`tr-${el.id}`}
+          targetNodeId={el.id}
+          isSelected={true}
+          enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right"]}
+          keepRatio={true}
+          deps={[el.x, el.y, el.width, el.height, el.rotation]}
+        />
+      );
+    case "barcode":
+      return (
+        <ElementWrapper
+          key={`tr-${el.id}`}
+          targetNodeId={el.id}
+          isSelected={true}
+          keepRatio={false}
+          deps={[el.x, el.y, el.width, el.height, el.rotation]}
+        />
+      );
+    case "image":
+      return (
+        <ElementWrapper
+          key={`tr-${el.id}`}
+          targetNodeId={el.id}
+          isSelected={true}
+          keepRatio={true}
+          deps={[el.x, el.y, el.width, el.height, el.rotation]}
+        />
+      );
+    case "rect":
+      return (
+        <ElementWrapper
+          key={`tr-${el.id}`}
+          targetNodeId={el.id}
+          isSelected={true}
+          keepRatio={false}
+          boundBoxFunc={(oldBox, newBox) => {
+            if (Math.abs(newBox.width) < 5 || Math.abs(newBox.height) < 5) {
+              return oldBox;
+            }
+            return newBox;
+          }}
+          deps={[el.x, el.y, el.width, el.height, el.rotation]}
+        />
+      );
+    default:
+      return null;
+  }
+}
+
 export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -835,7 +930,7 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
           />
         </Layer>
 
-        {/* Paper + elements + cutter ears layer */}
+        {/* Paper + elements + selection overlay layer */}
         <Layer
           id="label-group"
           x={originX}
@@ -844,10 +939,19 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
           scaleY={zoom}
         >
           <LabelPaper />
-          <Group id="canvas-elements">
-            {elements.map((el) =>
-              renderElement(el, selectedIds.includes(el.id)),
-            )}
+          <Group
+            id="canvas-elements"
+            clipX={paperType === "continuous" ? 0 : undefined}
+            clipY={paperType === "continuous" ? 0 : undefined}
+            clipWidth={paperType === "continuous" ? label.widthPx : undefined}
+            clipHeight={paperType === "continuous" ? label.heightPx : undefined}
+          >
+            {elements.map((el) => renderElement(el, false))}
+          </Group>
+          <Group id="canvas-selection-overlay">
+            {elements
+              .filter((el) => selectedIds.includes(el.id))
+              .map((el) => renderElementTransformer(el))}
           </Group>
           <CutterEars />
         </Layer>

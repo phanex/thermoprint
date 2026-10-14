@@ -21,7 +21,8 @@ interface TransformerBox {
 }
 
 interface Props {
-  nodeRef: React.RefObject<Konva.Node | null>;
+  nodeRef?: React.RefObject<Konva.Node | null>;
+  targetNodeId?: string;
   isSelected: boolean;
   deps?: unknown[];
   enabledAnchors?: string[];
@@ -34,6 +35,7 @@ interface Props {
 
 export function ElementWrapper({
   nodeRef,
+  targetNodeId,
   isSelected,
   deps = [],
   enabledAnchors,
@@ -49,13 +51,32 @@ export function ElementWrapper({
   const { accent, accent600 } = ACCENT_MAP[theme] || ACCENT_MAP.cyan;
 
   useEffect(() => {
-    if (isSelected && trRef.current && nodeRef.current) {
-      trRef.current.nodes([nodeRef.current]);
-      trRef.current.moveToTop();
-      trRef.current.forceUpdate();
-      trRef.current.getLayer()?.batchDraw();
-    }
-  }, [isSelected, nodeRef, accent, nodeRef.current, ...deps]);
+    if (!isSelected) return;
+    let animId: number;
+    const attach = () => {
+      const stage = trRef.current?.getStage();
+      const layer = trRef.current?.getLayer();
+      const node =
+        nodeRef?.current ||
+        (targetNodeId
+          ? (layer?.findOne(`#${targetNodeId}`) as Konva.Node | undefined) ||
+            (stage?.findOne(`#${targetNodeId}`) as Konva.Node | undefined)
+          : null);
+
+      if (trRef.current && node) {
+        trRef.current.nodes([node]);
+        trRef.current.moveToTop();
+        trRef.current.forceUpdate();
+        layer?.batchDraw();
+      } else if (targetNodeId) {
+        animId = requestAnimationFrame(attach);
+      }
+    };
+    attach();
+    return () => {
+      if (animId) cancelAnimationFrame(animId);
+    };
+  }, [isSelected, nodeRef, targetNodeId, accent, nodeRef?.current, ...deps]);
 
   if (!isSelected) return null;
 

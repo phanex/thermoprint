@@ -6,6 +6,13 @@ All notable changes and improvements in this fork of **Thermoprint**.
 
 ## [Unreleased]
 
+### 🐛 Bug Fixes & Refactoring
+- **Continuous Tape Subpixel Seam Elimination & Native Content Clipping (`packages/web/src/editor/canvas/`)**:
+  - **Root Cause**: `CutterEars` was overlaying two unshadowed `#ffffff` rectangles on top of elements at `[-leadPx .. 0]` and `[w .. w + trailPx]` to mask overflowing content. Under fractional canvas zoom and anti-aliasing, these separate overlay rectangles caused a 0.5–1px vertical height step/seam relative to the shadowed `LabelPaper` below, while also obscuring element selection handles.
+  - **Resolution**: Replaced overlay masks with native Konva clipping on `<Group id="canvas-elements">` (`clipX={0}`, `clipY={0}`, `clipWidth={label.widthPx}`, `clipHeight={label.heightPx}` in continuous mode). Elements never bleed into unprintable cut margins.
+  - **Unclipped Transformer Overlay (`canvas-selection-overlay`)**: Decoupled selection transformers into an unclipped sibling group above the clipped elements group. Selection borders, resize handles, and rotation controls remain 100% visible, accessible, and unclipped even when elements touch or cross label edges.
+  - **Physical Ribbon Invariance**: `LabelPaper` is now the sole unified ribbon surface with drop shadow from `-leadPx` to `widthPx + trailPx`, completely eliminating subpixel height mismatch. Z-order, printable origin `(0, 0)`, `captureLabel` raster bounds, and dynamic auto-fit remain 100% intact.
+
 ### 🏗️ Architecture & Refactoring
 - **Conductor SDD (Spec-Driven Development) Setup**:
   - Initialized Conductor project infrastructure (`conductor/`) with single-source-of-truth index (`conductor/index.md`).
