@@ -11,6 +11,10 @@
 5. **Micro-Changelog Logging:** Кожна знахідка протоколу, виправлення або UI-рішення негайно фіксується в `CHANGELOG.md` під секцією `## [Unreleased]`.
 6. **Test-Driven Development:** Write unit tests for core protocols, pipeline transformations, and parser logic before implementing.
 7. **Code Coverage Target:** Aim for >80% code coverage for `@thermoprint/core` and non-canvas business logic.
+8. **User Interaction & Operational Protocol:**
+   - **Questions**: When the user asks a question, do NOT modify code; explain and answer clearly.
+   - **Problem Reports**: When a problem/bug is pointed out, analyze root causes, design the fix, propose the plan/track, but do NOT execute changes prematurely.
+   - **Action**: Implement changes strictly upon explicit user command ("do it", "fix it", "let's go").
 
 ---
 
