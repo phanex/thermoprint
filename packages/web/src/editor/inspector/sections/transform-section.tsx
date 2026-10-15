@@ -94,8 +94,17 @@ export function TransformSection({ element }: Props) {
         <Field label="W" mono>
           <NumInput value={element.width} onChange={(v) => update({ width: v })} suffix="px" />
         </Field>
-        <Field label="H" mono>
-          <NumInput value={element.height} onChange={(v) => update({ height: v })} suffix="px" />
+        <Field
+          label="H"
+          mono
+          title={element.type === "line" ? "Line thickness is controlled by Stroke" : undefined}
+        >
+          <NumInput
+            value={element.type === "line" ? 0 : element.height}
+            onChange={(v) => update({ height: v })}
+            suffix="px"
+            disabled={element.type === "line"}
+          />
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-1.5 mt-1.5">

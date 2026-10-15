@@ -67,6 +67,7 @@ export function NumInput({
   max,
   step = 1,
   className = "",
+  disabled = false,
 }: {
   value: number;
   onChange: (v: number) => void;
@@ -75,6 +76,7 @@ export function NumInput({
   max?: number;
   step?: number;
   className?: string;
+  disabled?: boolean;
 }) {
   const formatVal = (v: number) => {
     if (isNaN(v)) return 0;
@@ -82,6 +84,7 @@ export function NumInput({
   };
 
   const handleWheel = (e: React.WheelEvent<HTMLInputElement>) => {
+    if (disabled) return;
     e.preventDefault();
     const mult = e.shiftKey ? 4 : 1;
     const rawDelta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
@@ -94,6 +97,7 @@ export function NumInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
     const mult = e.shiftKey ? 4 : 1;
     if (e.key === "ArrowUp") {
       e.preventDefault();
@@ -117,17 +121,26 @@ export function NumInput({
       : Number(value.toFixed(decimals));
 
   return (
-    <div className={`flex items-center h-7 rounded-md bg-ink-800 border border-white/5 focus-within:border-accent/50 px-2 gap-1 ${className}`}>
+    <div
+      className={`flex items-center h-7 rounded-md bg-ink-800 border border-white/5 ${
+        disabled
+          ? "opacity-35 cursor-not-allowed select-none"
+          : "focus-within:border-accent/50"
+      } px-2 gap-1 ${className}`}
+    >
       <input
         type="number"
         value={displayVal}
         step={step}
         min={min}
         max={max}
+        disabled={disabled}
         onWheel={handleWheel}
         onKeyDown={handleKeyDown}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full bg-transparent text-ui-sm text-ink-100 font-mono outline-none tabular-nums text-right [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className={`w-full bg-transparent text-ui-sm text-ink-100 font-mono outline-none tabular-nums text-right [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+          disabled ? "cursor-not-allowed" : ""
+        }`}
       />
       {suffix && (
         <span className="text-ui-2xs font-mono text-ink-400 select-none shrink-0">

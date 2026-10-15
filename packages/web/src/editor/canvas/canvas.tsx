@@ -16,8 +16,9 @@ import { ChevronDown, Minus, Plus, X, PrinterX, Scissors } from "lucide-react";
 import { LabelPaper } from "./label-paper.tsx";
 import { CutterEars } from "./cutter-ears.tsx";
 import { getActiveCutterMargins } from "../../label/dynamic-label.ts";
-import { ElementWrapper } from "./elements/element-wrapper.tsx";
+import { OffCanvasGhostOverlay } from "./off-canvas-ghost.tsx";
 import { TextElement } from "./elements/text-element.tsx";
+import { ElementWrapper } from "./elements/element-wrapper.tsx";
 import { RectElement } from "./elements/rect-element.tsx";
 import { LineElement } from "./elements/line-element.tsx";
 import { QrElement } from "./elements/qr-element.tsx";
@@ -538,7 +539,15 @@ function renderElementTransformer(el: BaseElement) {
           targetNodeId={el.id}
           isSelected={true}
           enabledAnchors={["middle-left", "middle-right"]}
+          hideBorderRect={true}
+          borderEnabled={true}
+          ignoreStroke={true}
           keepRatio={false}
+          boundBoxFunc={(oldBox, newBox) => {
+            newBox.height = oldBox.height;
+            if (Math.abs(newBox.width) < 5) return oldBox;
+            return newBox;
+          }}
           deps={[el.x, el.y, el.width, el.height, el.rotation]}
         />
       );
@@ -907,57 +916,7 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
         );
       })()}
 
-      <Stage
-        ref={(node) => {
-          stageRef.current = node;
-          if (typeof ref === "function") ref(node);
-          else if (ref) ref.current = node;
-        }}
-        width={size.w}
-        height={size.h}
-        onMouseDown={handleStageMouseDown}
-        style={{ position: "absolute", inset: 0 }}
-      >
-        {/* Background layer — click to deselect */}
-        <Layer>
-          <Rect
-            id="canvas-bg"
-            x={0}
-            y={0}
-            width={size.w}
-            height={size.h}
-            fill="transparent"
-          />
-        </Layer>
-
-        {/* Paper + elements + selection overlay layer */}
-        <Layer
-          id="label-group"
-          x={originX}
-          y={originY}
-          scaleX={zoom}
-          scaleY={zoom}
-        >
-          <LabelPaper />
-          <Group
-            id="canvas-elements"
-            clipX={paperType === "continuous" ? 0 : undefined}
-            clipY={paperType === "continuous" ? 0 : undefined}
-            clipWidth={paperType === "continuous" ? label.widthPx : undefined}
-            clipHeight={paperType === "continuous" ? label.heightPx : undefined}
-          >
-            {elements.map((el) => renderElement(el, false))}
-          </Group>
-          <Group id="canvas-selection-overlay">
-            {elements
-              .filter((el) => selectedIds.includes(el.id))
-              .map((el) => renderElementTransformer(el))}
-          </Group>
-          <CutterEars />
-        </Layer>
-      </Stage>
-
-      {/* Continuous mode: Cutter Margins tabs (штриховка) above and below the printable label */}
+      {/* Continuous mode: Cutter Margins tabs (штриховка) behind the Stage layer */}
       {paperType === "continuous" && (() => {
         const margins = getActiveCutterMargins(
           modelId || null,
@@ -1001,7 +960,7 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
                 borderLeft: "1.5px dashed var(--color-accent)",
                 borderRight: "1px solid color-mix(in srgb, var(--color-accent) 35%, transparent)",
                 pointerEvents: "none",
-                zIndex: 1,
+                zIndex: 0,
               }}
               className="flex items-center justify-center select-none"
             >
@@ -1026,7 +985,7 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
                 borderLeft: "1.5px dashed var(--color-accent)",
                 borderRight: "1px solid color-mix(in srgb, var(--color-accent) 35%, transparent)",
                 pointerEvents: "none",
-                zIndex: 1,
+                zIndex: 0,
               }}
             />
 
@@ -1044,7 +1003,7 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
                 borderLeft: "1px solid color-mix(in srgb, var(--color-accent) 35%, transparent)",
                 borderRight: "1.5px dashed var(--color-accent)",
                 pointerEvents: "none",
-                zIndex: 1,
+                zIndex: 0,
               }}
               className="flex items-center justify-center select-none"
             >
@@ -1069,12 +1028,83 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
                 borderLeft: "1px solid color-mix(in srgb, var(--color-accent) 35%, transparent)",
                 borderRight: "1.5px dashed var(--color-accent)",
                 pointerEvents: "none",
-                zIndex: 1,
+                zIndex: 0,
               }}
             />
           </>
         );
       })()}
+
+      <Stage
+        ref={(node) => {
+          stageRef.current = node;
+          if (typeof ref === "function") ref(node);
+          else if (ref) ref.current = node;
+        }}
+        width={size.w}
+        height={size.h}
+        onMouseDown={handleStageMouseDown}
+        style={{ position: "absolute", inset: 0, zIndex: 1 }}
+      >
+        {/* Background layer — click to deselect */}
+        <Layer>
+          <Rect
+            id="canvas-bg"
+            x={0}
+            y={0}
+            width={size.w}
+            height={size.h}
+            fill="transparent"
+          />
+        </Layer>
+
+        {/* Paper + elements + selection overlay layer */}
+        <Layer
+          id="label-group"
+          x={originX}
+          y={originY}
+          scaleX={zoom}
+          scaleY={zoom}
+        >
+          <LabelPaper />
+          <OffCanvasGhostOverlay />
+          <Group
+            id="canvas-elements"
+            clipFunc={(ctx) => {
+              const w = label.widthPx;
+              const h = label.heightPx;
+              ctx.beginPath();
+              if (paperType === "continuous") {
+                ctx.rect(0, 0, w, h);
+              } else {
+                const r = Math.min(10, w / 2, h / 2);
+                if (typeof (ctx as unknown as { roundRect?: Function }).roundRect === "function") {
+                  (ctx as unknown as { roundRect: Function }).roundRect(0, 0, w, h, r);
+                } else {
+                  ctx.moveTo(r, 0);
+                  ctx.lineTo(w - r, 0);
+                  ctx.arcTo(w, 0, w, r, r);
+                  ctx.lineTo(w, h - r);
+                  ctx.arcTo(w, h, w - r, h, r);
+                  ctx.lineTo(r, h);
+                  ctx.arcTo(0, h, 0, h - r, r);
+                  ctx.lineTo(0, r);
+                  ctx.arcTo(0, 0, r, 0, r);
+                  ctx.closePath();
+                }
+              }
+            }}
+          >
+            {elements.map((el) => renderElement(el, false))}
+          </Group>
+          <Group id="canvas-selection-overlay">
+            {elements
+              .filter((el) => selectedIds.includes(el.id))
+              .map((el) => renderElementTransformer(el))}
+          </Group>
+          <CutterEars />
+        </Layer>
+      </Stage>
 
       {/* Marquee selection rectangle (HTML overlay) */}
       {marquee && marquee.w > 2 && marquee.h > 2 && (

@@ -31,10 +31,33 @@ class WebBluetoothCharacteristic implements BleCharacteristic {
 
   async write(data: Uint8Array, withoutResponse: boolean): Promise<void> {
     const buffer = new Uint8Array(data).buffer as ArrayBuffer;
-    if (withoutResponse) {
-      await this.char.writeValueWithoutResponse(buffer);
-    } else {
-      await this.char.writeValueWithResponse(buffer);
+    const props = this.char.properties;
+    const supportsWithoutResponse = props ? props.writeWithoutResponse : true;
+    const devChar = this.char as unknown as {
+      writeValueWithoutResponse?: (v: BufferSource) => Promise<void>;
+      writeValueWithResponse?: (v: BufferSource) => Promise<void>;
+      writeValue?: (v: BufferSource) => Promise<void>;
+    };
+
+    if (withoutResponse && supportsWithoutResponse && typeof devChar.writeValueWithoutResponse === "function") {
+      try {
+        await devChar.writeValueWithoutResponse(buffer);
+        return;
+      } catch (err) {
+        if (typeof devChar.writeValueWithResponse === "function") {
+          await devChar.writeValueWithResponse(buffer);
+          return;
+        }
+        throw err;
+      }
+    }
+
+    if (typeof devChar.writeValueWithResponse === "function") {
+      await devChar.writeValueWithResponse(buffer);
+    } else if (typeof devChar.writeValueWithoutResponse === "function") {
+      await devChar.writeValueWithoutResponse(buffer);
+    } else if (typeof devChar.writeValue === "function") {
+      await devChar.writeValue(buffer);
     }
   }
 
@@ -79,11 +102,15 @@ class WebBluetoothService implements BleService {
     for (const cand of candidates) {
       try {
         const char = await this.service.getCharacteristic(cand);
-        if (char) return new WebBluetoothCharacteristic(char);
+        if (char) {
+          debugLog("BLE", `found characteristic ${typeof cand === "number" ? "0x" + cand.toString(16) : cand}`);
+          return new WebBluetoothCharacteristic(char);
+        }
       } catch {
         // try next candidate
       }
     }
+    debugLog("BLE", `characteristic not found for candidates: ${candidates.map((c) => typeof c === "number" ? "0x" + c.toString(16) : c).join(", ")}`);
     return null;
   }
 }
@@ -120,11 +147,15 @@ class WebBluetoothConnection implements BleConnection {
     for (const cand of candidates) {
       try {
         const service = await server.getPrimaryService(cand);
-        if (service) return new WebBluetoothService(service);
+        if (service) {
+          debugLog("BLE", `found primary service ${typeof cand === "number" ? "0x" + cand.toString(16) : cand}`);
+          return new WebBluetoothService(service);
+        }
       } catch {
         // try next candidate
       }
     }
+    debugLog("BLE", `primary service not found for candidates: ${candidates.map((c) => typeof c === "number" ? "0x" + c.toString(16) : c).join(", ")}`);
     return null;
   }
 
@@ -168,6 +199,8 @@ export class WebBluetoothTransport implements BleTransport {
     const id = device.id;
     deviceMap.set(id, device);
 
+    debugLog("BLE", `selected peripheral from browser dialog: "${device.name ?? ""}" (${id})`);
+
     onDiscover({
       id,
       name: device.name ?? "",
@@ -178,6 +211,7 @@ export class WebBluetoothTransport implements BleTransport {
   }
 
   async connect(peripheral: BlePeripheral): Promise<BleConnection> {
+    debugLog("BLE", `transport.connect() starting for "${peripheral.name}" (${peripheral.id})`);
     const device = deviceMap.get(peripheral.id);
     if (!device) {
       throw new Error(

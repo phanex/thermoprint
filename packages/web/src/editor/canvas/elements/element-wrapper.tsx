@@ -31,6 +31,8 @@ interface Props {
   transformerRef?: React.RefObject<Konva.Transformer | null>;
   flipEnabled?: boolean;
   keepRatio?: boolean;
+  borderEnabled?: boolean;
+  hideBorderRect?: boolean;
 }
 
 export function ElementWrapper({
@@ -44,6 +46,8 @@ export function ElementWrapper({
   transformerRef,
   flipEnabled = false,
   keepRatio = true,
+  borderEnabled = true,
+  hideBorderRect = false,
 }: Props) {
   const localTrRef = useRef<Konva.Transformer>(null);
   const trRef = transformerRef || localTrRef;
@@ -66,6 +70,29 @@ export function ElementWrapper({
       if (trRef.current && node) {
         trRef.current.nodes([node]);
         trRef.current.moveToTop();
+        (node as unknown as { _transformer?: Konva.Transformer })._transformer = trRef.current;
+
+        if (hideBorderRect) {
+          const back = trRef.current.findOne(".back") as Konva.Shape | undefined;
+          if (back) {
+            back.sceneFunc((ctx, shape) => {
+              const tr = shape.getParent() as Konva.Transformer | null;
+              if (!tr) return;
+              const width = shape.width();
+              const height = shape.height();
+              ctx.beginPath();
+              if (tr.rotateEnabled() && tr.rotateLineVisible()) {
+                const rotateAnchorOffset = tr.rotateAnchorOffset();
+                const cx = width / 2;
+                const cy = height / 2;
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx, cy - rotateAnchorOffset);
+              }
+              ctx.fillStrokeShape(shape);
+            });
+          }
+        }
+
         trRef.current.forceUpdate();
         layer?.batchDraw();
       } else if (targetNodeId) {
@@ -76,7 +103,7 @@ export function ElementWrapper({
     return () => {
       if (animId) cancelAnimationFrame(animId);
     };
-  }, [isSelected, nodeRef, targetNodeId, accent, nodeRef?.current, ...deps]);
+  }, [isSelected, nodeRef, targetNodeId, accent, nodeRef?.current, hideBorderRect, ...deps]);
 
   if (!isSelected) return null;
 
@@ -86,6 +113,7 @@ export function ElementWrapper({
       ref={trRef}
       rotateEnabled={true}
       enabledAnchors={enabledAnchors}
+      borderEnabled={borderEnabled}
       ignoreStroke={ignoreStroke ?? false}
       flipEnabled={flipEnabled}
       keepRatio={keepRatio}

@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { Printer, findDeviceByName, type BlePeripheral } from "@thermoprint/core";
+import { Printer, findDeviceByName, type BlePeripheral, debugLog } from "@thermoprint/core";
 import { WebBluetoothTransport } from "../transport/web-bluetooth.ts";
 import { usePrinterStore, applyModelDefaults } from "../store/printer-store.ts";
 import { useEditorV2Store } from "../store/editor-store.ts";
@@ -94,6 +94,7 @@ export async function connectPeripheral(peripheral: BlePeripheral): Promise<void
       }
     }
   } catch (err) {
+    debugLog("BLE", `connectPeripheral failed: ${err instanceof Error ? err.message : String(err)}`);
     store.getState().setError(err instanceof Error ? err.message : "Connection failed");
     store.getState().setConnecting(false);
     throw err;
@@ -156,6 +157,7 @@ export async function scanAndConnect(): Promise<void> {
         }, 2500);
       }
     } catch (err) {
+      debugLog("BLE", `scanAndConnect error: ${err instanceof Error ? err.message : String(err)}`);
       console.warn("[thermoprint] connect failed:", err);
     }
   }

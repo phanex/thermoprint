@@ -260,7 +260,10 @@ export function TextElement({ element, isSelected }: Props) {
   // 2. Vertical handles (top-center, bottom-center): scale font size & dimensions proportionally from opposite edge (Phomemo style), scaleX = scaleY.
   const handleTransform = useCallback(() => {
     const node = ref.current;
-    const tr = trRef.current;
+    const tr =
+      trRef.current ||
+      (node as unknown as { _transformer?: Konva.Transformer })?._transformer ||
+      (node?.getStage()?.findOne("Transformer") as Konva.Transformer | undefined);
     if (!node || !tr) return;
 
     const anchor = tr.getActiveAnchor();
@@ -308,7 +311,10 @@ export function TextElement({ element, isSelected }: Props) {
     const node = ref.current;
     if (!node) return;
 
-    const tr = trRef.current;
+    const tr =
+      trRef.current ||
+      (node as unknown as { _transformer?: Konva.Transformer })?._transformer ||
+      (node.getStage()?.findOne("Transformer") as Konva.Transformer | undefined);
     const anchor = tr?.getActiveAnchor();
     const isSideH = anchor === "middle-left" || anchor === "middle-right";
 

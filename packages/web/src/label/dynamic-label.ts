@@ -69,6 +69,23 @@ export function getActiveCutterMargins(
   return undefined;
 }
 
+/**
+ * Determines whether an element's bounding box is completely outside the printable canvas.
+ */
+export function isElementOffCanvas(
+  el: BaseElement,
+  labelWidthPx: number,
+  labelHeightPx: number,
+): boolean {
+  const b = getElementBounds(el);
+  return (
+    b.maxX <= 0 ||
+    b.minX >= labelWidthPx ||
+    b.maxY <= 0 ||
+    b.minY >= labelHeightPx
+  );
+}
+
 export interface DynamicFitResult {
   label: LabelSize;
   elements: BaseElement[];
@@ -83,6 +100,7 @@ export interface DynamicFitResult {
  *   to guarantee length > height and prevent orientation flipping.
  * - Width is rounded up to the nearest millimeter (Math.ceil).
  * - All elements are shifted as a block so the leftmost edge snaps flush to x = 0.
+ * - Elements parked completely off-canvas are excluded so they do not bloat dynamic tape width.
  */
 export function fitDynamicLabel(
   elements: BaseElement[],
@@ -115,11 +133,34 @@ export function fitDynamicLabel(
     };
   }
 
-  // 2. Compute exact bounding box across all elements
+  // 1b. Exclude parked off-canvas elements from stretching the dynamic ribbon
+  const activeElements = elements.filter(
+    (el) => !isElementOffCanvas(el, currentLabel.widthPx, currentLabel.heightPx),
+  );
+
+  if (activeElements.length === 0) {
+    const targetMm = Math.max(minLenMm, currentLabel.widthMm);
+    return {
+      label: {
+        ...currentLabel,
+        widthMm: targetMm,
+        heightMm: tapeWidthMm,
+        widthPx: mmToPx(targetMm),
+        heightPx: mmToPx(tapeWidthMm),
+        labelLengthMm: targetMm,
+        tapeWidthMm,
+        isDynamic: true,
+      },
+      elements,
+      shiftX: 0,
+    };
+  }
+
+  // 2. Compute exact bounding box across active elements
   let minX = Infinity;
   let maxX = -Infinity;
 
-  for (const el of elements) {
+  for (const el of activeElements) {
     const b = getElementBounds(el);
     if (b.minX < minX) minX = b.minX;
     if (b.maxX > maxX) maxX = b.maxX;

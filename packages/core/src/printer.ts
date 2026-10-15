@@ -51,92 +51,121 @@ export class Printer {
     transport: BleTransport,
     peripheral: BlePeripheral,
   ): Promise<Printer> {
-    const profile = findDeviceByName(peripheral.name);
-    if (!profile) {
-      throw new ThermoprintError(
-        ErrorCode.UNKNOWN_DEVICE,
-        `No device profile found for "${peripheral.name}"`,
-      );
-    }
-
-    const protocol = getProtocol(profile.protocolId);
-    const connection = await transport.connect(peripheral);
-
-    const service = await connection.discoverService(profile.serviceUuid);
-    if (!service) {
-      await connection.disconnect();
-      throw new ThermoprintError(
-        ErrorCode.SERVICE_NOT_FOUND,
-        `BLE service ${profile.serviceUuid} not found`,
-      );
-    }
-
-    const tx = await service.getCharacteristic(profile.characteristics.tx);
-    if (!tx) {
-      await connection.disconnect();
-      throw new ThermoprintError(
-        ErrorCode.CHARACTERISTIC_NOT_FOUND,
-        "TX characteristic not found",
-      );
-    }
-
-    const rx = await service.getCharacteristic(profile.characteristics.rx);
-    if (!rx && protocol.expectsAck) {
-      await connection.disconnect();
-      throw new ThermoprintError(
-        ErrorCode.CHARACTERISTIC_NOT_FOUND,
-        "RX characteristic not found",
-      );
-    }
-
-    const cx = profile.characteristics.cx
-      ? await service.getCharacteristic(profile.characteristics.cx)
-      : null;
-
-    let packetSize = profile.packetSize ?? DEFAULT_MTU;
-
-    const printer = new Printer(connection, profile, protocol, tx, rx, cx, packetSize);
-
-    // Subscribe to RX for status/responses if available
-    if (rx) {
-      try {
-        await rx.subscribe((data) => printer.handleRxData(data));
-      } catch (err) {
-        if (protocol.expectsAck) {
-          await connection.disconnect();
-          throw err;
-        }
-        debugLog("BLE", `RX notifications not available, continuing write-only: ${err}`);
+    try {
+      debugLog("BLE", `initiating connect to "${peripheral.name}" (${peripheral.id})`);
+      const profile = findDeviceByName(peripheral.name);
+      if (!profile) {
+        throw new ThermoprintError(
+          ErrorCode.UNKNOWN_DEVICE,
+          `No device profile found for "${peripheral.name}"`,
+        );
       }
-    }
+      debugLog("BLE", `matched profile: ${profile.modelId} (protocol: ${profile.protocolId})`);
 
-    // Subscribe to CX for flow control / MTU
-    if (cx) {
-      await cx.subscribe((data) => printer.handleCxData(data));
+      const protocol = getProtocol(profile.protocolId);
+      const connection = await transport.connect(peripheral);
 
-      // Wait for initial credits from the printer before returning.
-      // The printer sends [0x01, N] on CX shortly after connection to grant
-      // initial flow-control credits. Without this, the first print would
-      // start with 0 credits and rely on starvation recovery (1 pkt/sec),
-      // causing partial data to reach the printer before the full bitmap.
-      await printer.waitForInitialCredits();
-    }
+      debugLog("BLE", `discovering primary service ${profile.serviceUuid}`);
+      const service = await connection.discoverService(profile.serviceUuid);
+      if (!service) {
+        await connection.disconnect();
+        throw new ThermoprintError(
+          ErrorCode.SERVICE_NOT_FOUND,
+          `BLE service ${profile.serviceUuid} not found`,
+        );
+      }
+      debugLog("BLE", `service ${profile.serviceUuid} discovered successfully`);
 
-    // Emit disconnected event on unexpected BLE link loss
-    if (connection.onDisconnect) {
-      connection.onDisconnect(() => {
-        printer.stopKeepAlive();
-        if (!printer.disconnecting) {
-          debugLog("BLE", "unexpected disconnect");
-          printer.emit("disconnected", {});
+      debugLog("BLE", `discovering TX characteristic ${profile.characteristics.tx}`);
+      const tx = await service.getCharacteristic(profile.characteristics.tx);
+      if (!tx) {
+        await connection.disconnect();
+        throw new ThermoprintError(
+          ErrorCode.CHARACTERISTIC_NOT_FOUND,
+          "TX characteristic not found",
+        );
+      }
+      debugLog("BLE", `TX characteristic discovered`);
+
+      debugLog("BLE", `discovering RX characteristic ${profile.characteristics.rx}`);
+      const rx = await service.getCharacteristic(profile.characteristics.rx);
+      if (!rx && protocol.expectsAck) {
+        await connection.disconnect();
+        throw new ThermoprintError(
+          ErrorCode.CHARACTERISTIC_NOT_FOUND,
+          "RX characteristic not found",
+        );
+      }
+      debugLog("BLE", `RX characteristic: ${rx ? "found" : "not found (optional)"}`);
+
+      const cx = profile.characteristics.cx
+        ? await service.getCharacteristic(profile.characteristics.cx)
+        : null;
+      if (profile.characteristics.cx) {
+        debugLog("BLE", `CX characteristic: ${cx ? "found" : "not found"}`);
+      }
+
+      let packetSize = profile.packetSize ?? DEFAULT_MTU;
+
+      const printer = new Printer(connection, profile, protocol, tx, rx, cx, packetSize);
+
+      // Subscribe to RX for status/responses if available
+      if (rx) {
+        try {
+          const rxTimeoutMs = 2000;
+          let rxTimer: ReturnType<typeof setTimeout> | undefined;
+          await Promise.race([
+            rx.subscribe((data) => printer.handleRxData(data)),
+            new Promise<never>((_, reject) => {
+              rxTimer = setTimeout(
+                () => reject(new Error(`RX notification subscription timed out after ${rxTimeoutMs}ms`)),
+                rxTimeoutMs,
+              );
+            }),
+          ]).finally(() => {
+            if (rxTimer) clearTimeout(rxTimer);
+          });
+          debugLog("BLE", "RX notifications subscribed successfully");
+        } catch (err) {
+          if (protocol.expectsAck) {
+            await connection.disconnect();
+            throw err;
+          }
+          debugLog("BLE", `RX notifications not available, continuing write-only: ${err instanceof Error ? err.message : String(err)}`);
         }
-      });
+      }
+
+      // Subscribe to CX for flow control / MTU
+      if (cx) {
+        await cx.subscribe((data) => printer.handleCxData(data));
+        debugLog("BLE", "CX flow-control subscribed, waiting for initial credits...");
+        await printer.waitForInitialCredits();
+      }
+
+      // Emit disconnected event on unexpected BLE link loss
+      if (connection.onDisconnect) {
+        connection.onDisconnect(() => {
+          printer.stopKeepAlive();
+          if (!printer.disconnecting) {
+            debugLog("BLE", "unexpected disconnect");
+            printer.emit("disconnected", {});
+          }
+        });
+      }
+
+      printer.startKeepAlive();
+
+      debugLog("BLE", `connected to "${peripheral.name}" model=${profile.modelId} protocol=${profile.protocolId} packet=${packetSize} cx=${cx ? "yes" : "no"}`);
+      return printer;
+    } catch (err) {
+      const errStr = err instanceof ThermoprintError
+        ? `${err.code} - ${err.message}`
+        : err instanceof Error
+        ? `${err.name} - ${err.message}`
+        : String(err);
+      debugLog("BLE", `connect failed for "${peripheral.name}": ${errStr}`);
+      throw err;
     }
-
-    printer.startKeepAlive();
-
-    debugLog("BLE", `connected to "${peripheral.name}" model=${profile.modelId} protocol=${profile.protocolId} packet=${packetSize} cx=${cx ? "yes" : "no"}`);
-    return printer;
   }
 
   async print(image: RawImageData, options: PrintOptions = {}): Promise<void> {
