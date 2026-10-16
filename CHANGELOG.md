@@ -7,6 +7,10 @@ All notable changes and improvements in this fork of **Thermoprint**.
 ## [Unreleased]
 
 ### 🔌 Hardware & Protocol Discoveries
+- **Hardware Printhead Cross-Feed Calibration Parameter (`crossFeedOffsetDots`)**:
+  - **Tape Width Geometry & Printhead Clipping**: On 12mm continuous tape printed with Phomemo P12 (ESC/POS `GS v 0`), the physical TPH (thermal printhead) carriage guide centers the tape over dots 3..95 of the 96-dot print line. With 0 offset, canvas bottom dots ($Y=93..95$, mapped to printhead dots $0..2$ in byte 0) fall off the physical tape edge, leaving a corresponding blank margin at the top.
+  - **Universal Declarative Calibration Parameter**: Added `crossFeedOffsetDots?: number` to `DeviceProfile`, `PrintOptions`, and `PrintSequenceOptions`. Defined across all printer profiles: `pho-p12` set to `3` (shifts printhead elements by +3 to align active dots on tape), while `mark-p15`, `mark-p12`, and `mark-m60` default to `0`.
+  - **Bitmap Cross-Feed Shift Engine (`shiftBitmapCrossFeed` in `@thermoprint/core`)**: Built high-speed bit-level shifter in `packages/core/src/image/offset.ts` operating on `ImageBitmap1bpp` along the tape width axis. Integrated across all protocols (`pho-p12`, `mark-l11`, `mark-x2`) and `Printer.printBitmap`.
 - **Phomemo P12 BLE Telemetry & Packet Verification (`pho-p12`)**:
   - **Service & Characteristic Mapping**: Primary GATT service `0000ff00-0000-1000-8000-00805f9b34fb` (`0xff00`), TX characteristic `0000ff02-0000-1000-8000-00805f9b34fb` (`0xff02`), RX characteristic `0000ff03-0000-1000-8000-00805f9b34fb` (`0xff03`). Negotiated MTU chunk size: 128 bytes.
   - **Live Telemetry Packet Formats**:

@@ -15,6 +15,7 @@ export const markP12Profile: DeviceProfile = {
     packetDelayMs: 30,
   },
   defaults: { density: 2, paperType: "gap" },
+  crossFeedOffsetDots: 0,
   identification: {
     namePattern: /^(marklife[\s_-]?p12|p12.*_ble|lp90|p11)$/i,
     hasCx: true,

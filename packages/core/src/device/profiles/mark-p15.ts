@@ -16,6 +16,7 @@ export const markP15Profile: DeviceProfile = {
   },
   defaults: { density: 2, paperType: "gap" },
   densityCommand: "thickness",
+  crossFeedOffsetDots: 0,
   identification: {
     namePattern: /^(marklife[\s_-]?p15|p15.*_ble|p15[rs]?|lp15|ispace_lp15|out_lpc|m1|p7|s15|s12|p1s|lpc74)$/i,
     hasCx: true,

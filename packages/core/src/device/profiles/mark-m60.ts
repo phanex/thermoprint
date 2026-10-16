@@ -14,6 +14,7 @@ export const markM60Profile: DeviceProfile = {
     packetDelayMs: 1,
   },
   defaults: { density: 2, paperType: "gap" },
+  crossFeedOffsetDots: 0,
   identification: {
     namePattern: /^(marklife[\s_-]?m60|m60.*|x2.*)$/i,
     hasCx: true,

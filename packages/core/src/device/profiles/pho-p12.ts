@@ -15,6 +15,7 @@ export const phoP12Profile: DeviceProfile = {
     unmetered: true,
   },
   defaults: { density: 2, paperType: "continuous" },
+  crossFeedOffsetDots: 3,
   identification: {
     namePattern: /^(?!.*_ble$)(pho[_-]?p12|phomemo[\s_-]?p12|p12[\s_-]?pro.*|p12(_[0-9a-z]{4,6})?|p12)$/i,
     hasCx: false,

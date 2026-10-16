@@ -1,15 +1,17 @@
-# Implementation Plan: Phomemo P12 Printable Area Calibration & Vertical Offset Alignment
+# Implementation Plan: Phomemo P12 Printable Area Calibration & Cross-Feed Offset Alignment
 
 ## Phase 1: Device Profile & Calibration Schema
-- [ ] Task: Add printable area and offset configuration to `DeviceProfile` / `TapeOption`
-  - [ ] Add optional `printableDots?: number` and `dotOffset?: number` (or margin) to `TapeOption` / `DeviceProfile`.
-  - [ ] Configure `phoP12Profile` for 12mm tape: active printable dots = 93, offset to center on physical tape.
+- [x] Task: Add cross-feed offset configuration to `DeviceProfile`, `PrintOptions`, and `PrintSequenceOptions`
+  - [x] Add declarative `crossFeedOffsetDots?: number` to `DeviceProfile` in `packages/core/src/device/types.ts`.
+  - [x] Configure `phoP12Profile`: `crossFeedOffsetDots: 3` to align 93 active dots on tape.
+  - [x] Configure `markP15Profile`, `markP12Profile`, `markM60Profile`: `crossFeedOffsetDots: 0`.
 
 ## Phase 2: Raster Alignment Pipeline
-- [ ] Task: Implement offset-aware raster generation for rotated printers
-  - [ ] Adjust raster packing or rotation slicing to map the printable dots onto the 12-byte (96-dot) packet sent to P12 ESC/POS header.
-  - [ ] Verify unit tests for raster packing with offset.
+- [x] Task: Implement offset-aware raster shift engine
+  - [x] Implement `shiftBitmapCrossFeed(image, offsetDots)` in `packages/core/src/image/offset.ts`.
+  - [x] Integrate across all protocols (`pho-p12`, `mark-l11`, `mark-x2`) and `Printer.printBitmap`.
+  - [x] Verify unit tests for bitmap cross-feed shifting and protocol raster generation (`bun test`).
 
 ## Phase 3: Hardware Verification & Micro-Changelog
-- [ ] Task: Physical test print confirmation on user's Phomemo P12
-- [ ] Task: Record findings and byte structures in `CHANGELOG.md` under `## [Unreleased]`
+- [x] Task: Physical test print confirmation on user's Phomemo P12
+- [x] Task: Record findings and byte structures in `CHANGELOG.md` under `## [Unreleased]`

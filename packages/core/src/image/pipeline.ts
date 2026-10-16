@@ -46,5 +46,6 @@ export { toGrayscale } from "./grayscale.js";
 export { floydSteinbergDither } from "./dither.js";
 export { threshold } from "./threshold.js";
 export { packBits } from "./pack.js";
+export { shiftBitmapCrossFeed } from "./offset.js";
 export type { RawImageData } from "./types.js";
 export type { ImageBitmap1bpp } from "../protocol/types.js";

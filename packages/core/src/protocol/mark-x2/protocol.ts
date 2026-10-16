@@ -5,6 +5,7 @@ import type {
   PrinterResponse,
   PrintSequenceOptions,
 } from "../types.js";
+import { shiftBitmapCrossFeed } from "../../image/offset.js";
 import * as cmd from "./commands.js";
 
 const STATUS_CODES: Record<number, string> = {
@@ -22,7 +23,7 @@ export class MarkX2Protocol implements PrinterProtocol {
     image: ImageBitmap1bpp,
     options: PrintSequenceOptions = {},
   ): PrintCommand[] {
-    const { density, paperType = "gap" } = options;
+    const { density, paperType = "gap", crossFeedOffsetDots = 0 } = options;
     const commands: PrintCommand[] = [];
 
     if (paperType === "gap") {
@@ -42,7 +43,10 @@ export class MarkX2Protocol implements PrinterProtocol {
       commands.push(cmd.feedDots(100));
     }
 
-    commands.push(cmd.printBitmap(image));
+    const finalImage = crossFeedOffsetDots !== 0
+      ? shiftBitmapCrossFeed(image, crossFeedOffsetDots)
+      : image;
+    commands.push(cmd.printBitmap(finalImage));
 
     if (paperType === "gap") {
       commands.push(cmd.printerLocation(0x20, 0x00));

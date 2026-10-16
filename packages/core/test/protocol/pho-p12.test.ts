@@ -82,6 +82,26 @@ describe("Phomemo P12 Protocol", () => {
     assert.equal(commands[9].label, "feed");
   });
 
+  it("buildPrintSequence applies crossFeedOffsetDots to bitmap data", () => {
+    // 96 dots (12 bytes), dot 0 set (0x80 in byte 0)
+    const rawData = new Uint8Array(12);
+    rawData[0] = 0x80;
+    const image: ImageBitmap1bpp = {
+      data: rawData,
+      width: 96,
+      height: 1,
+      bytesPerRow: 12,
+    };
+
+    // With offset 3: dot 0 -> dot 3 (bit 4, 0x10 in byte 0)
+    const commands = protocol.buildPrintSequence(image, { crossFeedOffsetDots: 3 });
+    const bitmapCmd = commands.find((c) => c.label === "print-bitmap");
+    assert.ok(bitmapCmd);
+    // Header for GS v 0 is 10 bytes: 1B 40 1D 76 30 00 WL WH HL HH
+    // Payload starts at index 10
+    assert.equal(bitmapCmd.data[10], 0x10);
+  });
+
   it("parseResponse decodes battery levels", () => {
     const full = protocol.parseResponse(new Uint8Array([0x1a, 0x04, 0xa1]));
     assert.equal(full?.type, "battery");

@@ -63,6 +63,7 @@ export {
   floydSteinbergDither,
   threshold,
   packBits,
+  shiftBitmapCrossFeed,
 } from "./image/pipeline.js";
 export type { ProcessImageOptions, DitherMode } from "./image/pipeline.js";
 

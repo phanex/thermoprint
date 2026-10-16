@@ -5,6 +5,7 @@ import type {
   PrinterResponse,
   PrintSequenceOptions,
 } from "../types.js";
+import { shiftBitmapCrossFeed } from "../../image/offset.js";
 import * as cmd from "./commands.js";
 
 export class PhoP12Protocol implements PrinterProtocol {
@@ -15,7 +16,7 @@ export class PhoP12Protocol implements PrinterProtocol {
     image: ImageBitmap1bpp,
     options: PrintSequenceOptions = {},
   ): PrintCommand[] {
-    const { density } = options;
+    const { density, crossFeedOffsetDots = 0 } = options;
     const commands: PrintCommand[] = [];
 
     // 1. Preamble: 6-packet initialization sequence
@@ -26,8 +27,11 @@ export class PhoP12Protocol implements PrinterProtocol {
       commands.push(cmd.setDensity(density));
     }
 
-    // 3. Raster bit image
-    commands.push(cmd.printBitmap(image));
+    // 3. Raster bit image (with optional cross-feed hardware calibration offset)
+    const finalImage = crossFeedOffsetDots !== 0
+      ? shiftBitmapCrossFeed(image, crossFeedOffsetDots)
+      : image;
+    commands.push(cmd.printBitmap(finalImage));
 
     // 4. Feed past cutter (two ESC d 13 commands per soburi protocol)
     commands.push(cmd.feed());

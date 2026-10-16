@@ -49,6 +49,13 @@ export interface DeviceProfile {
   cutterMargins?: { leadMm: number; trailMm: number };
   labelConfig?: DeviceLabelConfig;
   hasBattery?: boolean;
+  /**
+   * Hardware printhead calibration offset across the tape width in dots (+/-).
+   * Positive or negative offset shifts the bitmap dots across the thermal line,
+   * aligning the active print area with physical tape bounds.
+   * Default: 0.
+   */
+  crossFeedOffsetDots?: number;
 }
 
 export interface PrintOptions {
@@ -57,6 +64,7 @@ export interface PrintOptions {
   copies?: number;
   dither?: "floyd-steinberg" | "threshold" | "none";
   threshold?: number;
+  crossFeedOffsetDots?: number;
 }
 
 export interface PrinterStatus {
