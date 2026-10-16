@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useEditorV2Store } from "../../store/editor-store.ts";
 import { downloadLabelAsJson } from "../../lib/library.ts";
+import { TapeRollIcon } from "../../components/tape-roll-icon.tsx";
 
 export function FileChip() {
   const currentLabelName = useEditorV2Store((s) => s.currentLabelName);
@@ -70,16 +71,32 @@ export function FileChip() {
   };
 
   return (
-    <div className="relative flex flex-col leading-tight" ref={ref}>
-      <span className="text-ui-xs font-mono uppercase tracking-wider text-ink-400">
-        Thermoprint
-      </span>
+    <div className="relative flex items-center gap-2.5" ref={ref}>
       <button
+        type="button"
         onClick={() => {
           if (!renaming) setOpen((o) => !o);
         }}
-        className="flex items-center gap-1 text-left hover-fade"
+        title="Main Menu"
+        className={`flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
+          open
+            ? "text-accent"
+            : "text-ink-400 hover:text-ink-100"
+        }`}
       >
+        <TapeRollIcon size={24} />
+      </button>
+
+      <div className="flex flex-col leading-tight">
+        <span className="text-ui-xs font-mono uppercase tracking-wider text-ink-400">
+          Thermoprint
+        </span>
+        <button
+          onClick={() => {
+            if (!renaming) setOpen((o) => !o);
+          }}
+          className="flex items-center gap-1 text-left hover-fade cursor-pointer"
+        >
         {renaming ? (
           <input
             autoFocus
@@ -109,6 +126,7 @@ export function FileChip() {
           </span>
         )}
       </button>
+      </div>
 
       {open && !renaming && (
         <div className="absolute left-0 top-10 w-56 bg-ink-850 border border-white/10 rounded-md shadow-panel py-1 text-ui-sm z-[70]">

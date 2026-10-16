@@ -6,6 +6,14 @@ All notable changes and improvements in this fork of **Thermoprint**.
 
 ## [Unreleased]
 
+### 🎨 UI & Theme Alignment
+- **Figma-Style Tape Reel Menu Button & Header Alignment (`file-chip.tsx`, `top-chrome.tsx`)**:
+  - **Dead Logo Removal**: Removed the unclickable static `<img>` logo from desktop and mobile headers (`top-chrome.tsx`), eliminating UX ambiguity.
+  - **Zero-Padding Menu Trigger (`FileChip`)**: Embedded `TapeRollIcon` (`size={24}`) using `tdesign:film-filled` vector directly into `FileChip` without button padding, border, or static background (`text-ink-400 hover:text-ink-100`, `text-accent` when open). Visually balances the two-line "Thermoprint / Label Name" lockup.
+- **Tape Reel Visual Identity & Adaptive SVG Favicon (`public/favicon.svg`, `tape-roll-icon.tsx`, `logo.svg`)**:
+  - **Reel Vector Metaphor**: Standardized on `tdesign:film-filled` vector (solid spool reel with 4 hub perforations and horizontal tape leader).
+  - **Background-Free Adaptive Favicon**: Created `packages/web/public/favicon.svg` with zero background card; dynamically shifts fill color via CSS `@media (prefers-color-scheme: dark)` between light mode cyan (`#0891b2`) and dark mode cyan (`#2ad0ff`), linked in `index.html`.
+
 ### 🔌 Hardware & Protocol Discoveries
 - **Hardware Printhead Cross-Feed Calibration Parameter (`crossFeedOffsetDots`)**:
   - **Tape Width Geometry & Printhead Clipping**: On 12mm continuous tape printed with Phomemo P12 (ESC/POS `GS v 0`), the physical TPH (thermal printhead) carriage guide centers the tape over dots 3..95 of the 96-dot print line. With 0 offset, canvas bottom dots ($Y=93..95$, mapped to printhead dots $0..2$ in byte 0) fall off the physical tape edge, leaving a corresponding blank margin at the top.
