@@ -27,6 +27,7 @@ import {
   Settings,
   LayoutTemplate,
   CalendarClock,
+  Repeat2,
 } from "lucide-react";
 import { useEditorV2Store } from "../../store/editor-store.ts";
 import { mmToPx } from "../../utils/px-mm.ts";
@@ -293,6 +294,35 @@ export const commands: Command[] = [
   { id: "redo", label: "Redo", group: "Edit", icon: Redo2, shortcut: "⌘⇧Z", run: () => useEditorV2Store.temporal.getState().redo() },
   { id: "dup", label: "Duplicate selection", group: "Edit", icon: Copy, shortcut: "⌘D", run: () => useEditorV2Store.getState().duplicateSelected() },
   { id: "del", label: "Delete selection", group: "Edit", icon: Trash2, shortcut: "⌫", run: () => useEditorV2Store.getState().removeSelected() },
+  {
+    id: "swap-fill-stroke",
+    label: "Swap fill and stroke",
+    group: "Edit",
+    icon: Repeat2,
+    run: () => {
+      const { selectedIds, elements, updateElement } = useEditorV2Store.getState();
+      const targets = elements.filter(
+        (e) => selectedIds.includes(e.id) && e.type === "rect",
+      );
+      targets.forEach((el) => {
+        const p = el.props as Record<string, unknown>;
+        const currentFill = (p.fill as string) || "none";
+        const currentStroke = (p.stroke as string) || "none";
+        const patch: Record<string, unknown> = {
+          fill: currentStroke,
+          stroke: currentFill,
+        };
+        if (
+          currentFill !== "none" &&
+          currentFill !== "transparent" &&
+          ((p.strokeWidth as number) ?? 0) <= 0
+        ) {
+          patch.strokeWidth = 2;
+        }
+        updateElement(el.id, { props: patch });
+      });
+    },
+  },
 
   // Align
   {

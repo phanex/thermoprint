@@ -118,7 +118,7 @@ function addRectEl() {
     width: 100,
     height: 60,
     rotation: 0,
-    props: { shapeType: "rect", cornerRadius: 0, fill: "", stroke: "#000000", strokeWidth: 2 },
+    props: { shapeType: "rect", cornerRadius: 0, fill: "#000000", stroke: "none", strokeWidth: 2 },
   });
 }
 
@@ -132,7 +132,7 @@ function addEllipseEl() {
     width: 70,
     height: 70,
     rotation: 0,
-    props: { shapeType: "ellipse", fill: "", stroke: "#000000", strokeWidth: 2 },
+    props: { shapeType: "ellipse", fill: "#000000", stroke: "none", strokeWidth: 2 },
   });
 }
 
@@ -146,7 +146,7 @@ function addPolygonEl(sides = 3) {
     width: 70,
     height: 70,
     rotation: 0,
-    props: { shapeType: "polygon", sides, fill: "", stroke: "#000000", strokeWidth: 2 },
+    props: { shapeType: "polygon", sides, fill: "#000000", stroke: "none", strokeWidth: 2 },
   });
 }
 
@@ -160,7 +160,7 @@ function addStarEl(points = 5, depth = 50) {
     width: 70,
     height: 70,
     rotation: 0,
-    props: { shapeType: "star", points, depth, fill: "", stroke: "#000000", strokeWidth: 2 },
+    props: { shapeType: "star", points, depth, fill: "#000000", stroke: "none", strokeWidth: 2 },
   });
 }
 

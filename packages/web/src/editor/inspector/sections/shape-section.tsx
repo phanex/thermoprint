@@ -1,4 +1,4 @@
-import { SquareArrowOutUpRight } from "lucide-react";
+import { SquareArrowOutUpRight, Repeat2 } from "lucide-react";
 import type { BaseElement } from "../../../store/editor-store.ts";
 import { useEditorV2Store } from "../../../store/editor-store.ts";
 import { Section, NumInput, ColorInput, Select } from "../fields.tsx";
@@ -38,6 +38,23 @@ export function ShapeSection({ element }: Props) {
       width: size,
       height: size,
     });
+  };
+
+  const swapFillAndStroke = () => {
+    const currentFill = p.fill || "none";
+    const currentStroke = p.stroke || "none";
+    const patch: Record<string, unknown> = {
+      fill: currentStroke,
+      stroke: currentFill,
+    };
+    if (
+      currentFill !== "none" &&
+      currentFill !== "transparent" &&
+      (p.strokeWidth ?? 0) <= 0
+    ) {
+      patch.strokeWidth = 2;
+    }
+    update(patch);
   };
 
   return (
@@ -183,14 +200,26 @@ export function ShapeSection({ element }: Props) {
           <span className="text-ui-xs uppercase tracking-wider text-ink-400 font-medium">
             Stroke
           </span>
-          <div className="w-[54px]" title="Stroke thickness">
-            <NumInput
-              value={p.strokeWidth ?? 2}
-              onChange={(v) => update({ strokeWidth: v })}
-              suffix="px"
-              min={1}
-              max={50}
-            />
+          <div className="flex items-center justify-between gap-2">
+            <div className="w-[54px]" title="Stroke thickness">
+              <NumInput
+                value={p.strokeWidth ?? 2}
+                onChange={(v) => update({ strokeWidth: v })}
+                suffix="px"
+                min={1}
+                max={50}
+              />
+            </div>
+            {element.type === "rect" && (
+              <button
+                type="button"
+                onClick={swapFillAndStroke}
+                title="Swap fill and stroke"
+                className="w-7 h-7 rounded-md bg-ink-800 border border-white/5 hover:bg-ink-750 hover:border-white/10 text-ink-300 hover:text-ink-50 flex items-center justify-center shrink-0 cursor-pointer transition-colors"
+              >
+                <Repeat2 size={13} />
+              </button>
+            )}
           </div>
           <ColorInput
             value={p.stroke || (element.type === "line" ? "#000000" : "none")}

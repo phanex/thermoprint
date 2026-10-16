@@ -20,6 +20,14 @@ All notable changes and improvements in this fork of **Thermoprint**.
   - **Model ID Command Behavior**: Querying `02 b6 00` on Phomemo P12 (firmware `0.1.9`) times out without response. Phomemo firmware does not support Marklife-style model interrogation; device identity is reliably inferred from BLE advertisement name matching (`/^(?:P12|Phomemo[-_ ]?P12)/i`).
 
 ### 🐛 Bug Fixes & Refactoring
+- **Swap Fill & Stroke Quick Action & Palette Command (`shape-section.tsx`, `commands.ts`)**:
+  - **Inspector Stroke Row Button**: Added a dedicated `28×28px` quick-swap button using Lucide `Repeat2` (`w-7 h-7`, `bg-ink-800 border border-white/5 hover:bg-ink-750`) right next to the Stroke thickness input. Only visible for 2D shapes (`rect`, `ellipse`, `polygon`, `star`), hidden for `line`.
+  - **Clean Tooltip & Proportions Alignment**: Set tooltip to `Swap fill and stroke` without noisy hotkey text, aligning vertically with the 1:1 reset button.
+  - **Intelligent Auto-Thickness Recovery**: When swapping a filled shape with no stroke (`strokeWidth <= 0`) to outline, automatically ensures `strokeWidth = 2` so borders are immediately visible.
+  - **Command Palette Integration**: Added `Swap fill and stroke` to `Ctrl+K` palette under `Edit` group with `Repeat2` icon for keyboard-centric workflows.
+- **Default Shape Creation Styling Inversion (`packages/web/src/lib/keyboard.ts`)**:
+  - Inverted default styles for newly added 2D shapes (Rectangle, Ellipse, Polygon, Star) to solid black fill (`fill: "#000000"`) without stroke (`stroke: "none"`, preserving `strokeWidth: 2` preset).
+  - Background panels, accent blocks, and badges are created immediately filled without requiring manual toggle, while frame/border usage can be toggled in 1 click via Inspector Stroke/Fill controls.
 - **Line Element Alignment, Rotator Stem, Inspector H Lock & Desync Elimination (`packages/web/src/editor/`)**:
   - **Dynamic Points SelfRect & Synchronous Transformer Refresh (`line-element.tsx`)**: Replaced closure-dependent `getSelfRect` with a dynamic instance function reading live `this.points()`, eliminating React render-cycle desync where Transformer would lock onto stale widths after transform. Added `trRef.current?.forceUpdate()` directly inside `onTransformEnd` so Transformer handles immediately snap to the newly resized line length without jumping.
   - **Rotator Stem Line Restoration (`element-wrapper.tsx`)**: Added `hideBorderRect` prop that overrides `.back.sceneFunc` to omit `ctx.rect` while retaining the vertical stem line (`ctx.moveTo(cx, cy); ctx.lineTo(cx, cy - rotateAnchorOffset)`). The rotator handle stays visibly connected by its accent stem without any rectangular frame.
