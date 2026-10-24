@@ -89,6 +89,11 @@ export function OffCanvasGhostOverlay() {
   const elements = useEditorV2Store((s) => s.elements);
   const label = useEditorV2Store((s) => s.label);
   const paperType = useEditorV2Store((s) => s.paperType);
+  const rasterPreviewVisible = useEditorV2Store((s) => s.rasterPreviewVisible);
+
+  // In live printhead raster preview mode ("eye" toggle), suppress editor bleed warnings
+  // so the user sees a 100% clean simulation of the physical printed tape without ear clutter.
+  if (rasterPreviewVisible) return null;
 
   const bleedingElements = elements.filter((el) =>
     isElementBleeding(el, label.widthPx, label.heightPx),

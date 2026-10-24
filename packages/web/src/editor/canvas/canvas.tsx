@@ -1128,7 +1128,7 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
           <>
             {/* Top ruler */}
             <div
-              className="absolute top-0 left-0 right-0 h-8 bg-ink-900/80 border-b border-ink-700/50 font-mono text-ui-xs text-ink-400 pointer-events-none"
+              className="absolute top-0 left-0 right-0 h-[22px] bg-ink-900/85 border-b border-ink-700/50 font-mono text-ui-xs text-ink-400 pointer-events-none select-none"
               style={{ backdropFilter: "blur(4px)" }}
             >
               <div className="relative w-full h-full">
@@ -1137,11 +1137,40 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
                   if (x < 0 || x > size.w) return null;
                   const major = mm % 5 === 0;
                   return (
-                    <div key={mm} style={{ position: "absolute", left: x, top: major ? 8 : 18, bottom: 0 }}>
-                      <div style={{ width: 1, height: major ? 12 : 5, background: "var(--color-ink-500)" }} />
+                    <div
+                      key={mm}
+                      style={{
+                        position: "absolute",
+                        left: x,
+                        bottom: 0,
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                        pointerEvents: "none",
+                      }}
+                    >
                       {major && (
-                        <div style={{ position: "absolute", left: 4, top: -5, whiteSpace: "nowrap" }}>{mm}</div>
+                        <span
+                          style={{
+                            position: "absolute",
+                            bottom: 6,
+                            left: 2,
+                            fontSize: "10px",
+                            lineHeight: 1,
+                            color: "var(--color-ink-300)",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {mm}
+                        </span>
                       )}
+                      <div
+                        style={{
+                          width: 1,
+                          height: major ? 5 : 3,
+                          background: "var(--color-ink-500)",
+                        }}
+                      />
                     </div>
                   );
                 })}
@@ -1149,7 +1178,7 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
             </div>
             {/* Left ruler */}
             <div
-              className="absolute top-0 left-0 bottom-0 w-8 bg-ink-900/80 border-r border-ink-700/50 font-mono text-ui-xs text-ink-400 pointer-events-none"
+              className="absolute top-0 left-0 bottom-0 w-[22px] bg-ink-900/85 border-r border-ink-700/50 font-mono text-ui-xs text-ink-400 pointer-events-none select-none"
               style={{ backdropFilter: "blur(4px)" }}
             >
               <div className="relative w-full h-full">
@@ -1158,11 +1187,41 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
                   if (y < 0 || y > size.h) return null;
                   const major = mm % 5 === 0;
                   return (
-                    <div key={mm} style={{ position: "absolute", top: y, left: major ? 8 : 18, right: 0 }}>
-                      <div style={{ height: 1, width: major ? 12 : 5, background: "var(--color-ink-500)" }} />
+                    <div
+                      key={mm}
+                      style={{
+                        position: "absolute",
+                        top: y,
+                        right: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                        pointerEvents: "none",
+                      }}
+                    >
                       {major && (
-                        <div style={{ position: "absolute", top: -9, left: -5 }}>{mm}</div>
+                        <span
+                          style={{
+                            position: "absolute",
+                            right: 7,
+                            top: 0,
+                            transform: "translateY(-50%)",
+                            fontSize: "10px",
+                            lineHeight: 1,
+                            color: "var(--color-ink-300)",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {mm}
+                        </span>
                       )}
+                      <div
+                        style={{
+                          height: 1,
+                          width: major ? 5 : 3,
+                          background: "var(--color-ink-500)",
+                        }}
+                      />
                     </div>
                   );
                 })}

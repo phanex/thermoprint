@@ -7,10 +7,14 @@ All notable changes and improvements in this fork of **Thermoprint**.
 ## [Unreleased]
 
 ### 🎨 UI & Theme Alignment
+- **Ultra-Compact Rulers (22px) & Tick Alignment (`canvas.tsx`)**:
+  - **Slim 22px Profile**: Reduced ruler width and height from 32px (`w-8`/`h-8`) to 22px (`w-[22px]`/`h-[22px]`), recovering 31% screen real estate around the canvas workspace.
+  - **Legible Monospace Typography**: Restored millimeter numerals to 10px (`color: var(--color-ink-300)`), crisp and readable against `bg-ink-900/85`.
+  - **Tick Anchoring & Dedicated Digit Clearance**: Major (`5px`) and minor (`3px`) ticks anchor strictly to the canvas border (`bottom: 0` on top ruler, `right: 0` on left ruler). Numerals are placed with dedicated clearance (`right: 7px` on vertical, `bottom: 6px` on horizontal), preventing ticks from cutting through numbers.
 - **Bleed Ghost Indicators for Elements Exceeding Printable Canvas Boundaries (`off-canvas-ghost.tsx`, `dynamic-label.ts`)**:
   - **Inverse Non-Zero Winding Clip**: Implemented an inverse clip on `<Group id="canvas-off-screen-ghosts">` that strictly excludes the white printable label hole (supporting both continuous rectangular and gap rounded-corner tape geometries) while covering the infinite workspace.
   - **Seamless Bleed Outlines**: When any element (line, rect, text, image, icon, qr, barcode) extends beyond the printable boundaries, its cropped exterior is immediately visualized with a crisp amber dashed outline (`#f59e0b`, `dash: [4, 4]`) and subtle tint (`rgba(245, 158, 11, 0.08)`).
-  - **Pristine Printable Paper Parity**: The white printable label canvas remains 100% clean and free of dashed bleed lines. Ghost overlays continue to be completely suppressed during physical thermal printing, thumbnail capture, and 1-bit raster previews via `captureLabel`.
+  - **Pristine Printable Paper Parity & Preview Mode Suppression**: The white printable label canvas remains 100% clean and free of dashed bleed lines. Ghost overlays are also suppressed whenever live printhead raster preview ("eye" button) is toggled, showing pure physical printed tape simulation without cutter ear clutter. Ghost overlays continue to be completely suppressed during physical thermal printing and thumbnail capture via `captureLabel`.
 
 
 ### 🐛 Bug Fixes
