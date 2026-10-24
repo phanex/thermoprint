@@ -12,6 +12,11 @@ import {
 import type { BaseElement } from "../../../store/editor-store.ts";
 import { useEditorV2Store } from "../../../store/editor-store.ts";
 import { Section, Field, NumInput } from "../fields.tsx";
+import {
+  getElementBounds,
+  getSelectionBounds,
+  calculateCenterOnLabelPatches,
+} from "../../../label/dynamic-label.ts";
 
 interface Props {
   elements: BaseElement[];
@@ -21,12 +26,8 @@ export function MultiTransformSection({ elements }: Props) {
   const updateElements = useEditorV2Store((s) => s.updateElements);
   const label = useEditorV2Store((s) => s.label);
 
-  const minX = Math.min(...elements.map((e) => e.x));
-  const minY = Math.min(...elements.map((e) => e.y));
-  const maxX = Math.max(...elements.map((e) => e.x + e.width));
-  const maxY = Math.max(...elements.map((e) => e.y + e.height));
-  const width = Math.max(0, maxX - minX);
-  const height = Math.max(0, maxY - minY);
+  const bounds = getSelectionBounds(elements);
+  const { minX, minY, maxX, maxY, width, height } = bounds;
 
   const updateX = (newX: number) => {
     const dx = newX - minX;
@@ -75,7 +76,8 @@ export function MultiTransformSection({ elements }: Props) {
   const alignLeft = () => {
     const patches: Record<string, Partial<BaseElement>> = {};
     elements.forEach((e) => {
-      patches[e.id] = { x: minX };
+      const eb = getElementBounds(e);
+      patches[e.id] = { x: Math.round(e.x + (minX - eb.minX)) };
     });
     updateElements(patches);
   };
@@ -84,7 +86,9 @@ export function MultiTransformSection({ elements }: Props) {
     const centerX = (minX + maxX) / 2;
     const patches: Record<string, Partial<BaseElement>> = {};
     elements.forEach((e) => {
-      patches[e.id] = { x: Math.round(centerX - e.width / 2) };
+      const eb = getElementBounds(e);
+      const eCenterX = (eb.minX + eb.maxX) / 2;
+      patches[e.id] = { x: Math.round(e.x + (centerX - eCenterX)) };
     });
     updateElements(patches);
   };
@@ -92,7 +96,8 @@ export function MultiTransformSection({ elements }: Props) {
   const alignRight = () => {
     const patches: Record<string, Partial<BaseElement>> = {};
     elements.forEach((e) => {
-      patches[e.id] = { x: maxX - e.width };
+      const eb = getElementBounds(e);
+      patches[e.id] = { x: Math.round(e.x + (maxX - eb.maxX)) };
     });
     updateElements(patches);
   };
@@ -100,7 +105,8 @@ export function MultiTransformSection({ elements }: Props) {
   const alignTop = () => {
     const patches: Record<string, Partial<BaseElement>> = {};
     elements.forEach((e) => {
-      patches[e.id] = { y: minY };
+      const eb = getElementBounds(e);
+      patches[e.id] = { y: Math.round(e.y + (minY - eb.minY)) };
     });
     updateElements(patches);
   };
@@ -109,7 +115,9 @@ export function MultiTransformSection({ elements }: Props) {
     const centerY = (minY + maxY) / 2;
     const patches: Record<string, Partial<BaseElement>> = {};
     elements.forEach((e) => {
-      patches[e.id] = { y: Math.round(centerY - e.height / 2) };
+      const eb = getElementBounds(e);
+      const eCenterY = (eb.minY + eb.maxY) / 2;
+      patches[e.id] = { y: Math.round(e.y + (centerY - eCenterY)) };
     });
     updateElements(patches);
   };
@@ -117,20 +125,14 @@ export function MultiTransformSection({ elements }: Props) {
   const alignBottom = () => {
     const patches: Record<string, Partial<BaseElement>> = {};
     elements.forEach((e) => {
-      patches[e.id] = { y: maxY - e.height };
+      const eb = getElementBounds(e);
+      patches[e.id] = { y: Math.round(e.y + (maxY - eb.maxY)) };
     });
     updateElements(patches);
   };
 
   const centerOnLabel = () => {
-    const targetX = Math.round((label.widthPx - width) / 2);
-    const targetY = Math.round((label.heightPx - height) / 2);
-    const dx = targetX - minX;
-    const dy = targetY - minY;
-    const patches: Record<string, Partial<BaseElement>> = {};
-    elements.forEach((e) => {
-      patches[e.id] = { x: e.x + dx, y: e.y + dy };
-    });
+    const patches = calculateCenterOnLabelPatches(elements, label.widthPx, label.heightPx);
     updateElements(patches);
   };
 

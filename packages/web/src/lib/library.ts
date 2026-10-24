@@ -23,6 +23,46 @@ export interface Library {
 
 const LS_KEY = "thermoprint.library.v1";
 
+/**
+ * Sanitizes element geometry, guarding against NaN, negative sizes, and extreme corruptions
+ * (e.g. width 34326, x 20652 from invalid distribute/scale).
+ */
+export function sanitizeElement(el: BaseElement): BaseElement {
+  if (!el || typeof el !== "object") {
+    return {
+      id: crypto.randomUUID(),
+      type: "text",
+      x: 0,
+      y: 0,
+      width: 50,
+      height: 20,
+      rotation: 0,
+      props: {},
+    };
+  }
+
+  let { x, y, width, height, rotation, ...rest } = el;
+  const id = typeof el.id === "string" && el.id ? el.id : crypto.randomUUID();
+  const type = el.type || "text";
+  const props = el.props && typeof el.props === "object" ? el.props : {};
+
+  x = Number.isFinite(x) ? Math.round(x) : 0;
+  y = Number.isFinite(y) ? Math.round(y) : 0;
+  width = Number.isFinite(width) ? Math.round(width) : 50;
+  height = Number.isFinite(height) ? Math.round(height) : (type === "line" ? 0 : 20);
+  rotation = Number.isFinite(rotation) ? Math.round(rotation) : 0;
+
+  // Protect against corrupted extremes (e.g. width 34326, x 20652 from failed distribute/scale)
+  if (width > 2000) width = 200;
+  if (width < 1) width = 1;
+  if (height > 2000) height = 100;
+  if (height < 0) height = 0;
+  if (x > 5000 || x < -2000) x = 0;
+  if (y > 5000 || y < -2000) y = 0;
+
+  return { ...rest, id, type, props, x, y, width, height, rotation } as BaseElement;
+}
+
 export function loadLibrary(): Library | null {
   try {
     const raw = localStorage.getItem(LS_KEY);
@@ -33,6 +73,12 @@ export function loadLibrary(): Library | null {
     if (parsed.projects && !parsed.labels) {
       parsed.labels = parsed.projects;
       delete parsed.projects;
+    }
+    if (Array.isArray(parsed.labels)) {
+      parsed.labels = parsed.labels.map((lbl: SavedLabel) => ({
+        ...lbl,
+        elements: Array.isArray(lbl.elements) ? lbl.elements.map(sanitizeElement) : [],
+      }));
     }
     return parsed as Library;
   } catch {

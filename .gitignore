@@ -41,3 +41,7 @@ reference/
 GEMINI.md
 AGENTS.md
 
+# OpenCode local config
+opencode.json
+opencode.jsonc
+.opencode/

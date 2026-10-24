@@ -6,6 +6,57 @@ All notable changes and improvements in this fork of **Thermoprint**.
 
 ## [Unreleased]
 
+### 🐛 Bug Fixes
+- **Accurate "Center on Label" & Alignment for Rotated Elements & Multi-Selection (`dynamic-label.ts`, `transform-section.tsx`, `multi-transform-section.tsx`, `commands.ts`)**:
+  - **Single Source of Truth (`calculateCenterOnLabelPatches` & `getSelectionBounds`)**: Created unified geometry helpers in `dynamic-label.ts` that compute oriented bounding boxes using `getElementBounds(el)` for any rotation angle (0°, 15°, 45°, 90°, 180°, 270°).
+  - **Fixed Single Element Centering in Command Palette**: Resolved bug in `commands.ts:centerOnLabel` where raw unrotated width and height were used (`(label.widthPx - el.width) / 2`), causing 90° rotated elements to fly off-center.
+  - **Fixed Multi-Element Group Centering & Alignment**: Refactored `multi-transform-section.tsx` and `commands.ts` (`alignLeft`, `alignRight`, `alignTop`, `alignBottom`, `alignCenterH`, `alignCenterV`, `centerOnLabel`) to calculate bounds and deltas from real visual bounding boxes rather than raw unrotated element properties.
+  - **UI Terminology Harmonization**: Renamed single-element inspector tooltip from `"Center both"` to `"Center on label"` and simplified `"Fit to label / Maximize"` to `"Fit to label"` in `transform-section.tsx`, unifying terminology with multi-selection and command palette.
+
+
+### 🎨 UI & Theme Alignment
+- **Symmetric Inspector Property Rows & Inline Browse Trigger (`image-section.tsx`)**:
+  - **Fixed-Width Label Columns**: Standardized all property labels (`NAME`, `COLLECTION`, `RESOLUTION`, `COLOR`, `TRANSFORM`) to a fixed `80px` width (`w-20 shrink-0`), aligning all property values on an exact vertical baseline.
+  - **Inline `FolderOpen` Browse Action**: Embedded a compact `w-7 h-7` inline browse button directly on the `NAME` row. Clicking it opens the Icon Library (for icons) or file picker (for images) to replace the current asset in place.
+  - **Image Metadata Display**: For image elements, added display of image `NAME` (filename) and natural pixel `RESOLUTION` (`${naturalWidth} × ${naturalHeight} px`).
+  - **Contextual Single Conversion Button**: Replaced redundant dual buttons with a single contextual button: `Replace with Image` for icons and `Replace with Icon` for images.
+
+### 🏗️ Architecture & Refactoring
+- **Vector Bayer 8×8 Halftoning & Composite Printhead Pipeline (`capture.ts`, `raster-preview-overlay.tsx`, `editor.tsx`)**:
+  - Implemented `capturePrintheadBitmap` to intelligently separate non-raster vector elements from continuous-tone photographic images.
+  - Non-raster vector elements with gray fills (rectangles, lines, text) are consistently halftoned via Bayer 8×8 ordered dithering, eliminating serpentine error-diffusion "worm" artifacts and generating clean, stable crosshatch screens.
+  - Continuous-tone photos are dithered with the user's active dithering algorithm (Atkinson, Floyd-Steinberg, Bayer, Threshold) and composited into a unified 1-bit thermal printhead bitmap for both preview and printing.
+
+### 🐛 Bug Fixes
+- **Canvas Dimension Preservation on Asset Replacement (`icons-flyout.tsx`, `image-section.tsx`)**:
+  - Fixed an issue where replacing an icon or image clobbered the element's existing canvas `width` and `height` with natural image dimensions.
+  - Both `handleSelectIcon` and `handleReplaceImageFile` now strictly preserve existing element dimensions and canvas placement.
+
+### 🎨 UI & Theme Alignment
+- **1-Bit Thermal Printhead Live Raster Preview ("Eye" Toggle Button) (`top-chrome.tsx`, `raster-preview-overlay.tsx`, `canvas.tsx`, `capture.ts`)**:
+  - **TopChrome Permanent Eye Button**: Standardized on a permanent `<Eye />` icon (desktop `15px`, mobile `13px`) with theme accent active toggle state (`text-accent bg-accent/10 border-accent/20`), eliminating the crossed-out `EyeOff` icon.
+  - **Full-Label Pixel-Perfect Printhead Preview**: Built `<RasterPreviewOverlay />` in `canvas.tsx` using modularized `captureLabel` from `capture.ts`. Captures the entire label (paper background, vector shapes, gray fills, text, and rotated images) at 1:1, runs global dithering (Atkinson, Floyd-Steinberg, Bayer, or Threshold), and projects the exact thermal burned dots over the canvas.
+  - **Live Interaction Motion-Bypass & Debounce**: When the user drags or transforms elements on canvas (`dragstart`, `transformstart`), the 1-bit raster overlay instantly hides to preserve 60 FPS smooth vector manipulation. After motion stops (`dragend`, `transformend`), a comfortable 1000ms debounce timer recalculates and applies the crisp 1-bit thermal printhead raster.
+- **Image Inspector Compact Quick Actions (`image-section.tsx`, `image-element.tsx`)**:
+  - **Clean Icon-Only Buttons**: Replaced verbose text buttons with compact `28×28px` icon buttons (`FlipHorizontal`, `FlipVertical`, and `Eclipse` for Invert), matching design system tokens (`w-7 h-7 bg-ink-800 border border-white/5 hover:bg-ink-750`).
+  - **In-Memory Pixel Buffer Transforms (`displayImage`)**: Moved Flip H, Flip V, and Invert processing directly into the offscreen pixel buffer (`c.getContext("2d")`) in `ImageElement`. The Konva Image Node retains standard positive scale (`scaleX: 1`, `scaleY: 1`) and zero offsets (`offsetX: 0`, `offsetY: 0`), completely eliminating inverted transformer resize handles and rotation pivot glitches when elements are flipped.
+  - **Removal of Redundant Per-Image Dither**: Removed per-image dither overrides and threshold sliders from `ImageSection`, unifying dithering at the global printhead level where it applies cohesively to the entire label.
+
+### 🏗️ Architecture & Refactoring
+- **Expanded Dithering Algorithms in Core Engine (`@thermoprint/core`)**:
+  - **Atkinson Dithering (`atkinsonDither` in `packages/core/src/image/dither.ts`)**: Classic Apple Macintosh 75% error diffusion across 6 neighbor pixels (`1/8` each), preventing dirty dot bleed and keeping line art and text exceptionally crisp on thermal printheads.
+  - **Bayer 8×8 Ordered Halftone (`bayerDither` in `packages/core/src/image/dither.ts`)**: Normalized 64-level Bayer matrix dispersion for retro halftone dithering.
+  - **Pipeline Invert & Exports**: Updated `processImage` and `DitherMode` to support `"atkinson"`, `"bayer"`, and `invert?: boolean`. Re-exported from core index.
+- **Modular Canvas Label Capture Engine (`packages/web/src/editor/canvas/capture.ts`)**:
+  - Extracted `captureLabel` and `rotateCanvas90CW` from `editor.tsx` into a dedicated capture utility. Hides selection overlays, ghost warnings, and raster previews during capture to guarantee 100% clean captures for printing, library thumbnails, and raster preview generation.
+
+### 🐛 Bug Fixes
+- **Stale Raster Overlay Flash on Drag/Transform Release (`raster-preview-overlay.tsx`)**:
+  - Fixed an issue where releasing a dragged or transformed element immediately showed the stale old raster preview for 1000ms before recalculating.
+  - Introduced `isStale` lifecycle tracking: the raster preview overlay remains completely suppressed throughout interaction and during the entire post-motion debounce window, smoothly displaying the live vector canvas until the fresh 1-bit thermal printhead raster is calculated.
+- **Icons Keyboard Shortcut De-duplication (`packages/web/src/lib/keyboard.ts`)**:
+  - Removed legacy redundant `c` / `KeyC` shortcut for opening icons flyout, keeping strictly `i` / `KeyI` as documented.
+
 ### 🎨 UI & Theme Alignment
 - **Figma-Style Tape Reel Menu Button & Header Alignment (`file-chip.tsx`, `top-chrome.tsx`)**:
   - **Dead Logo Removal**: Removed the unclickable static `<img>` logo from desktop and mobile headers (`top-chrome.tsx`), eliminating UX ambiguity.
@@ -28,6 +79,19 @@ All notable changes and improvements in this fork of **Thermoprint**.
   - **Model ID Command Behavior**: Querying `02 b6 00` on Phomemo P12 (firmware `0.1.9`) times out without response. Phomemo firmware does not support Marklife-style model interrogation; device identity is reliably inferred from BLE advertisement name matching (`/^(?:P12|Phomemo[-_ ]?P12)/i`).
 
 ### 🐛 Bug Fixes & Refactoring
+- **Rotation-Aware Canvas Marquee Selection (B04) (`canvas.tsx`, `transform-alignment.test.ts`)**:
+  - **Rotated Bounding Box Marquee Hits**: Replaced unrotated AABB test (`elScreenX + elScreenW > marquee.x...`) in `canvas.tsx` with oriented bounding box testing using `getElementBounds(el)` converted to canvas space (`b.maxX >= x1 && b.minX <= x2 && b.maxY >= y1 && b.minY <= y2`).
+  - **Accurate Selection of Rotated Shapes**: Elements rotated at arbitrary angles (such as a 200×20px stick at 45°) now correctly test against their true visual diamond bounds, allowing marquee selection to capture extending tips and corners.
+  - **Unit Test Verification**: Added unit test in `packages/web/test/transform-alignment.test.ts` verifying that marquee selection hits rotated diamond tips that were previously missed by unrotated dimensions.
+- **Clean Rotation-Aware Single-Element Inspector Alignment (B14) & Safe State Healing (`transform-section.tsx`, `library.ts`, `main.tsx`, `editor-store.ts`)**:
+  - **Failed Prior Multi-Selection Attempt Analysis**: A previous attempt to apply visual bounding boxes (`getElementBounds`) broadly across `multi-transform-section.tsx` and `commands.ts` caused severe regressions: including off-canvas parked elements (with $Y = -220$) in the global bounding box shifted all selected elements off the canvas ($Y < 0$), and `distributeH` scattered elements across an extreme span to $X = 7031, 13863, 20652$ (causing element widths up to 34326).
+  - **Variant B Revert & Scope Isolation**: Executed Variant B by cleanly reverting `multi-transform-section.tsx` and `commands.ts` to their proven, stable baseline. Confined B14 strictly to single-element Inspector alignment (`transform-section.tsx:16-25`), perfectly honoring the specification.
+  - **Symmetric Visual Center Calculation**: Replaced raw unrotated offsets `(label.widthPx - element.width) / 2` in `alignH`, `alignV`, and `alignBoth` with visual center deltas `element.x + (label.widthPx / 2 - (minX + maxX) / 2)` derived from `getElementBounds(element)`. Rotated elements (at 45°, 90°, 180°, 270°) now center with mathematically exact visual symmetry on the canvas without affecting multi-selection.
+  - **Corrupt Geometry Sanitization Engine (`sanitizeElement`)**: Added `sanitizeElement` in `library.ts`, guarding on app boot (`main.tsx`), `loadLibrary`, `openLabel`, `importLabel`, `saveLabel`, `saveLabelAs`, and `deleteLabel`. Clamps extreme widths (> 2000px clamped to 200px) and wild coordinates ($X > 5000$ or $X < -2000$ reset to 0), guaranteeing valid IDs, types, and props, auto-healing existing corrupted `localStorage` sessions and preventing canvas bloat.
+  - **NaN-Resilient Oriented Bounding Boxes (`dynamic-label.ts`)**: Hardened `getElementBounds` to sanitize non-finite inputs (`x`, `y`, `width`, `height`, `rotation`), preventing `NaN` coordinate propagation through `Math.max(1, NaN)` in downstream canvas operations and dynamic tape fitting.
+- **Clean Thumbnails & Print Rasterization without Transformer Handles (`editor.tsx`)**:
+  - **Selection & Ghost Overlay Suppression**: In `captureLabel`, temporarily hid `#canvas-selection-overlay` (transformer handles, bounding box, rotation stem) and `#canvas-off-screen-ghosts` during `stage.toCanvas()`, restoring original visibility immediately afterward.
+  - **Clean Library Saved Previews**: Label cards saved to the library now capture purely the rendered label content without burning interactive blue selection outlines or transformer dots into saved thumbnail assets.
 - **Swap Fill & Stroke Quick Action & Palette Command (`shape-section.tsx`, `commands.ts`)**:
   - **Inspector Stroke Row Button**: Added a dedicated `28×28px` quick-swap button using Lucide `Repeat2` (`w-7 h-7`, `bg-ink-800 border border-white/5 hover:bg-ink-750`) right next to the Stroke thickness input. Only visible for 2D shapes (`rect`, `ellipse`, `polygon`, `star`), hidden for `line`.
   - **Clean Tooltip & Proportions Alignment**: Set tooltip to `Swap fill and stroke` without noisy hotkey text, aligning vertically with the 1:1 reset button.

@@ -11,56 +11,12 @@ import { useKeyboardShortcuts, setPrintFn } from "../lib/keyboard.ts";
 import { useEditorV2Store, registerThumbnailGetter } from "../store/editor-store.ts";
 import { usePrinterStore } from "../store/printer-store.ts";
 import { getPrinter, useWebBluetooth } from "../hooks/use-web-bluetooth.ts";
-import { type RawImageData, extractPlaceholders } from "@thermoprint/core";
+import { extractPlaceholders } from "@thermoprint/core";
 import { fitBatchElements } from "../label/dynamic-label.ts";
 import { checkPrinterCompatibility } from "../label/label-sizes.ts";
 import { type BatchItem } from "./top-chrome/print-button.tsx";
 import { loadCsvFile } from "../lib/csv-loader.ts";
-
-function captureLabel(
-  stage: Konva.Stage,
-  widthPx: number,
-  heightPx: number,
-): HTMLCanvasElement {
-  // The paper+elements layer is the second layer (index 1)
-  const layer = stage.getLayers()[1];
-  const origStageW = stage.width();
-  const origStageH = stage.height();
-  const origLayerX = layer.x();
-  const origLayerY = layer.y();
-  const displayScale = layer.scaleX();
-
-  const displayW = widthPx * displayScale;
-  const displayH = heightPx * displayScale;
-
-  // Temporarily resize so toCanvas captures only the label
-  stage.width(displayW);
-  stage.height(displayH);
-  layer.x(0);
-  layer.y(0);
-
-  const canvas = stage.toCanvas({ pixelRatio: 1 / displayScale });
-
-  // Restore
-  stage.width(origStageW);
-  stage.height(origStageH);
-  layer.x(origLayerX);
-  layer.y(origLayerY);
-  stage.batchDraw();
-
-  return canvas;
-}
-
-function rotateCanvas90CW(src: HTMLCanvasElement): HTMLCanvasElement {
-  const dst = document.createElement("canvas");
-  dst.width = src.height;
-  dst.height = src.width;
-  const ctx = dst.getContext("2d")!;
-  ctx.translate(dst.width, 0);
-  ctx.rotate(Math.PI / 2);
-  ctx.drawImage(src, 0, 0);
-  return dst;
-}
+import { captureLabel, capturePrintheadBitmap } from "./canvas/capture.ts";
 
 export function captureThumbnail(
   stage: Konva.Stage,
@@ -202,24 +158,23 @@ export function Editor() {
         // Wait 1 animation frame for Konva to draw
         await new Promise((r) => requestAnimationFrame(r));
 
-        const raw = captureLabel(stage, fitted.label.widthPx, fitted.label.heightPx);
         const activeTapeWidth = fitted.label.tapeWidthMm ?? (fitted.label.heightMm <= fitted.label.widthMm ? fitted.label.heightMm : fitted.label.widthMm);
         const needsRotation = Math.abs(fitted.label.heightMm - activeTapeWidth) < 0.1 && Math.abs(fitted.label.widthMm - activeTapeWidth) >= 0.1;
-        const canvas = needsRotation ? rotateCanvas90CW(raw) : raw;
-        const ctx = canvas.getContext("2d")!;
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const imageData: RawImageData = { data: imgData.data, width: canvas.width, height: canvas.height };
+
+        const bitmap = capturePrintheadBitmap(stage, fitted.label.widthPx, fitted.label.heightPx, fitted.elements, {
+          dither: printSettings.ditherMode,
+          threshold: printSettings.threshold,
+          rotate90: needsRotation,
+        });
 
         useEditorV2Store.setState({
           printProgress: { bytesSent: i + 1, totalBytes: total },
         });
 
-        await printer.print(imageData, {
+        await printer.printBitmap(bitmap, {
           density: printSettings.density,
           paperType,
           copies: 1,
-          dither: printSettings.ditherMode as any,
-          threshold: printSettings.threshold,
         });
 
         if (i < total - 1) {
@@ -317,33 +272,25 @@ export function Editor() {
     // Wait a frame for Konva to re-render without selection handles
     await new Promise((r) => requestAnimationFrame(r));
 
-    // Capture the label region at 1:1 pixel resolution
-    const raw = captureLabel(stage, label.widthPx, label.heightPx);
-
-    // Determine whether 90° CW rotation is needed
     const activeTapeWidth = label.tapeWidthMm ?? (label.heightMm <= label.widthMm ? label.heightMm : label.widthMm);
     const needsRotation = Math.abs(label.heightMm - activeTapeWidth) < 0.1 && Math.abs(label.widthMm - activeTapeWidth) >= 0.1;
-    const canvas = needsRotation ? rotateCanvas90CW(raw) : raw;
-    const rotatedW = canvas.width;
-    const rotatedH = canvas.height;
 
-    const ctx = canvas.getContext("2d")!;
-    const imgData = ctx.getImageData(0, 0, rotatedW, rotatedH);
-    const imageData: RawImageData = { data: imgData.data, width: rotatedW, height: rotatedH };
+    const bitmap = capturePrintheadBitmap(stage, label.widthPx, label.heightPx, elements, {
+      dither: printSettings.ditherMode,
+      threshold: printSettings.threshold,
+      rotate90: needsRotation,
+    });
 
-    // Listen for real progress events from the printer
     const offProgress = (p: { bytesSent: number; totalBytes: number }) => {
       useEditorV2Store.setState({ printProgress: p });
     };
     printer.on("progress", offProgress);
 
     try {
-      await printer.print(imageData, {
+      await printer.printBitmap(bitmap, {
         density: printSettings.density,
         paperType,
         copies,
-        dither: printSettings.ditherMode as "floyd-steinberg" | "threshold" | "none",
-        threshold: printSettings.threshold,
       });
     } finally {
       printer.off("progress", offProgress);

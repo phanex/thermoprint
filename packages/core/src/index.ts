@@ -61,6 +61,8 @@ export {
   processImage,
   toGrayscale,
   floydSteinbergDither,
+  atkinsonDither,
+  bayerDither,
   threshold,
   packBits,
   shiftBitmapCrossFeed,
@@ -97,4 +99,3 @@ export type {
 } from "./template/template-engine.js";
 export { parseCsv } from "./template/csv-parser.js";
 export type { CsvParseResult } from "./template/csv-parser.js";
-

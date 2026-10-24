@@ -65,10 +65,11 @@ export class Printer {
       const protocol = getProtocol(profile.protocolId);
       const connection = await transport.connect(peripheral);
 
+      const safeDisconnect = async () => { try { await connection.disconnect(); } catch {} };
       debugLog("BLE", `discovering primary service ${profile.serviceUuid}`);
       const service = await connection.discoverService(profile.serviceUuid);
       if (!service) {
-        await connection.disconnect();
+        await safeDisconnect();
         throw new ThermoprintError(
           ErrorCode.SERVICE_NOT_FOUND,
           `BLE service ${profile.serviceUuid} not found`,
@@ -79,7 +80,7 @@ export class Printer {
       debugLog("BLE", `discovering TX characteristic ${profile.characteristics.tx}`);
       const tx = await service.getCharacteristic(profile.characteristics.tx);
       if (!tx) {
-        await connection.disconnect();
+        await safeDisconnect();
         throw new ThermoprintError(
           ErrorCode.CHARACTERISTIC_NOT_FOUND,
           "TX characteristic not found",
@@ -90,7 +91,7 @@ export class Printer {
       debugLog("BLE", `discovering RX characteristic ${profile.characteristics.rx}`);
       const rx = await service.getCharacteristic(profile.characteristics.rx);
       if (!rx && protocol.expectsAck) {
-        await connection.disconnect();
+        await safeDisconnect();
         throw new ThermoprintError(
           ErrorCode.CHARACTERISTIC_NOT_FOUND,
           "RX characteristic not found",
@@ -135,11 +136,18 @@ export class Printer {
         }
       }
 
-      // Subscribe to CX for flow control / MTU
+      // Subscribe to CX for flow control / MTU — with proper error handling
+      // Ideal: if CX subscribe fails, don't leak the already-open GATT connection
       if (cx) {
-        await cx.subscribe((data) => printer.handleCxData(data));
-        debugLog("BLE", "CX flow-control subscribed, waiting for initial credits...");
-        await printer.waitForInitialCredits();
+        try {
+          await cx.subscribe((data) => printer.handleCxData(data));
+          debugLog("BLE", "CX flow-control subscribed, waiting for initial credits...");
+          await printer.waitForInitialCredits();
+        } catch (cxErr) {
+          debugLog("BLE", `CX subscribe failed: ${cxErr instanceof Error ? cxErr.message : String(cxErr)} — disconnecting`);
+          try { await connection.disconnect(); } catch {}
+          throw cxErr;
+        }
       }
 
       // Emit disconnected event on unexpected BLE link loss
@@ -180,6 +188,7 @@ export class Printer {
     image: ImageBitmap1bpp,
     options: PrintOptions = {},
   ): Promise<void> {
+    if (this._printing) throw new ThermoprintError(ErrorCode.PRINT_FAILED, "Already printing — concurrent printBitmap() not allowed");
     const copies = options.copies ?? 1;
     const mergedOptions = {
       density: options.density ?? this.profile.defaults.density,
@@ -229,8 +238,10 @@ export class Printer {
         if (preambleBytes > 0) {
           for (const d of preamble) {
             await this.flowController.send(d);
-            const delay = Math.max(this.profile.flowControl?.packetDelayMs ?? 20, 40);
-            await new Promise((r) => setTimeout(r, delay));
+            // Ideal: respect profile's packetDelayMs exactly, allow 0 for unmetered high-speed
+            const flowDelay = this.profile.flowControl?.packetDelayMs;
+            const delay = flowDelay !== undefined ? flowDelay : 20;
+            if (delay > 0) await new Promise((r) => setTimeout(r, delay));
           }
           debugLog("PRINT", `copy ${copy + 1}/${copies}: preamble sent, waiting for credits`);
 
@@ -292,10 +303,20 @@ export class Printer {
 
   async getModel(): Promise<string> {
     if (this._printing) throw new ThermoprintError(ErrorCode.PRINT_FAILED, "Cannot query model while printing");
+    // Ideal fix for B06: Phomemo P12 does not support model query (0x02). It never
+    // replies, stalling 3s. Return profile modelId instantly without BLE traffic.
+    // This preserves the hard-won BLE byte sequence — no unsupported packet is sent.
+    if (this.profile.protocolId === "pho-p12" || this.protocol.id === "pho-p12") {
+      return this.profile.modelId;
+    }
     const cmd = this.protocol.buildModelQuery();
     await this.flowController.send(cmd.data);
     const response = await this.waitForResponse("model", 3000);
     if (typeof response.value === "string" && response.value) return response.value;
+    // For P12 fallback that returns firmware string, don't return garbage bytes
+    if (response.type === "model" && typeof response.value === "number") {
+      return this.profile.modelId;
+    }
     return new TextDecoder().decode(response.raw).replace(/\0/g, "").trim();
   }
 
@@ -309,14 +330,18 @@ export class Printer {
     return new TextDecoder().decode(response.raw).replace(/\0/g, "").trim();
   }
 
+  private keepAliveRunning = false;
   startKeepAlive(intervalMs = 45000): void {
     this.stopKeepAlive();
     this.keepAliveTimer = setInterval(async () => {
-      if (!this.isConnected || this._printing || this.disconnecting) return;
+      if (!this.isConnected || this._printing || this.disconnecting || this.keepAliveRunning) return;
+      this.keepAliveRunning = true;
       try {
         await this.getBattery();
       } catch {
         // Silently ignore keep-alive failures
+      } finally {
+        this.keepAliveRunning = false;
       }
     }, intervalMs);
   }
@@ -332,9 +357,15 @@ export class Printer {
     debugLog("BLE", "disconnecting");
     this.stopKeepAlive();
     this.disconnecting = true;
-    if (this.rx) await this.rx.unsubscribe();
-    if (this.cx) await this.cx.unsubscribe();
-    await this.connection.disconnect();
+    // Ideal: unsubscribe all cleanly even if one throws — don't leak GATT
+    const results = await Promise.allSettled([
+      this.rx ? this.rx.unsubscribe() : Promise.resolve(),
+      this.cx ? this.cx.unsubscribe() : Promise.resolve(),
+      this.connection.disconnect(),
+    ]);
+    for (const r of results) {
+      if (r.status === "rejected") debugLog("BLE", `disconnect cleanup warning: ${String(r.reason)}`);
+    }
     this.emit("disconnected", {});
   }
 
@@ -438,18 +469,32 @@ export class Printer {
       return Promise.resolve();
     }
     return new Promise<void>((resolve) => {
+      let done = false;
+      let checkTimer: ReturnType<typeof setTimeout> | null = null;
       const timer = setTimeout(() => {
+        if (done) return;
+        done = true;
+        if (checkTimer) clearTimeout(checkTimer);
         debugLog("FC", `credit wait timeout (have ${this.flowController.availableCredits}, wanted ${minCredits}) — proceeding`);
         resolve();
       }, timeoutMs);
 
       const check = () => {
+        if (done) return;
+        if (!this.isConnected || this.disconnecting) {
+          done = true;
+          clearTimeout(timer);
+          debugLog("FC", "credit wait aborted — disconnected");
+          resolve();
+          return;
+        }
         if (this.flowController.availableCredits >= minCredits) {
+          done = true;
           clearTimeout(timer);
           debugLog("FC", `credits ready: ${this.flowController.availableCredits}`);
           resolve();
         } else {
-          setTimeout(check, 20);
+          checkTimer = setTimeout(check, 20);
         }
       };
       check();
@@ -461,17 +506,31 @@ export class Printer {
       return Promise.resolve();
     }
     return new Promise<void>((resolve) => {
+      let done = false;
+      let checkTimer: ReturnType<typeof setTimeout> | null = null;
       const timer = setTimeout(() => {
+        if (done) return;
+        done = true;
+        if (checkTimer) clearTimeout(checkTimer);
         debugLog("FC", "initial credit timeout — proceeding without credits");
         resolve();
       }, timeoutMs);
 
       const check = () => {
+        if (done) return;
+        if (!this.isConnected || this.disconnecting) {
+          done = true;
+          clearTimeout(timer);
+          debugLog("FC", "initial credit wait aborted — disconnected");
+          resolve();
+          return;
+        }
         if (this.flowController.availableCredits > 0) {
+          done = true;
           clearTimeout(timer);
           resolve();
         } else {
-          setTimeout(check, 50);
+          checkTimer = setTimeout(check, 50);
         }
       };
       check();
@@ -480,16 +539,34 @@ export class Printer {
 
   private waitForResponse(type: string, timeoutMs = 5000): Promise<PrinterResponse> {
     return new Promise<PrinterResponse>((resolve, reject) => {
-      const timer = setTimeout(() => {
+      let done = false;
+      const cleanup = () => {
+        clearTimeout(timer);
+        this.off("disconnected", onDisconnect);
         const idx = this.pendingResponses.findIndex((p) => p.type === type);
         if (idx !== -1) this.pendingResponses.splice(idx, 1);
+      };
+      const timer = setTimeout(() => {
+        if (done) return;
+        done = true;
+        cleanup();
         reject(new ThermoprintError(ErrorCode.PRINT_FAILED, `Timeout waiting for ${type} response`));
       }, timeoutMs);
+
+      const onDisconnect = () => {
+        if (done) return;
+        done = true;
+        cleanup();
+        reject(new ThermoprintError(ErrorCode.PRINT_FAILED, `Disconnected while waiting for ${type}`));
+      };
+      this.on("disconnected", onDisconnect);
 
       this.pendingResponses.push({
         type,
         resolve: (response) => {
-          clearTimeout(timer);
+          if (done) return;
+          done = true;
+          cleanup();
           resolve(response);
         },
       });

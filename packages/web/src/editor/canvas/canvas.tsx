@@ -15,7 +15,7 @@ import { getDevice } from "@thermoprint/core";
 import { ChevronDown, Minus, Plus, X, PrinterX, Scissors } from "lucide-react";
 import { LabelPaper } from "./label-paper.tsx";
 import { CutterEars } from "./cutter-ears.tsx";
-import { getActiveCutterMargins } from "../../label/dynamic-label.ts";
+import { getActiveCutterMargins, getElementBounds } from "../../label/dynamic-label.ts";
 import { OffCanvasGhostOverlay } from "./off-canvas-ghost.tsx";
 import { TextElement } from "./elements/text-element.tsx";
 import { ElementWrapper } from "./elements/element-wrapper.tsx";
@@ -24,6 +24,7 @@ import { LineElement } from "./elements/line-element.tsx";
 import { QrElement } from "./elements/qr-element.tsx";
 import { BarcodeElement } from "./elements/barcode-element.tsx";
 import { ImageElement } from "./elements/image-element.tsx";
+import { RasterPreviewOverlay } from "./raster-preview-overlay.tsx";
 
 function TapeIcon({ size = 13 }: { size?: number }) {
   return (
@@ -634,6 +635,7 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
   const panY = useEditorV2Store((s) => s.panY);
   const gridVisible = useEditorV2Store((s) => s.gridVisible);
   const rulersVisible = useEditorV2Store((s) => s.rulersVisible);
+  const rasterPreviewVisible = useEditorV2Store((s) => s.rasterPreviewVisible);
   const paperType = useEditorV2Store((s) => s.paperType);
   const modelId = usePrinterStore((s) => s.modelId);
   const selectOnly = useEditorV2Store((s) => s.selectOnly);
@@ -786,19 +788,15 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
       if (marqueeStart.current && marquee) {
         // Determine which elements fall inside the marquee
         const store = useEditorV2Store.getState();
+        const x1 = (marquee.x - originX) / zoom;
+        const x2 = (marquee.x + marquee.w - originX) / zoom;
+        const y1 = (marquee.y - originY) / zoom;
+        const y2 = (marquee.y + marquee.h - originY) / zoom;
+
         const ids = store.elements
           .filter((el) => {
-            // Convert element position to screen coordinates
-            const elScreenX = originX + el.x * zoom;
-            const elScreenY = originY + el.y * zoom;
-            const elScreenW = el.width * zoom;
-            const elScreenH = el.height * zoom;
-            return (
-              elScreenX + elScreenW > marquee.x &&
-              elScreenX < marquee.x + marquee.w &&
-              elScreenY + elScreenH > marquee.y &&
-              elScreenY < marquee.y + marquee.h
-            );
+            const b = getElementBounds(el);
+            return b.maxX >= x1 && b.minX <= x2 && b.maxY >= y1 && b.minY <= y2;
           })
           .map((el) => el.id);
         if (marqueeStart.current.shift) {
@@ -1097,6 +1095,7 @@ export const Canvas = forwardRef<Konva.Stage>(function Canvas(_props, ref) {
           >
             {elements.map((el) => renderElement(el, false))}
           </Group>
+          {rasterPreviewVisible && <RasterPreviewOverlay />}
           <Group id="canvas-selection-overlay">
             {elements
               .filter((el) => selectedIds.includes(el.id))

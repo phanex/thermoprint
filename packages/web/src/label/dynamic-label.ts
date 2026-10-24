@@ -15,16 +15,19 @@ export interface ElementBounds {
  * accurately taking its rotation angle into account.
  */
 export function getElementBounds(el: BaseElement): ElementBounds {
-  const w = Math.max(1, el.width);
-  const h = Math.max(0, el.height);
-  const rot = ((el.rotation || 0) % 360 + 360) % 360;
+  const elX = Number.isFinite(el.x) ? el.x : 0;
+  const elY = Number.isFinite(el.y) ? el.y : 0;
+  const w = Number.isFinite(el.width) ? Math.max(1, el.width) : 50;
+  const h = Number.isFinite(el.height) ? Math.max(0, el.height) : (el.type === "line" ? 0 : 20);
+  const rawRot = Number.isFinite(el.rotation) ? el.rotation : 0;
+  const rot = ((rawRot % 360) + 360) % 360;
 
   if (rot === 0) {
     return {
-      minX: el.x,
-      maxX: el.x + w,
-      minY: el.y,
-      maxY: el.y + h,
+      minX: elX,
+      maxX: elX + w,
+      minY: elY,
+      maxY: elY + h,
     };
   }
 
@@ -42,11 +45,71 @@ export function getElementBounds(el: BaseElement): ElementBounds {
   const y4 = w * sin + h * cos;
 
   return {
-    minX: el.x + Math.min(x1, x2, x3, x4),
-    maxX: el.x + Math.max(x1, x2, x3, x4),
-    minY: el.y + Math.min(y1, y2, y3, y4),
-    maxY: el.y + Math.max(y1, y2, y3, y4),
+    minX: elX + Math.min(x1, x2, x3, x4),
+    maxX: elX + Math.max(x1, x2, x3, x4),
+    minY: elY + Math.min(y1, y2, y3, y4),
+    maxY: elY + Math.max(y1, y2, y3, y4),
   };
+}
+
+/**
+ * Calculates aggregate axis-aligned bounding box coordinates for a collection of elements,
+ * taking every element's individual rotation angle into account.
+ */
+export function getSelectionBounds(
+  elements: BaseElement[],
+): ElementBounds & { width: number; height: number } {
+  if (elements.length === 0) {
+    return { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0 };
+  }
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const el of elements) {
+    const b = getElementBounds(el);
+    if (b.minX < minX) minX = b.minX;
+    if (b.maxX > maxX) maxX = b.maxX;
+    if (b.minY < minY) minY = b.minY;
+    if (b.maxY > maxY) maxY = b.maxY;
+  }
+  return {
+    minX,
+    maxX,
+    minY,
+    maxY,
+    width: Math.max(0, maxX - minX),
+    height: Math.max(0, maxY - minY),
+  };
+}
+
+/**
+ * Calculates position patches to center one or more elements on the label canvas,
+ * properly respecting rotation angles and oriented bounding boxes.
+ */
+export function calculateCenterOnLabelPatches(
+  elements: BaseElement[],
+  labelWidthPx: number,
+  labelHeightPx: number,
+  options: { horizontal?: boolean; vertical?: boolean } = { horizontal: true, vertical: true },
+): Record<string, Partial<BaseElement>> {
+  if (elements.length === 0) return {};
+  const bounds = getSelectionBounds(elements);
+  const targetX = Math.round((labelWidthPx - bounds.width) / 2);
+  const targetY = Math.round((labelHeightPx - bounds.height) / 2);
+  const dx = options.horizontal !== false ? targetX - bounds.minX : 0;
+  const dy = options.vertical !== false ? targetY - bounds.minY : 0;
+
+  const patches: Record<string, Partial<BaseElement>> = {};
+  for (const el of elements) {
+    const curX = Number.isFinite(el.x) ? el.x : 0;
+    const curY = Number.isFinite(el.y) ? el.y : 0;
+    const patch: Partial<BaseElement> = {};
+    if (options.horizontal !== false) patch.x = Math.round(curX + dx);
+    if (options.vertical !== false) patch.y = Math.round(curY + dy);
+    patches[el.id] = patch;
+  }
+  return patches;
 }
 
 /**

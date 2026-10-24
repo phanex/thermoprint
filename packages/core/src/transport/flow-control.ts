@@ -29,10 +29,12 @@ export class FlowController {
   }
 
   setPacketSize(size: number): void {
+    if (size <= 0) throw new Error(`Invalid packetSize ${size} — must be >0`);
     this.packetSize = size;
   }
 
   grantCredits(count: number): void {
+    if (count <= 0) return;
     this.credits += count;
     this.lastCreditTime = Date.now();
     this.loggedNoCredits = false;
@@ -61,8 +63,9 @@ export class FlowController {
     this.loggedNoCredits = false;
     debugLog("TX", `sending ${data.length}B in ${Math.ceil(data.length / this.packetSize)} packets, credits=${this.credits}`);
 
+    if (this.packetSize <= 0) throw new Error(`Invalid packetSize ${this.packetSize} — must be >0`);
     const { packetDelayMs, starvationTimeoutMs } = this.options;
-    const tickMs = packetDelayMs > 0 ? packetDelayMs : 30;
+    const tickMs = packetDelayMs !== undefined ? packetDelayMs : 30;
 
     return new Promise<void>((resolve, reject) => {
       const tick = async () => {

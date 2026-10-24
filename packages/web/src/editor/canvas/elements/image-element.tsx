@@ -1,10 +1,9 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Image as KonvaImage, Rect, Text, Group } from "react-konva";
 import type Konva from "konva";
 import type { BaseElement } from "../../../store/editor-store.ts";
 import { useEditorV2Store } from "../../../store/editor-store.ts";
 import { ElementWrapper } from "./element-wrapper.tsx";
-
 import { useElementDrag } from "../use-element-drag.ts";
 
 interface Props {
@@ -18,7 +17,15 @@ export function ImageElement({ element, isSelected }: Props) {
   const { handleDragStart, handleDragMove, handleDragEnd, handleClick, handleTap } =
     useElementDrag(element.id);
 
-  const p = element.props as { src?: string };
+  const p = element.props as {
+    src?: string;
+    flipH?: boolean;
+    flipV?: boolean;
+    invert?: boolean;
+  };
+
+  const flipH = Boolean(p.flipH);
+  const flipV = Boolean(p.flipV);
 
   const [image, setImage] = useState<HTMLImageElement | null>(null);
 
@@ -34,7 +41,48 @@ export function ImageElement({ element, isSelected }: Props) {
     };
   }, [p.src]);
 
-  if (!image) {
+  // Compute pixel buffer with flip and invert applied directly in-memory
+  const displayImage = useMemo(() => {
+    if (!image) return null;
+    if (!flipH && !flipV && !p.invert) return image;
+    try {
+      const w = image.naturalWidth || image.width;
+      const h = image.naturalHeight || image.height;
+      const c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      const ctx = c.getContext("2d");
+      if (!ctx) return image;
+
+      ctx.save();
+      if (flipH) {
+        ctx.translate(w, 0);
+        ctx.scale(-1, 1);
+      }
+      if (flipV) {
+        ctx.translate(0, h);
+        ctx.scale(1, -1);
+      }
+      ctx.drawImage(image, 0, 0);
+      ctx.restore();
+
+      if (p.invert) {
+        const id = ctx.getImageData(0, 0, w, h);
+        const d = id.data;
+        for (let i = 0; i < d.length; i += 4) {
+          d[i] = 255 - d[i];
+          d[i + 1] = 255 - d[i + 1];
+          d[i + 2] = 255 - d[i + 2];
+        }
+        ctx.putImageData(id, 0, 0);
+      }
+      return c;
+    } catch {
+      return image;
+    }
+  }, [image, flipH, flipV, p.invert]);
+
+  if (!displayImage) {
     return (
       <>
         <Group
@@ -88,7 +136,7 @@ export function ImageElement({ element, isSelected }: Props) {
         width={element.width}
         height={element.height}
         rotation={element.rotation}
-        image={image}
+        image={displayImage}
         draggable
         onClick={handleClick}
         onTap={handleTap}
@@ -100,21 +148,31 @@ export function ImageElement({ element, isSelected }: Props) {
           if (!node) return;
           const scaleX = node.scaleX();
           const scaleY = node.scaleY();
+          const newW = Math.max(5, Math.round(node.width() * scaleX));
+          const newH = Math.max(5, Math.round(node.height() * scaleY));
           node.scaleX(1);
           node.scaleY(1);
           updateElement(element.id, {
-            x: node.x(),
-            y: node.y(),
-            width: Math.max(5, node.width() * scaleX),
-            height: Math.max(5, node.height() * scaleY),
-            rotation: node.rotation(),
+            x: Math.round(node.x()),
+            y: Math.round(node.y()),
+            width: newW,
+            height: newH,
+            rotation: Math.round(node.rotation()),
           });
         }}
       />
       <ElementWrapper
         nodeRef={ref}
         isSelected={isSelected}
-        deps={[image, element.x, element.y, element.width, element.height, element.rotation, p.src]}
+        deps={[
+          displayImage,
+          element.x,
+          element.y,
+          element.width,
+          element.height,
+          element.rotation,
+          p.src,
+        ]}
       />
     </>
   );

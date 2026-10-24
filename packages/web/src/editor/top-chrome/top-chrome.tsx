@@ -7,6 +7,7 @@ import {
   Maximize2,
   Grid3x3,
   Ruler,
+  Eye,
 } from "lucide-react";
 import { useEditorV2Store } from "../../store/editor-store.ts";
 import { PrintButton, type BatchItem } from "./print-button.tsx";
@@ -24,6 +25,7 @@ export function TopChrome({ onPrint, onPrintBatch }: TopChromeProps) {
   const label = useEditorV2Store((s) => s.label);
   const gridVisible = useEditorV2Store((s) => s.gridVisible);
   const rulersVisible = useEditorV2Store((s) => s.rulersVisible);
+  const rasterPreviewVisible = useEditorV2Store((s) => s.rasterPreviewVisible);
   const setZoom = useEditorV2Store((s) => s.setZoom);
   const setPan = useEditorV2Store((s) => s.setPan);
 
@@ -72,6 +74,13 @@ export function TopChrome({ onPrint, onPrintBatch }: TopChromeProps) {
         </div>
         <div className="w-px h-6 bg-white/5" />
         <div className="flex items-center gap-1">
+          <button
+            className={viewBtn(rasterPreviewVisible)}
+            title={rasterPreviewVisible ? "Exit 1-bit Printhead Preview" : "1-bit Printhead Preview"}
+            onClick={() => useEditorV2Store.setState((s) => ({ rasterPreviewVisible: !s.rasterPreviewVisible }))}
+          >
+            <Eye size={15} />
+          </button>
           <button className={viewBtn(gridVisible)} title="Grid (G)" onClick={() => useEditorV2Store.setState((s) => ({ gridVisible: !s.gridVisible }))}><Grid3x3 size={15} /></button>
           <button className={viewBtn(rulersVisible)} title="Rulers" onClick={() => useEditorV2Store.setState((s) => ({ rulersVisible: !s.rulersVisible }))}><Ruler size={15} /></button>
           <ThemePicker />
@@ -88,7 +97,7 @@ export function TopChrome({ onPrint, onPrintBatch }: TopChromeProps) {
           <PrinterChip />
           <PrintButton onPrint={onPrint} onPrintBatch={onPrintBatch} />
         </div>
-        {/* Row 2: undo, redo, zoom, search, grid, theme */}
+        {/* Row 2: undo, redo, zoom, search, eye, grid, theme */}
         <div className="flex items-center gap-1 h-9 px-2 border-t border-white/5">
           <button onClick={() => useEditorV2Store.temporal.getState().undo()} className="w-7 h-7 flex items-center justify-center rounded-md text-ink-300 hover:bg-ink-800 hover:text-ink-100" title="Undo"><Undo2 size={14} /></button>
           <button onClick={() => useEditorV2Store.temporal.getState().redo()} className="w-7 h-7 flex items-center justify-center rounded-md text-ink-300 hover:bg-ink-800 hover:text-ink-100" title="Redo"><Redo2 size={14} /></button>
@@ -106,6 +115,13 @@ export function TopChrome({ onPrint, onPrintBatch }: TopChromeProps) {
             <span className="text-ui-xs flex-1 text-left truncate">Search…</span>
           </button>
           <div className="w-px h-5 bg-white/5" />
+          <button
+            className={`w-7 h-7 flex items-center justify-center rounded-md border hover-fade ${rasterPreviewVisible ? "bg-accent/10 text-accent border-accent/30" : "bg-ink-800 text-ink-300 border-white/5"}`}
+            title="1-bit Preview"
+            onClick={() => useEditorV2Store.setState((s) => ({ rasterPreviewVisible: !s.rasterPreviewVisible }))}
+          >
+            <Eye size={13} />
+          </button>
           <button
             className={`w-7 h-7 flex items-center justify-center rounded-md border hover-fade ${gridVisible ? "bg-accent/10 text-accent border-accent/30" : "bg-ink-800 text-ink-300 border-white/5"}`}
             title="Grid"

@@ -224,8 +224,8 @@ export function IconsFlyout({
         const targetEl = elements.find((e) => e.id === targetElementId);
         if (targetEl) {
           updateElement(targetElementId, {
-            width: w,
-            height: h,
+
+
             props: {
               ...targetEl.props,
               src: dataUrl,

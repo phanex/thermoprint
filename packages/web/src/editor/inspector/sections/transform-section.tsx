@@ -1,6 +1,7 @@
 import type { BaseElement } from "../../../store/editor-store.ts";
 import { useEditorV2Store } from "../../../store/editor-store.ts";
 import { Section, Field, NumInput } from "../fields.tsx";
+import { calculateCenterOnLabelPatches } from "../../../label/dynamic-label.ts";
 
 interface Props {
   element: BaseElement;
@@ -13,15 +14,29 @@ export function TransformSection({ element }: Props) {
   const update = (patch: Partial<BaseElement>) =>
     updateElement(element.id, patch);
 
-  const alignH = () =>
-    update({ x: Math.round((label.widthPx - element.width) / 2) });
-  const alignV = () =>
-    update({ y: Math.round((label.heightPx - element.height) / 2) });
-  const alignBoth = () =>
-    update({
-      x: Math.round((label.widthPx - element.width) / 2),
-      y: Math.round((label.heightPx - element.height) / 2),
+  const alignH = () => {
+    const patches = calculateCenterOnLabelPatches([element], label.widthPx, label.heightPx, {
+      horizontal: true,
+      vertical: false,
     });
+    if (patches[element.id]) update(patches[element.id]);
+  };
+
+  const alignV = () => {
+    const patches = calculateCenterOnLabelPatches([element], label.widthPx, label.heightPx, {
+      horizontal: false,
+      vertical: true,
+    });
+    if (patches[element.id]) update(patches[element.id]);
+  };
+
+  const alignBoth = () => {
+    const patches = calculateCenterOnLabelPatches([element], label.widthPx, label.heightPx, {
+      horizontal: true,
+      vertical: true,
+    });
+    if (patches[element.id]) update(patches[element.id]);
+  };
 
   const fitToLabel = () => {
     const p = element.props as { naturalWidth?: number; naturalHeight?: number };
@@ -109,7 +124,7 @@ export function TransformSection({ element }: Props) {
       </div>
       <div className="grid grid-cols-2 gap-1.5 mt-1.5">
         <Field label="Rot" mono>
-          <NumInput value={element.rotation} onChange={rotateAroundCenter} suffix="°" />
+          <NumInput value={element.rotation} onChange={rotateAroundCenter} suffix="Â°" />
         </Field>
         <div className="flex items-center gap-1">
           <button
@@ -153,7 +168,7 @@ export function TransformSection({ element }: Props) {
           <button
             onClick={alignBoth}
             className="flex-1 h-7 rounded-md bg-ink-800 border border-white/5 hover:bg-ink-750 text-ink-300 hover:text-ink-100 flex items-center justify-center"
-            title="Center both"
+            title="Center on label"
           >
             <svg
               width="14"
@@ -174,7 +189,7 @@ export function TransformSection({ element }: Props) {
           <button
             onClick={fitToLabel}
             className="flex-1 h-7 rounded-md bg-ink-800 border border-white/5 hover:bg-ink-750 text-ink-300 hover:text-ink-100 flex items-center justify-center"
-            title="Fit to label / Maximize"
+            title="Fit to label"
           >
             <svg
               width="14"

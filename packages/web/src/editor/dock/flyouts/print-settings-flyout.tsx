@@ -294,11 +294,12 @@ export function PrintSettingsFlyout({ onClose }: Props) {
             <div className="text-ui-2xs font-mono uppercase tracking-wider text-ink-400 mb-1.5">
               Dither
             </div>
-            <div className="grid grid-cols-3 gap-1">
+            <div className="grid grid-cols-4 gap-1">
               {[
+                { v: "atkinson", l: "Atkinson" },
                 { v: "floyd-steinberg", l: "Floyd-S" },
+                { v: "bayer", l: "Bayer" },
                 { v: "threshold", l: "Threshold" },
-                { v: "none", l: "None" },
               ].map((o) => (
                 <button
                   key={o.v}

@@ -36,6 +36,48 @@ describe("processImage", () => {
     expect(result.data[0]).toBe(0x80);
   });
 
+  test("atkinson mode works", () => {
+    const image = {
+      data: new Uint8Array([0, 0, 0, 255, 255, 255, 255, 255]),
+      width: 2,
+      height: 1,
+    };
+    const result = processImage(image, { dither: "atkinson" });
+    expect(result.bytesPerRow).toBe(1);
+    expect(result.data[0]).toBe(0x80);
+  });
+
+  test("bayer mode works", () => {
+    const image = {
+      data: new Uint8Array([0, 0, 0, 255, 255, 255, 255, 255]),
+      width: 2,
+      height: 1,
+    };
+    const result = processImage(image, { dither: "bayer" });
+    expect(result.bytesPerRow).toBe(1);
+    expect(result.data[0]).toBe(0x80);
+  });
+
+  test("invert option flips white to black and black to white", () => {
+    const whiteImage = {
+      data: new Uint8Array([255, 255, 255, 255, 255, 255, 255, 255]),
+      width: 2,
+      height: 1,
+    };
+    const invertedWhite = processImage(whiteImage, { invert: true });
+    // Inverted white should produce black pixels (first two bits 1, rest zero-padded = 0xC0)
+    expect(invertedWhite.data[0]).toBe(0xc0);
+
+    const blackImage = {
+      data: new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255]),
+      width: 2,
+      height: 1,
+    };
+    const invertedBlack = processImage(blackImage, { invert: true });
+    // Inverted black should produce white pixels
+    expect(invertedBlack.data[0]).toBe(0x00);
+  });
+
   test("output dimensions match input", () => {
     const width = 16;
     const height = 4;

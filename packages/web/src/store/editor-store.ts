@@ -6,6 +6,7 @@ import {
   type SavedLabel,
   loadLibrary,
   persistLibrary,
+  sanitizeElement,
 } from "../lib/library.ts";
 import { fitDynamicLabel } from "../label/dynamic-label.ts";
 
@@ -62,6 +63,7 @@ export interface EditorState {
   panY: number;
   gridVisible: boolean;
   rulersVisible: boolean;
+  rasterPreviewVisible: boolean;
   uiScale: number;
   theme: "cyan" | "amber" | "graphite" | "violet" | "forest" | "paper";
   mode: "dark" | "light";
@@ -198,6 +200,7 @@ export const useEditorV2Store = create<EditorState>()(
       panY: 0,
       gridVisible: true,
       rulersVisible: true,
+      rasterPreviewVisible: false,
       uiScale: (() => {
         try {
           const v = parseFloat(localStorage.getItem("tp.uiScale.v1") || "1");
@@ -268,7 +271,9 @@ export const useEditorV2Store = create<EditorState>()(
         const updated: SavedLabel = {
           ...library.labels[idx],
           label: { ...label },
-          elements: structuredClone(elements),
+          elements: Array.isArray(elements)
+            ? structuredClone(elements).map(sanitizeElement)
+            : [],
           thumbnail: thumb || library.labels[idx].thumbnail,
           updatedAt: Date.now(),
         };
@@ -288,7 +293,9 @@ export const useEditorV2Store = create<EditorState>()(
           id: uid(),
           name: name || "Untitled",
           label: { ...label },
-          elements: structuredClone(elements),
+          elements: Array.isArray(elements)
+            ? structuredClone(elements).map(sanitizeElement)
+            : [],
           thumbnail: thumb,
           createdAt: Date.now(),
           updatedAt: Date.now(),
@@ -319,7 +326,9 @@ export const useEditorV2Store = create<EditorState>()(
           currentLabelId: id,
           currentLabelName: lbl.name,
           currentLabelDirty: false,
-          elements: structuredClone(lbl.elements),
+          elements: Array.isArray(lbl.elements)
+            ? structuredClone(lbl.elements).map(sanitizeElement)
+            : [],
           label: { ...lbl.label },
           selectedIds: [],
         });
@@ -345,7 +354,9 @@ export const useEditorV2Store = create<EditorState>()(
               currentLabelId: next.id,
               currentLabelName: next.name,
               currentLabelDirty: false,
-              elements: structuredClone(next.elements),
+              elements: Array.isArray(next.elements)
+                ? structuredClone(next.elements).map(sanitizeElement)
+                : [],
               label: { ...next.label },
               selectedIds: [],
             });
@@ -400,7 +411,13 @@ export const useEditorV2Store = create<EditorState>()(
 
       importLabel: (data) => {
         const { library } = get();
-        const nl: SavedLabel = { ...data, id: uid() };
+        const nl: SavedLabel = {
+          ...data,
+          id: uid(),
+          elements: Array.isArray(data.elements)
+            ? structuredClone(data.elements).map(sanitizeElement)
+            : [],
+        };
         const nextLib: Library = {
           ...library,
           labels: [nl, ...library.labels],

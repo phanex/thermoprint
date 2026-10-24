@@ -63,6 +63,7 @@ import "./index.css";
 import { App } from "./App.tsx";
 import { useEditorV2Store } from "./store/editor-store.ts";
 import { preloadFontVariants } from "./lib/fonts.ts";
+import { sanitizeElement } from "./lib/library.ts";
 
 // Fix Konva 9 text rendering baseline shift with webfonts
 Konva.legacyTextRendering = true;
@@ -90,7 +91,9 @@ preloadFontVariants("Anonymous Pro");
       currentLabelId: cur.id,
       currentLabelName: cur.name,
       currentLabelDirty: false,
-      elements: structuredClone(cur.elements),
+      elements: Array.isArray(cur.elements)
+        ? structuredClone(cur.elements).map(sanitizeElement)
+        : [],
       label: { ...cur.label },
     });
   }

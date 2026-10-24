@@ -99,7 +99,7 @@ function addImageEl() {
           width: w,
           height: h,
           rotation: 0,
-          props: { src: reader.result as string, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight },
+          props: { src: reader.result as string, fileName: file.name, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight },
         });
       };
     };
@@ -330,7 +330,7 @@ export function useKeyboardShortcuts() {
           addImageEl();
           return;
         }
-        if (key === "i" || code === "KeyI" || key === "c" || code === "KeyC") {
+        if (key === "i" || code === "KeyI") {
           window.dispatchEvent(new CustomEvent("thermoprint:open-icons"));
           return;
         }

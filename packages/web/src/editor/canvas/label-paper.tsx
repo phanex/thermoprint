@@ -23,6 +23,7 @@ export function LabelPaper() {
 
     return (
       <Rect
+        id="canvas-label-paper"
         x={-leadPx}
         y={0}
         width={leadPx + label.widthPx + trailPx}
@@ -40,6 +41,7 @@ export function LabelPaper() {
   // Die-cut / Gap mode: individual cut label with subtle rounded corners
   return (
     <Rect
+      id="canvas-label-paper"
       x={0}
       y={0}
       width={label.widthPx}

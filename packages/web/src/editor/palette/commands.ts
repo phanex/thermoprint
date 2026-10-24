@@ -30,7 +30,13 @@ import {
   Repeat2,
 } from "lucide-react";
 import { useEditorV2Store } from "../../store/editor-store.ts";
+import type { BaseElement } from "../../store/editor-store.ts";
 import { mmToPx } from "../../utils/px-mm.ts";
+import {
+  getElementBounds,
+  getSelectionBounds,
+  calculateCenterOnLabelPatches,
+} from "../../label/dynamic-label.ts";
 import {
   addTextEl,
   addDateEl,
@@ -84,14 +90,16 @@ function alignLeft() {
   const { updateElements } = useEditorV2Store.getState();
 
   if (selected.length === 1) {
-    updateElements({ [selected[0].id]: { x: 0 } });
+    const eb = getElementBounds(selected[0]);
+    updateElements({ [selected[0].id]: { x: Math.round(selected[0].x - eb.minX) } });
     return;
   }
 
-  const minX = Math.min(...selected.map((e) => e.x));
-  const patches: Record<string, { x: number }> = {};
+  const bounds = getSelectionBounds(selected);
+  const patches: Record<string, Partial<BaseElement>> = {};
   selected.forEach((el) => {
-    patches[el.id] = { x: minX };
+    const eb = getElementBounds(el);
+    patches[el.id] = { x: Math.round(el.x + (bounds.minX - eb.minX)) };
   });
   updateElements(patches);
 }
@@ -102,18 +110,21 @@ function alignCenterHorizontal() {
   const { label, updateElements } = useEditorV2Store.getState();
 
   if (selected.length === 1) {
-    updateElements({
-      [selected[0].id]: { x: Math.round((label.widthPx - selected[0].width) / 2) },
+    const patches = calculateCenterOnLabelPatches(selected, label.widthPx, label.heightPx, {
+      horizontal: true,
+      vertical: false,
     });
+    updateElements(patches);
     return;
   }
 
-  const minX = Math.min(...selected.map((e) => e.x));
-  const maxX = Math.max(...selected.map((e) => e.x + e.width));
-  const centerX = (minX + maxX) / 2;
-  const patches: Record<string, { x: number }> = {};
+  const bounds = getSelectionBounds(selected);
+  const centerX = (bounds.minX + bounds.maxX) / 2;
+  const patches: Record<string, Partial<BaseElement>> = {};
   selected.forEach((el) => {
-    patches[el.id] = { x: Math.round(centerX - el.width / 2) };
+    const eb = getElementBounds(el);
+    const eCenterX = (eb.minX + eb.maxX) / 2;
+    patches[el.id] = { x: Math.round(el.x + (centerX - eCenterX)) };
   });
   updateElements(patches);
 }
@@ -124,16 +135,18 @@ function alignRight() {
   const { label, updateElements } = useEditorV2Store.getState();
 
   if (selected.length === 1) {
+    const eb = getElementBounds(selected[0]);
     updateElements({
-      [selected[0].id]: { x: label.widthPx - selected[0].width },
+      [selected[0].id]: { x: Math.round(selected[0].x + (label.widthPx - eb.maxX)) },
     });
     return;
   }
 
-  const maxX = Math.max(...selected.map((e) => e.x + e.width));
-  const patches: Record<string, { x: number }> = {};
+  const bounds = getSelectionBounds(selected);
+  const patches: Record<string, Partial<BaseElement>> = {};
   selected.forEach((el) => {
-    patches[el.id] = { x: maxX - el.width };
+    const eb = getElementBounds(el);
+    patches[el.id] = { x: Math.round(el.x + (bounds.maxX - eb.maxX)) };
   });
   updateElements(patches);
 }
@@ -144,14 +157,16 @@ function alignTop() {
   const { updateElements } = useEditorV2Store.getState();
 
   if (selected.length === 1) {
-    updateElements({ [selected[0].id]: { y: 0 } });
+    const eb = getElementBounds(selected[0]);
+    updateElements({ [selected[0].id]: { y: Math.round(selected[0].y - eb.minY) } });
     return;
   }
 
-  const minY = Math.min(...selected.map((e) => e.y));
-  const patches: Record<string, { y: number }> = {};
+  const bounds = getSelectionBounds(selected);
+  const patches: Record<string, Partial<BaseElement>> = {};
   selected.forEach((el) => {
-    patches[el.id] = { y: minY };
+    const eb = getElementBounds(el);
+    patches[el.id] = { y: Math.round(el.y + (bounds.minY - eb.minY)) };
   });
   updateElements(patches);
 }
@@ -162,18 +177,21 @@ function alignCenterVertical() {
   const { label, updateElements } = useEditorV2Store.getState();
 
   if (selected.length === 1) {
-    updateElements({
-      [selected[0].id]: { y: Math.round((label.heightPx - selected[0].height) / 2) },
+    const patches = calculateCenterOnLabelPatches(selected, label.widthPx, label.heightPx, {
+      horizontal: false,
+      vertical: true,
     });
+    updateElements(patches);
     return;
   }
 
-  const minY = Math.min(...selected.map((e) => e.y));
-  const maxY = Math.max(...selected.map((e) => e.y + e.height));
-  const centerY = (minY + maxY) / 2;
-  const patches: Record<string, { y: number }> = {};
+  const bounds = getSelectionBounds(selected);
+  const centerY = (bounds.minY + bounds.maxY) / 2;
+  const patches: Record<string, Partial<BaseElement>> = {};
   selected.forEach((el) => {
-    patches[el.id] = { y: Math.round(centerY - el.height / 2) };
+    const eb = getElementBounds(el);
+    const eCenterY = (eb.minY + eb.maxY) / 2;
+    patches[el.id] = { y: Math.round(el.y + (centerY - eCenterY)) };
   });
   updateElements(patches);
 }
@@ -184,16 +202,18 @@ function alignBottom() {
   const { label, updateElements } = useEditorV2Store.getState();
 
   if (selected.length === 1) {
+    const eb = getElementBounds(selected[0]);
     updateElements({
-      [selected[0].id]: { y: label.heightPx - selected[0].height },
+      [selected[0].id]: { y: Math.round(selected[0].y + (label.heightPx - eb.maxY)) },
     });
     return;
   }
 
-  const maxY = Math.max(...selected.map((e) => e.y + e.height));
-  const patches: Record<string, { y: number }> = {};
+  const bounds = getSelectionBounds(selected);
+  const patches: Record<string, Partial<BaseElement>> = {};
   selected.forEach((el) => {
-    patches[el.id] = { y: maxY - el.height };
+    const eb = getElementBounds(el);
+    patches[el.id] = { y: Math.round(el.y + (bounds.maxY - eb.maxY)) };
   });
   updateElements(patches);
 }
@@ -202,33 +222,7 @@ function centerOnLabel() {
   const selected = getSelectedElements();
   if (selected.length === 0) return;
   const { label, updateElements } = useEditorV2Store.getState();
-
-  if (selected.length === 1) {
-    updateElements({
-      [selected[0].id]: {
-        x: Math.round((label.widthPx - selected[0].width) / 2),
-        y: Math.round((label.heightPx - selected[0].height) / 2),
-      },
-    });
-    return;
-  }
-
-  const minX = Math.min(...selected.map((e) => e.x));
-  const maxX = Math.max(...selected.map((e) => e.x + e.width));
-  const minY = Math.min(...selected.map((e) => e.y));
-  const maxY = Math.max(...selected.map((e) => e.y + e.height));
-
-  const groupW = maxX - minX;
-  const groupH = maxY - minY;
-  const targetX = Math.round((label.widthPx - groupW) / 2);
-  const targetY = Math.round((label.heightPx - groupH) / 2);
-  const dx = targetX - minX;
-  const dy = targetY - minY;
-
-  const patches: Record<string, { x: number; y: number }> = {};
-  selected.forEach((el) => {
-    patches[el.id] = { x: el.x + dx, y: el.y + dy };
-  });
+  const patches = calculateCenterOnLabelPatches(selected, label.widthPx, label.heightPx);
   updateElements(patches);
 }
 
@@ -290,10 +284,10 @@ export const commands: Command[] = [
   { id: "add-icon", label: "Add icon", group: "Insert", icon: Sticker, shortcut: "C", run: () => window.dispatchEvent(new CustomEvent("thermoprint:open-icons")) },
 
   // Edit
-  { id: "undo", label: "Undo", group: "Edit", icon: Undo2, shortcut: "⌘Z", run: () => useEditorV2Store.temporal.getState().undo() },
-  { id: "redo", label: "Redo", group: "Edit", icon: Redo2, shortcut: "⌘⇧Z", run: () => useEditorV2Store.temporal.getState().redo() },
-  { id: "dup", label: "Duplicate selection", group: "Edit", icon: Copy, shortcut: "⌘D", run: () => useEditorV2Store.getState().duplicateSelected() },
-  { id: "del", label: "Delete selection", group: "Edit", icon: Trash2, shortcut: "⌫", run: () => useEditorV2Store.getState().removeSelected() },
+  { id: "undo", label: "Undo", group: "Edit", icon: Undo2, shortcut: "âŒ˜Z", run: () => useEditorV2Store.temporal.getState().undo() },
+  { id: "redo", label: "Redo", group: "Edit", icon: Redo2, shortcut: "âŒ˜â‡§Z", run: () => useEditorV2Store.temporal.getState().redo() },
+  { id: "dup", label: "Duplicate selection", group: "Edit", icon: Copy, shortcut: "âŒ˜D", run: () => useEditorV2Store.getState().duplicateSelected() },
+  { id: "del", label: "Delete selection", group: "Edit", icon: Trash2, shortcut: "âŒ«", run: () => useEditorV2Store.getState().removeSelected() },
   {
     id: "swap-fill-stroke",
     label: "Swap fill and stroke",
@@ -395,18 +389,18 @@ export const commands: Command[] = [
   { id: "fit", label: "Fit label to screen", group: "View", icon: Maximize2, shortcut: "1", run: fitToScreen },
 
   // Label
-  { id: "label-50x30", label: "Set label size · 50 × 30 mm", group: "Label", icon: Square, run: () => setLabelSize(50, 30) },
-  { id: "label-40x12", label: "Set label size · 40 × 12 mm", group: "Label", icon: Square, run: () => setLabelSize(40, 12) },
-  { id: "label-40x30", label: "Set label size · 40 × 30 mm", group: "Label", icon: Square, run: () => setLabelSize(40, 30) },
-  { id: "label-70x40", label: "Set label size · 70 × 40 mm", group: "Label", icon: Square, run: () => setLabelSize(70, 40) },
-  { id: "label-50x50", label: "Set label size · 50 × 50 mm", group: "Label", icon: Square, run: () => setLabelSize(50, 50) },
+  { id: "label-50x30", label: "Set label size Â· 50 Ã— 30 mm", group: "Label", icon: Square, run: () => setLabelSize(50, 30) },
+  { id: "label-40x12", label: "Set label size Â· 40 Ã— 12 mm", group: "Label", icon: Square, run: () => setLabelSize(40, 12) },
+  { id: "label-40x30", label: "Set label size Â· 40 Ã— 30 mm", group: "Label", icon: Square, run: () => setLabelSize(40, 30) },
+  { id: "label-70x40", label: "Set label size Â· 70 Ã— 40 mm", group: "Label", icon: Square, run: () => setLabelSize(70, 40) },
+  { id: "label-50x50", label: "Set label size Â· 50 Ã— 50 mm", group: "Label", icon: Square, run: () => setLabelSize(50, 50) },
 
   // Print
-  { id: "print", label: "Print label", group: "Print", icon: Printer, shortcut: "⌘P", run: () => {} },
+  { id: "print", label: "Print label", group: "Print", icon: Printer, shortcut: "âŒ˜P", run: () => {} },
   { id: "print-settings", label: "Open print settings", group: "Print", icon: Settings, run: () => {} },
 
   // Templates
-  { id: "tpl-asset", label: "Template · Asset tag", group: "Templates", icon: LayoutTemplate, run: () => {} },
-  { id: "tpl-shipping", label: "Template · Shipping label", group: "Templates", icon: LayoutTemplate, run: () => {} },
-  { id: "tpl-price", label: "Template · Price tag", group: "Templates", icon: LayoutTemplate, run: () => {} },
+  { id: "tpl-asset", label: "Template Â· Asset tag", group: "Templates", icon: LayoutTemplate, run: () => {} },
+  { id: "tpl-shipping", label: "Template Â· Shipping label", group: "Templates", icon: LayoutTemplate, run: () => {} },
+  { id: "tpl-price", label: "Template Â· Price tag", group: "Templates", icon: LayoutTemplate, run: () => {} },
 ];

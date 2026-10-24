@@ -66,7 +66,9 @@ class WebBluetoothCharacteristic implements BleCharacteristic {
     this.handler = (e: Event) => {
       const target = e.target as BluetoothRemoteGATTCharacteristic;
       if (target.value) {
-        this.listener?.(new Uint8Array(target.value.buffer));
+        this.listener?.(
+          new Uint8Array(target.value.buffer, target.value.byteOffset, target.value.byteLength),
+        );
       }
     };
     this.char.addEventListener("characteristicvaluechanged", this.handler);
@@ -264,23 +266,17 @@ export class WebBluetoothTransport implements BleTransport {
     };
 
     if (typeof devAny.watchAdvertisements !== "function") {
-      debugLog("BLE", "watchAdvertisements not supported, waiting 3000ms for OS pairing settling...");
-      await new Promise((r) => setTimeout(r, 3000));
+      // Ideal: no artificial 3s stall. Windows pairing is already handled by the 6-attempt
+      // GATT retry loop in connect(). On macOS/Linux the link is ready instantly.
+      // A minimal 200ms settle covers GATT caching without blocking UX.
+      debugLog("BLE", "watchAdvertisements not supported, waiting 200ms for GATT settling...");
+      await new Promise((r) => setTimeout(r, 200));
       return;
     }
 
     return new Promise<void>((resolve) => {
       const abortController = new AbortController();
       let resolved = false;
-
-      const timer = setTimeout(() => {
-        if (!resolved) {
-          resolved = true;
-          abortController.abort();
-          debugLog("BLE", "device ready timeout, proceeding anyway...");
-          resolve();
-        }
-      }, timeout);
 
       const onAdv = () => {
         if (!resolved) {
@@ -292,19 +288,40 @@ export class WebBluetoothTransport implements BleTransport {
         }
       };
 
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          device.removeEventListener("advertisementreceived", onAdv);
+          abortController.abort();
+          debugLog("BLE", "device ready timeout, proceeding anyway...");
+          resolve();
+        }
+      }, timeout);
+
       device.addEventListener("advertisementreceived", onAdv, { once: true });
 
       debugLog("BLE", "watching advertisements for device ready...");
-      devAny
-        .watchAdvertisements?.({ signal: abortController.signal })
-        ?.catch((e: Error) => {
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timer);
-            debugLog("BLE", `watchAdvertisements ended: ${e.message}`);
-            resolve();
-          }
-        });
+      try {
+        devAny
+          .watchAdvertisements?.({ signal: abortController.signal })
+          ?.catch((e: Error) => {
+            if (!resolved) {
+              resolved = true;
+              clearTimeout(timer);
+              device.removeEventListener("advertisementreceived", onAdv);
+              debugLog("BLE", `watchAdvertisements ended: ${e.message}`);
+              resolve();
+            }
+          });
+      } catch (e) {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          device.removeEventListener("advertisementreceived", onAdv);
+          debugLog("BLE", `watchAdvertisements sync throw: ${e instanceof Error ? e.message : String(e)}`);
+          resolve();
+        }
+      }
     });
   }
 }
