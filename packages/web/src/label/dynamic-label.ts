@@ -149,6 +149,25 @@ export function isElementOffCanvas(
   );
 }
 
+/**
+ * Determines whether an element's bounding box extends beyond the printable canvas boundaries
+ * (either partially bleeding outside or completely parked off-canvas).
+ */
+export function isElementBleeding(
+  el: BaseElement,
+  labelWidthPx: number,
+  labelHeightPx: number,
+): boolean {
+  const b = getElementBounds(el);
+  const eps = 0.5;
+  return (
+    b.minX < -eps ||
+    b.maxX > labelWidthPx + eps ||
+    b.minY < -eps ||
+    b.maxY > labelHeightPx + eps
+  );
+}
+
 export interface DynamicFitResult {
   label: LabelSize;
   elements: BaseElement[];

@@ -20,3 +20,5 @@
   *Link: [image_inspector_and_vector_bayer_20261024](./tracks/image_inspector_and_vector_bayer_20261024/index.md)*
 - [x] **Track: Accurate Center on Label Alignment for Rotated Elements and Groups**
   *Link: [center_on_label_and_rotation_bounds_20261024](./tracks/center_on_label_and_rotation_bounds_20261024/index.md)*
+- [x] **Track: Bleed Ghost Indicators for Elements Exceeding Printable Canvas**
+  *Link: [bleed_ghost_indicators_20261024](./tracks/bleed_ghost_indicators_20261024/index.md)*

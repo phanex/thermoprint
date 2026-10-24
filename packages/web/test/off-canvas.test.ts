@@ -1,5 +1,10 @@
 import { describe, it, expect } from "bun:test";
-import { isElementOffCanvas, fitDynamicLabel, getElementBounds } from "../src/label/dynamic-label.ts";
+import {
+  isElementOffCanvas,
+  isElementBleeding,
+  fitDynamicLabel,
+  getElementBounds,
+} from "../src/label/dynamic-label.ts";
 import type { BaseElement, LabelSize } from "../src/store/editor-store.ts";
 import { mmToPx } from "@thermoprint/core";
 
@@ -119,6 +124,107 @@ describe("Off-Canvas Element Detection (isElementOffCanvas)", () => {
     const b = getElementBounds(elRot);
     expect(b.maxX).toBeLessThanOrEqual(0);
     expect(isElementOffCanvas(elRot, canvasW, canvasH)).toBe(true);
+  });
+});
+
+describe("Bleed Element Detection (isElementBleeding)", () => {
+  const canvasW = 320;
+  const canvasH = 96;
+
+  it("returns false for elements completely inside printable canvas", () => {
+    const el: BaseElement = {
+      id: "el-inside",
+      type: "rect",
+      x: 10,
+      y: 10,
+      width: 100,
+      height: 40,
+      rotation: 0,
+      props: {},
+    };
+    expect(isElementBleeding(el, canvasW, canvasH)).toBe(false);
+  });
+
+  it("returns true for elements partially sticking out left/right/top/bottom", () => {
+    // Bleeding left
+    const elLeft: BaseElement = {
+      id: "bleed-left",
+      type: "rect",
+      x: -20,
+      y: 10,
+      width: 80,
+      height: 40,
+      rotation: 0,
+      props: {},
+    };
+    expect(isElementBleeding(elLeft, canvasW, canvasH)).toBe(true);
+
+    // Bleeding right
+    const elRight: BaseElement = {
+      id: "bleed-right",
+      type: "rect",
+      x: 280,
+      y: 10,
+      width: 80,
+      height: 40,
+      rotation: 0,
+      props: {},
+    };
+    expect(isElementBleeding(elRight, canvasW, canvasH)).toBe(true);
+
+    // Bleeding top
+    const elTop: BaseElement = {
+      id: "bleed-top",
+      type: "rect",
+      x: 50,
+      y: -10,
+      width: 80,
+      height: 40,
+      rotation: 0,
+      props: {},
+    };
+    expect(isElementBleeding(elTop, canvasW, canvasH)).toBe(true);
+
+    // Bleeding bottom
+    const elBottom: BaseElement = {
+      id: "bleed-bottom",
+      type: "rect",
+      x: 50,
+      y: 80,
+      width: 80,
+      height: 40,
+      rotation: 0,
+      props: {},
+    };
+    expect(isElementBleeding(elBottom, canvasW, canvasH)).toBe(true);
+  });
+
+  it("detects bleeding accurately for rotated lines and diagonal elements", () => {
+    const diagLine: BaseElement = {
+      id: "diag-line",
+      type: "line",
+      x: 100,
+      y: 50,
+      width: 400,
+      height: 0,
+      rotation: 45,
+      props: {},
+    };
+    expect(isElementBleeding(diagLine, canvasW, canvasH)).toBe(true);
+  });
+
+  it("returns true for elements parked completely off-canvas", () => {
+    const elOff: BaseElement = {
+      id: "parked-off",
+      type: "text",
+      x: -150,
+      y: -50,
+      width: 80,
+      height: 30,
+      rotation: 0,
+      props: {},
+    };
+    expect(isElementBleeding(elOff, canvasW, canvasH)).toBe(true);
   });
 });
 

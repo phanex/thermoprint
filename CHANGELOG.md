@@ -6,6 +6,13 @@ All notable changes and improvements in this fork of **Thermoprint**.
 
 ## [Unreleased]
 
+### 🎨 UI & Theme Alignment
+- **Bleed Ghost Indicators for Elements Exceeding Printable Canvas Boundaries (`off-canvas-ghost.tsx`, `dynamic-label.ts`)**:
+  - **Inverse Non-Zero Winding Clip**: Implemented an inverse clip on `<Group id="canvas-off-screen-ghosts">` that strictly excludes the white printable label hole (supporting both continuous rectangular and gap rounded-corner tape geometries) while covering the infinite workspace.
+  - **Seamless Bleed Outlines**: When any element (line, rect, text, image, icon, qr, barcode) extends beyond the printable boundaries, its cropped exterior is immediately visualized with a crisp amber dashed outline (`#f59e0b`, `dash: [4, 4]`) and subtle tint (`rgba(245, 158, 11, 0.08)`).
+  - **Pristine Printable Paper Parity**: The white printable label canvas remains 100% clean and free of dashed bleed lines. Ghost overlays continue to be completely suppressed during physical thermal printing, thumbnail capture, and 1-bit raster previews via `captureLabel`.
+
+
 ### 🐛 Bug Fixes
 - **Accurate "Center on Label" & Alignment for Rotated Elements & Multi-Selection (`dynamic-label.ts`, `transform-section.tsx`, `multi-transform-section.tsx`, `commands.ts`)**:
   - **Single Source of Truth (`calculateCenterOnLabelPatches` & `getSelectionBounds`)**: Created unified geometry helpers in `dynamic-label.ts` that compute oriented bounding boxes using `getElementBounds(el)` for any rotation angle (0°, 15°, 45°, 90°, 180°, 270°).

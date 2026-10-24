@@ -1,6 +1,6 @@
 import { Group, Rect, Line } from "react-konva";
 import { useEditorV2Store } from "../../store/editor-store.ts";
-import { isElementOffCanvas } from "../../label/dynamic-label.ts";
+import { isElementBleeding } from "../../label/dynamic-label.ts";
 import { useElementDrag } from "./use-element-drag.ts";
 import type { BaseElement } from "../../store/editor-store.ts";
 
@@ -78,22 +78,57 @@ function OffCanvasGhostItem({ element }: { element: BaseElement }) {
 }
 
 /**
- * Renders dashed amber ghost boxes for elements completely outside the printable canvas bounds.
- * Enables direct click-to-select and drag-to-move recovery back onto the printable label.
+ * Renders dashed amber ghost boxes for elements extending beyond the printable canvas bounds
+ * (either bleeding partially outside or parked completely off-canvas).
+ *
+ * Uses an inverse non-zero winding clip to strictly exclude the printable label interior,
+ * guaranteeing the white label remains 100% pristine while showing clear amber warning outlines
+ * in the workspace for all bleeding or parked content.
  */
 export function OffCanvasGhostOverlay() {
   const elements = useEditorV2Store((s) => s.elements);
   const label = useEditorV2Store((s) => s.label);
+  const paperType = useEditorV2Store((s) => s.paperType);
 
-  const offCanvasElements = elements.filter((el) =>
-    isElementOffCanvas(el, label.widthPx, label.heightPx),
+  const bleedingElements = elements.filter((el) =>
+    isElementBleeding(el, label.widthPx, label.heightPx),
   );
 
-  if (offCanvasElements.length === 0) return null;
+  if (bleedingElements.length === 0) return null;
 
   return (
-    <Group id="canvas-off-screen-ghosts">
-      {offCanvasElements.map((el) => (
+    <Group
+      id="canvas-off-screen-ghosts"
+      clipFunc={(ctx) => {
+        const w = label.widthPx;
+        const h = label.heightPx;
+        ctx.beginPath();
+        // 1. Outer boundary box covering entire canvas/workspace (clockwise)
+        ctx.rect(-100000, -100000, 200000, 200000);
+
+        // 2. Inner hole for the printable label (counter-clockwise)
+        if (paperType === "continuous") {
+          ctx.moveTo(w, 0);
+          ctx.lineTo(0, 0);
+          ctx.lineTo(0, h);
+          ctx.lineTo(w, h);
+          ctx.closePath();
+        } else {
+          const r = Math.min(10, w / 2, h / 2);
+          ctx.moveTo(w - r, 0);
+          ctx.lineTo(r, 0);
+          ctx.arcTo(0, 0, 0, r, r);
+          ctx.lineTo(0, h - r);
+          ctx.arcTo(0, h, r, h, r);
+          ctx.lineTo(w - r, h);
+          ctx.arcTo(w, h, w, h - r, r);
+          ctx.lineTo(w, r);
+          ctx.arcTo(w, 0, w - r, 0, r);
+          ctx.closePath();
+        }
+      }}
+    >
+      {bleedingElements.map((el) => (
         <OffCanvasGhostItem key={`ghost-${el.id}`} element={el} />
       ))}
     </Group>
