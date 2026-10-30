@@ -18,6 +18,9 @@ All notable changes and improvements in this fork of **Thermoprint**.
 
 
 ### 🐛 Bug Fixes
+- **UTF-8 Encoding & Mojibake Resolution (`transform-section.tsx`, `commands.ts`)**:
+  - Restored clean degree symbol `°` in inspector transform section (`suffix="°"`), eliminating double-encoded `Â°` mojibake.
+  - Restored Mac keyboard shortcut glyphs (`⌘`, `⇧`, `⌫`), dimension multipliers (`×`), and bullet delimiters (`·`) in command palette items and shortcuts.
 - **Accurate "Center on Label" & Alignment for Rotated Elements & Multi-Selection (`dynamic-label.ts`, `transform-section.tsx`, `multi-transform-section.tsx`, `commands.ts`)**:
   - **Single Source of Truth (`calculateCenterOnLabelPatches` & `getSelectionBounds`)**: Created unified geometry helpers in `dynamic-label.ts` that compute oriented bounding boxes using `getElementBounds(el)` for any rotation angle (0°, 15°, 45°, 90°, 180°, 270°).
   - **Fixed Single Element Centering in Command Palette**: Resolved bug in `commands.ts:centerOnLabel` where raw unrotated width and height were used (`(label.widthPx - el.width) / 2`), causing 90° rotated elements to fly off-center.

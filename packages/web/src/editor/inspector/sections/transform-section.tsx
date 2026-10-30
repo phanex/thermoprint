@@ -124,7 +124,7 @@ export function TransformSection({ element }: Props) {
       </div>
       <div className="grid grid-cols-2 gap-1.5 mt-1.5">
         <Field label="Rot" mono>
-          <NumInput value={element.rotation} onChange={rotateAroundCenter} suffix="Â°" />
+          <NumInput value={element.rotation} onChange={rotateAroundCenter} suffix="°" />
         </Field>
         <div className="flex items-center gap-1">
           <button

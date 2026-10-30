@@ -284,10 +284,10 @@ export const commands: Command[] = [
   { id: "add-icon", label: "Add icon", group: "Insert", icon: Sticker, shortcut: "C", run: () => window.dispatchEvent(new CustomEvent("thermoprint:open-icons")) },
 
   // Edit
-  { id: "undo", label: "Undo", group: "Edit", icon: Undo2, shortcut: "âŒ˜Z", run: () => useEditorV2Store.temporal.getState().undo() },
-  { id: "redo", label: "Redo", group: "Edit", icon: Redo2, shortcut: "âŒ˜â‡§Z", run: () => useEditorV2Store.temporal.getState().redo() },
-  { id: "dup", label: "Duplicate selection", group: "Edit", icon: Copy, shortcut: "âŒ˜D", run: () => useEditorV2Store.getState().duplicateSelected() },
-  { id: "del", label: "Delete selection", group: "Edit", icon: Trash2, shortcut: "âŒ«", run: () => useEditorV2Store.getState().removeSelected() },
+  { id: "undo", label: "Undo", group: "Edit", icon: Undo2, shortcut: "⌘Z", run: () => useEditorV2Store.temporal.getState().undo() },
+  { id: "redo", label: "Redo", group: "Edit", icon: Redo2, shortcut: "⌘⇧Z", run: () => useEditorV2Store.temporal.getState().redo() },
+  { id: "dup", label: "Duplicate selection", group: "Edit", icon: Copy, shortcut: "⌘D", run: () => useEditorV2Store.getState().duplicateSelected() },
+  { id: "del", label: "Delete selection", group: "Edit", icon: Trash2, shortcut: "⌫", run: () => useEditorV2Store.getState().removeSelected() },
   {
     id: "swap-fill-stroke",
     label: "Swap fill and stroke",
@@ -389,18 +389,18 @@ export const commands: Command[] = [
   { id: "fit", label: "Fit label to screen", group: "View", icon: Maximize2, shortcut: "1", run: fitToScreen },
 
   // Label
-  { id: "label-50x30", label: "Set label size Â· 50 Ã— 30 mm", group: "Label", icon: Square, run: () => setLabelSize(50, 30) },
-  { id: "label-40x12", label: "Set label size Â· 40 Ã— 12 mm", group: "Label", icon: Square, run: () => setLabelSize(40, 12) },
-  { id: "label-40x30", label: "Set label size Â· 40 Ã— 30 mm", group: "Label", icon: Square, run: () => setLabelSize(40, 30) },
-  { id: "label-70x40", label: "Set label size Â· 70 Ã— 40 mm", group: "Label", icon: Square, run: () => setLabelSize(70, 40) },
-  { id: "label-50x50", label: "Set label size Â· 50 Ã— 50 mm", group: "Label", icon: Square, run: () => setLabelSize(50, 50) },
+  { id: "label-50x30", label: "Set label size · 50 × 30 mm", group: "Label", icon: Square, run: () => setLabelSize(50, 30) },
+  { id: "label-40x12", label: "Set label size · 40 × 12 mm", group: "Label", icon: Square, run: () => setLabelSize(40, 12) },
+  { id: "label-40x30", label: "Set label size · 40 × 30 mm", group: "Label", icon: Square, run: () => setLabelSize(40, 30) },
+  { id: "label-70x40", label: "Set label size · 70 × 40 mm", group: "Label", icon: Square, run: () => setLabelSize(70, 40) },
+  { id: "label-50x50", label: "Set label size · 50 × 50 mm", group: "Label", icon: Square, run: () => setLabelSize(50, 50) },
 
   // Print
-  { id: "print", label: "Print label", group: "Print", icon: Printer, shortcut: "âŒ˜P", run: () => {} },
+  { id: "print", label: "Print label", group: "Print", icon: Printer, shortcut: "⌘P", run: () => {} },
   { id: "print-settings", label: "Open print settings", group: "Print", icon: Settings, run: () => {} },
 
   // Templates
-  { id: "tpl-asset", label: "Template Â· Asset tag", group: "Templates", icon: LayoutTemplate, run: () => {} },
-  { id: "tpl-shipping", label: "Template Â· Shipping label", group: "Templates", icon: LayoutTemplate, run: () => {} },
-  { id: "tpl-price", label: "Template Â· Price tag", group: "Templates", icon: LayoutTemplate, run: () => {} },
+  { id: "tpl-asset", label: "Template · Asset tag", group: "Templates", icon: LayoutTemplate, run: () => {} },
+  { id: "tpl-shipping", label: "Template · Shipping label", group: "Templates", icon: LayoutTemplate, run: () => {} },
+  { id: "tpl-price", label: "Template · Price tag", group: "Templates", icon: LayoutTemplate, run: () => {} },
 ];
