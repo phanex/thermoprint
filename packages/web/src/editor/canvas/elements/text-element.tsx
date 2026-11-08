@@ -96,11 +96,18 @@ export function TextElement({ element, isSelected }: Props) {
       let nextW = element.width;
       let nextH = Math.max(minH, Math.ceil(n.height()));
       if (p.autoWidth !== false) {
-        const measured = (n as any).measureSize(displayText);
-        if (measured && typeof measured.width === "number") {
-          nextW = Math.max(20, Math.ceil(measured.width));
-          nextH = Math.max(minH, Math.ceil(measured.height));
+        const lines = displayText.split("\n");
+        let maxW = 0;
+        for (const line of lines) {
+          const measured = (n as any).measureSize(line);
+          let w = measured && typeof measured.width === "number" ? measured.width : 0;
+          if (p.letterSpacing && line.length > 1) {
+            w += (line.length - 1) * p.letterSpacing;
+          }
+          if (w > maxW) maxW = w;
         }
+        nextW = Math.max(20, Math.ceil(maxW));
+        nextH = Math.max(minH, Math.ceil(n.height()));
       }
       const wChanged = Math.abs(nextW - widthRef.current) > 0.5;
       const hChanged = Math.abs(nextH - heightRef.current) > 0.5;

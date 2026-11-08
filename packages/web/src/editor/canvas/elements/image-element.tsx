@@ -82,12 +82,39 @@ export function ImageElement({ element, isSelected }: Props) {
     }
   }, [image, flipH, flipV, p.invert]);
 
+  // Synchronize transformer selection when image finishes loading
+  useEffect(() => {
+    if (!displayImage || !ref.current) return;
+    const stage = ref.current.getStage();
+    if (!stage) return;
+    const transformers = stage.find("Transformer") as Konva.Transformer[];
+    if (transformers && transformers.length > 0) {
+      for (const tr of transformers) {
+        const trNode = tr.nodes()[0];
+        if (
+          !trNode ||
+          !trNode.getStage() ||
+          trNode.id() === element.id ||
+          trNode === ref.current
+        ) {
+          const selectedIds = useEditorV2Store.getState().selectedIds;
+          if (selectedIds.includes(element.id)) {
+            tr.nodes([ref.current]);
+            (ref.current as unknown as { _transformer?: Konva.Transformer })._transformer = tr;
+            tr.forceUpdate();
+            ref.current.getLayer()?.batchDraw();
+            break;
+          }
+        }
+      }
+    }
+  }, [displayImage, element.id]);
+
   if (!displayImage) {
     return (
       <>
         <Group
           ref={ref as unknown as React.RefObject<Konva.Group>}
-          id={element.id}
           x={element.x}
           y={element.y}
           rotation={element.rotation}

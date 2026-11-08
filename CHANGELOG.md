@@ -6,6 +6,14 @@ All notable changes and improvements in this fork of **Thermoprint**.
 
 ## [Unreleased]
 
+### 🐛 Bug Fixes
+- **Multiline Text Selection Box Width Calculation (`text-element.tsx`)**:
+  - **Root Cause**: `TextElement` used `(n as any).measureSize(displayText)` which delegates directly to HTML5 Canvas `ctx.measureText(text)`. Canvas `measureText` does not interpret newline characters (`\n`), concatenating all lines and measuring them as a single continuous line. This caused the selection transformer and element width to stretch horizontally across the sum of all lines, while height correctly wrapped into multiple lines.
+  - **Resolution**: Updated `refreshLayout` to split `displayText` by `\n` and measure each individual line with letter spacing support (`measureSize(line).width + (line.length - 1) * letterSpacing`), taking the maximum width across all lines (`maxW`) and preserving true multiline height (`n.height()`).
+- **Selection Transformer Collapsing on Image & Icon Import (`image-element.tsx`)**:
+  - **Root Cause**: When adding an image or icon, `ImageElement` initially rendered a placeholder `<Group id={element.id}>` while the image decoded asynchronously. The canvas selection overlay immediately bound its Konva `Transformer` to this temporary `<Group>`. Once decoding finished (`img.onload`), the component replaced the `<Group>` with `<KonvaImage id={element.id}>`, leaving the transformer attached to a destroyed node and causing its bounding box and handles to collapse into `(0, 0)`.
+  - **Resolution**: Removed `id={element.id}` from the temporary placeholder `<Group>` so `ElementWrapper`'s `requestAnimationFrame` loop waits for the true `<KonvaImage>` node to mount. Added a synchronized `useEffect` hook in `ImageElement` that actively re-binds and forces an update on the stage transformer (`tr.nodes([ref.current])`, `tr.forceUpdate()`) whenever `displayImage` finishes loading.
+
 ### 🎨 UI & Theme Alignment
 - **Ultra-Compact Rulers (22px) & Tick Alignment (`canvas.tsx`)**:
   - **Slim 22px Profile**: Reduced ruler width and height from 32px (`w-8`/`h-8`) to 22px (`w-[22px]`/`h-[22px]`), recovering 31% screen real estate around the canvas workspace.
